@@ -9,19 +9,33 @@ from app.services.ai_engine import ai_engine
 
 async def test_narrative_flow():
     async with AsyncSessionLocal() as session:
-        # Simulate a user action
-        result = await user_service.process_action(session, "Utest123", "Run 5km")
+        import time
         
-        print(f"--- Process Result ---")
-        print(f"Attribute: {result.attribute}")
-        print(f"XP: {result.xp_gained}")
-        print(f"Narrative: {result.narrative}")
-        print(f"Has Loot: {result.loot_name}")
+        # Test 1: Fast Mode (Short Keyword)
+        t0 = time.time()
+        res_fast = await user_service.process_action(session, "Utest123", "Gym")
+        t_fast = (time.time() - t0) * 1000
+        print(f"\n[FAST MODE] Input: 'Gym' | Time: {t_fast:.2f}ms")
+        print(f"Narrative: {res_fast.narrative}")
+        print(f"Loot: {res_fast.loot_name} (Should be None for Fast Mode usually)")
+        print(f"Streak: {res_fast.streak_count}")
         
-        if result.narrative:
-            print("SUCCESS: Narrative field is populated.")
+        if "System 1" in res_fast.narrative:
+            print("✅ Fast Mode Triggered")
         else:
-            print("FAILURE: Narrative field is None.")
+            print("❌ Fast Mode FAILED")
+
+        # Test 2: Slow Mode (Long Context)
+        t0 = time.time()
+        res_slow = await user_service.process_action(session, "Utest123", "I ran a marathon in the rain and felt amazing")
+        t_slow = (time.time() - t0) * 1000
+        print(f"\n[SLOW MODE] Input: 'Marathon...' | Time: {t_slow:.2f}ms")
+        print(f"Narrative: {res_slow.narrative}")
+        
+        if "System 1" not in res_slow.narrative:
+             print("✅ Slow Mode Triggered (AI Content)")
+        else:
+             print("❌ Slow Mode FAILED (Got Fast Response)")
 
 if __name__ == "__main__":
     asyncio.run(test_narrative_flow())

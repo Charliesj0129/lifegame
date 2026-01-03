@@ -34,9 +34,29 @@ class UserService:
         # 1. Get User
         user = await self.get_or_create_user(session, line_user_id)
         
-        # 2. AI Analysis
+        # 2. Fast/Slow Router (System 1 vs System 2)
         t_ai_start = time.time()
-        ai_result = await ai_engine.analyze_action(text)
+        
+        # Fast Mode Criteria
+        is_fast_mode = False
+        ai_result = {}
+        
+        normalized_text = text.lower().strip()
+        if len(text) < 15:
+            if any(k in normalized_text for k in ["gym", "run", "lift", "workout", "str"]):
+                ai_result = {"stat_type": "STR", "difficulty_tier": "C", "narrative": "⚡ [System 1] Muscle fiber damage detected. Growth initiated.", "loot_drop": {"has_loot": False}}
+                is_fast_mode = True
+            elif any(k in normalized_text for k in ["study", "code", "read", "learn", "int"]):
+                ai_result = {"stat_type": "INT", "difficulty_tier": "C", "narrative": "⚡ [System 1] Neural pathways reinforced. Synapse firing rate up.", "loot_drop": {"has_loot": False}}
+                is_fast_mode = True
+            elif any(k in normalized_text for k in ["sleep", "eat", "rest", "food", "vit"]):
+                ai_result = {"stat_type": "VIT", "difficulty_tier": "D", "narrative": "⚡ [System 1] Biological systems repairing. Homeostasis restoring.", "loot_drop": {"has_loot": False}}
+                is_fast_mode = True
+                
+        if not is_fast_mode:
+             # Slow Mode (Deep Thought)
+             ai_result = await ai_engine.analyze_action(text)
+             
         t_ai_end = time.time()
         
         attribute = ai_result.get("stat_type", "VIT")
@@ -110,6 +130,14 @@ class UserService:
         if user.level > old_level:
             msg += f"\n🎉 LEVEL UP! You are now Lv.{user.level}!"
             
+        
+        # Determine Title
+        title = "Street Rat"
+        if user.level >= 5: title = "Runner"
+        if user.level >= 10: title = "Street Samurai"
+        if user.level >= 20: title = "Cyberlegend"
+        if user.streak_count >= 3: title = f"🔥 {title}"
+
         return ProcessResult(
             text=msg,
             user_id=user.id,
@@ -124,7 +152,9 @@ class UserService:
             current_attributes={
                 "STR": user.str, "INT": user.int, "VIT": user.vit, "WIS": user.wis, "CHA": user.cha
             },
-            current_xp=user.xp or 0
+            current_xp=user.xp or 0,
+            streak_count=user.streak_count,
+            user_title=title
         )
 
 user_service = UserService()
