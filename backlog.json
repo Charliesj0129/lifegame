@@ -1,0 +1,78 @@
+{
+  "project": {
+    "name": "Life Gamification Agent",
+    "version": "0.1.0",
+    "repository": "lifgame"
+  },
+  "milestones": [
+    {
+      "id": "M1",
+      "name": "Skeleton & Connectivity",
+      "goal": "Verify system can receive messages and persist data.",
+      "exit_criteria": [
+        "FastAPI /health endpoint returns 200",
+        "Line/Telegram webhook receives and logs events",
+        "DB schema applied"
+      ]
+    },
+    {
+      "id": "M2",
+      "name": "Core Gamification Loop",
+      "goal": "Implement the Accountant and Validator logic.",
+      "exit_criteria": [
+        "User actions generate correct XP/Loot",
+        "Level up logic verified via unit tests"
+      ]
+    }
+  ],
+  "tickets": [
+    {
+      "id": "T-001",
+      "type": "chore",
+      "title": "Project Setup & Infrastructure",
+      "description": "Initialize FastAPI project, Dockerfile, and pre-commit hooks.",
+      "acceptance_criteria": [
+        "Running `docker compose up` starts API and DB",
+        "Linter passes"
+      ],
+      "priority": "P0",
+      "estimate": "S",
+      "dependencies": [],
+      "risk": "low",
+      "owner_role": "backend",
+      "test_plan": ["Run docker compose up", "Access localhost:8000/docs"]
+    },
+    {
+      "id": "T-002",
+      "type": "feature",
+      "title": "Database Schema Design (v1)",
+      "description": "Define Users, Actions, Logs, and Inventory tables using SQLAlchemy.",
+      "acceptance_criteria": [
+        "Alembic migrations created",
+        "Tables created in local Postgres"
+      ],
+      "priority": "P0",
+      "estimate": "M",
+      "dependencies": ["T-001"],
+      "risk": "low",
+      "owner_role": "backend",
+      "test_plan": ["Run alembic upgrade head", "Inspect tables in psql"]
+    },
+    {
+      "id": "T-003",
+      "type": "spike",
+      "title": "Line Bot vs Telegram Webhook Prototype",
+      "description": "Create a minimal echo bot to verify webhook latency and payload structure.",
+      "acceptance_criteria": [
+        "Bot parses text message",
+        "Bot matches user ID to internal User table (mock)"
+      ],
+      "priority": "P1",
+      "estimate": "S",
+      "dependencies": ["T-001"],
+      "risk": "med",
+      "owner_role": "backend",
+      "test_plan": ["Send 'ping' to bot", "Receive 'pong'"]
+    }
+  ]
+}
