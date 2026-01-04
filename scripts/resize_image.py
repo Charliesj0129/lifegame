@@ -1,17 +1,29 @@
 from PIL import Image
-import os
+import sys
+import glob
 
-path = "assets/rich_menu.png"
-if os.path.exists(path):
-    img = Image.open(path)
-    print(f"Original size: {img.size}")
-    # Resize to standard full size 2500x1686
-    # Note: If aspect ratio is different, this might stretch.
-    # Ideally we crop or paste into center, but stretching is fine for now to fix the error.
-    new_img = img.resize((2500, 1686), Image.Resampling.LANCZOS)
-    # Convert to RGB (remove alpha) for JPEG
-    rgb_img = new_img.convert('RGB')
-    rgb_img.save("assets/rich_menu.jpg", optimize=True, quality=85)
-    print(f"Resized and saved as JPEG: {rgb_img.size}")
-else:
-    print("Image not found")
+def resize_images(pattern, width=2500, height=1686):
+    files = glob.glob(pattern)
+    if not files:
+        print(f"No files found for {pattern}")
+        return
+
+    for f in files:
+        try:
+            img = Image.open(f)
+            # Resize
+            img = img.resize((width, height), Image.Resampling.LANCZOS)
+            # Convert to RGB (remove alpha)
+            rgb_img = img.convert('RGB')
+            # Save as JPEG with quality control
+            new_filename = f.rsplit('.', 1)[0] + ".jpg"
+            rgb_img.save(new_filename, "JPEG", optimize=True, quality=70)
+            print(f"✅ Resized & Compressed {f} -> {new_filename}")
+        except Exception as e:
+            print(f"❌ Failed to resize {f}: {e}")
+
+if __name__ == "__main__":
+    import sys
+    # Pattern
+    pattern = sys.argv[1]
+    resize_images(pattern)

@@ -31,7 +31,7 @@ async def test_webhook_flow():
 async def test_ai_integration():
     # Verify AI Engine calls Gemini
     with patch("google.generativeai.GenerativeModel.generate_content_async", new_callable=AsyncMock) as mock_gen:
-        mock_gen.return_value.text = "Hero, you gained +5 STR!"
+        mock_gen.return_value.text = '{"text": "Hero, you gained +5 STR!"}'
         
         from app.services.ai_engine import ai_engine
         # Force init since we might not have env vars set in real env
@@ -40,7 +40,7 @@ async def test_ai_integration():
         ai_engine.model = MagicMock()
         ai_engine.model.generate_content_async = mock_gen
         
-        response = await ai_engine.generate_response("I did 50 pushups")
+        response = await ai_engine.generate_json("sys", "user")
         
-        assert response == "Hero, you gained +5 STR!"
+        assert response == {"text": "Hero, you gained +5 STR!"}
         mock_gen.assert_awaited_once()

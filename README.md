@@ -14,17 +14,24 @@
 -   **Reasoning Model**: Uses advanced models (`gemini-2.0-flash-thinking`) to determine difficulty tiers (E to S rank).
 -   **Cyberpunk Persona**: Responses are immersive, styled as a futuristic OS interface.
 
-### 🎮 Gamification Mechanics
+### 🎮 Gamification Mechanics (Phase 1 & 2)
 -   **🔥 Visual Streaks**: Tracks consecutive daily activity with immediate visual feedback.
 -   **🪪 Identity Titles**: Evolve from "Runner" to "Street Samurai" as you level up.
 -   **⚔️ Difficulty Scaling**: Harder tasks grant exponentially more XP.
 -   **🎁 Loot System**: 20% chance to drop "Cyberware" or "Buffs" (e.g., *Synaptic Booster*, *Small XP Potion*) on action logs.
+-   **🎧 Audio Feedback**: Immersive SFX for events like Level Up (`Phase 2`).
+
+### 💀 The Nemesis System (Phase 3)
+-   **🐍 Rival AI (Viper)**: An intelligent antagonist that tracks your progress.
+-   **💸 Active Theft**: If you are inactive (>1 day), Viper **steals 5% of your XP and Gold** daily.
+-   **🦠 System Sabotage**: If Viper outlevels you, he uploads "Viruses" (Debuffs) that reduce your stats (e.g., STR -20%).
+-   **🔒 Boss Battles (The Firewall)**: If you fall too far behind (Viper Lv > Your Lv + 2), Daily Quests are LOCKED. You must complete a single, grueling **"Boss Quest"** (S-Tier) to regain control.
 
 ### 🛠 Technical Architecture
 -   **Backend**: Python (FastAPI) + Uvicorn.
 -   **Database**: PostgreSQL / SQLite (Async SQLAlchemy).
 -   **AI Provider**: OpenRouter (OpenAI Compatible) / Google Gemini API.
--   **Messaging**: Line Messaging API (Flex Messages).
+-   **Messaging**: Line Messaging API (Flex Messages) + Rich Menus.
 -   **Cloud**: Optimized for Azure App Service (Linux Web App).
 
 ---
@@ -81,9 +88,7 @@ This project is tuned for **Azure App Service (Linux, Free Tier)**.
 -   **Startup Migration**: Automatically patches database schema on container startup.
 
 ### Deploy Command
-```bash
-az webapp up --runtime "PYTHON:3.10" --sku F1 --name <your-app-name>
-```
+See `deploy_azure.sh` for the full automated script.
 
 ---
 
@@ -95,10 +100,11 @@ lifgame/
 │   ├── api/            # Webhook & API Endpoints
 │   ├── core/           # Config & Database logic
 │   ├── models/         # SQLAlchemy Tables (User, Items, Streaks)
-│   ├── services/       # Business Logic (AI, Accountant, Inventory)
+│   ├── services/       # Business Logic (AI, Accountant, Inventory, Rival)
 │   └── schemas/        # Pydantic Models
 ├── doc/
-│   └── rules_of_the_world.md # The "Bible" for the AI's logic
+│   ├── rules_of_the_world.md # The "Bible" for the AI's logic
+│   └── PLAYER_GUIDE.md       # Interactive Tutorial & Features
 ├── scripts/
 │   └── setup_rich_menu.py # Line Rich Menu Uploader
 └── main.py             # Entry point

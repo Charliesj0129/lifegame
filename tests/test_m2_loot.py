@@ -95,6 +95,6 @@ async def test_status_card_rendering():
     user = User(id="u_stat", name="Hero", level=5, str=10, int=5, vit=5, wis=5, cha=5, gold=100)
     
     msg = flex_renderer.render_status(user)
-    assert msg.alt_text.startswith("Status:")
+    assert msg.alt_text.startswith("Tactical OS:")
     # Verify Pydantic serialization works (no validation errors)
     assert msg.contents.to_dict() is not None

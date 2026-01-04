@@ -1,0 +1,15 @@
+fastapi
+uvicorn
+gunicorn
+line-bot-sdk
+sqlalchemy
+asyncpg
+pydantic
+pydantic-settings
+pyyaml
+aiofiles
+google-generativeai
+python-dotenv
+requests
+jinja2
+alembic

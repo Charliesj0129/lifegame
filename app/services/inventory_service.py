@@ -42,14 +42,15 @@ class InventoryService:
         if not item or not item.effect_meta:
             return f"{item.name if item else 'Item'} cannot be used."
 
-        meta = item.effect_meta
+        meta = item.effect_meta or {}
+        effect = meta.get("effect")
         # {"buff": "INT", "multiplier": 1.2, "duration_minutes": 60}
         
-        if "buff" in meta:
+        if "buff" in meta or effect == "buff_multiplier":
             # Create Buff
             duration = meta.get("duration_minutes", 60)
             multiplier = meta.get("multiplier", 1.1)
-            target = meta.get("buff", "ALL")
+            target = meta.get("buff") or meta.get("attribute") or meta.get("target_attribute") or "ALL"
             
             expires = datetime.now() + timedelta(minutes=duration)
             
@@ -63,12 +64,30 @@ class InventoryService:
             
             # Consume
             user_item.quantity -= 1
-            if user_item.quantity == 0:
+            if user_item.quantity <= 0:
                 await session.delete(user_item) # Remove 0 quantity rows?
             
             await session.commit()
             return f"Used {item.name}! applied {multiplier}x {target} Boost for {duration}m."
-        else:
-             return f"Used {item.name}, but nothing happened?"
+
+        if effect == "grant_xp":
+            amount = int(meta.get("amount", 0))
+            if amount <= 0:
+                return f"Used {item.name}, but nothing happened?"
+
+            user = await session.get(User, user_id)
+            if not user:
+                return "User not found."
+
+            user.xp = (user.xp or 0) + amount
+
+            user_item.quantity -= 1
+            if user_item.quantity <= 0:
+                await session.delete(user_item)
+
+            await session.commit()
+            return f"Used {item.name}! +{amount} XP."
+
+        return f"Used {item.name}, but nothing happened?"
 
 inventory_service = InventoryService()

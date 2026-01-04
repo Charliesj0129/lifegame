@@ -115,5 +115,50 @@ Output Schema:
                 "feedback_tone": "WARNING"
             }
 
+    async def generate_json(self, system_prompt: str, user_prompt: str) -> dict:
+        """
+        Generic method to generate JSON from AI.
+        Supports both OpenRouter (Native JSON) and Google (Markdown parsing).
+        """
+        import json
+        import time
+        start = time.time()
+        
+        try:
+            content = ""
+            if self.provider == "openrouter":
+                completion = await self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    response_format={"type": "json_object"}
+                )
+                content = completion.choices[0].message.content
+            
+            elif self.provider == "google":
+                # Force JSON in prompt for legacy Google models
+                full_prompt = f"{system_prompt}\n\nUSER INPUT: {user_prompt}\n\nIMPORTANT: OUTPUT JSON ONLY."
+                response = await self.model.generate_content_async(full_prompt)
+                content = response.text
+            else:
+                 return {"error": "AI_OFFLINE"}
+
+            elapsed = (time.time() - start) * 1000
+            print(f"AI_GEN_LATENCY: {elapsed:.2f}ms | {self.model}")
+            
+            # Clean Markdown
+            if "```json" in content:
+                content = content.replace("```json", "").replace("```", "")
+            elif "```" in content:
+                content = content.replace("```", "")
+            
+            return json.loads(content)
+
+        except Exception as e:
+            logger.error(f"AI JSON Gen Failed: {e}")
+            return {"error": str(e)}
+
 # Global instance
 ai_engine = AIEngine()

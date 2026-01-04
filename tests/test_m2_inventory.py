@@ -42,6 +42,58 @@ async def test_use_item_applies_buff(db_session):
     assert user_item.quantity == 1
 
 @pytest.mark.asyncio
+async def test_use_item_buff_multiplier_schema(db_session):
+    user = User(id="u_inv_schema", name="Tester")
+    db_session.add(user)
+    
+    item = Item(
+        id="POT_FOCUS",
+        name="Focus Potion",
+        type=ItemType.CONSUMABLE,
+        effect_meta={"effect": "buff_multiplier", "attribute": "INT", "multiplier": 1.5, "duration_minutes": 45}
+    )
+    db_session.add(item)
+    
+    user_item = UserItem(user_id=user.id, item_id=item.id, quantity=1)
+    db_session.add(user_item)
+    await db_session.commit()
+
+    msg = await inventory_service.use_item(db_session, user.id, "Focus")
+    assert "Focus Potion" in msg
+
+    buffs = await inventory_service.get_active_buffs(db_session, user.id)
+    assert len(buffs) == 1
+    assert buffs[0].target_attribute == "INT"
+    assert buffs[0].multiplier == 1.5
+
+@pytest.mark.asyncio
+async def test_use_item_grants_xp(db_session):
+    user = User(id="u_inv_xp", name="Tester")
+    db_session.add(user)
+    
+    item = Item(
+        id="POT_XP",
+        name="Small XP Potion",
+        type=ItemType.CONSUMABLE,
+        effect_meta={"effect": "grant_xp", "amount": 50}
+    )
+    db_session.add(item)
+    
+    user_item = UserItem(user_id=user.id, item_id=item.id, quantity=1)
+    db_session.add(user_item)
+    await db_session.commit()
+    user_item_id = user_item.id
+
+    msg = await inventory_service.use_item(db_session, user.id, "XP")
+    assert "Small XP Potion" in msg
+
+    await db_session.refresh(user)
+    assert user.xp == 50
+
+    deleted_item = await db_session.get(UserItem, user_item_id)
+    assert deleted_item is None
+
+@pytest.mark.asyncio
 async def test_accountant_applies_buff():
     # Mock buff
     class MockBuff:

@@ -79,6 +79,8 @@ class AccountantService:
              # Let's keep it simple: Stat Level = 1 + floor(XP / 100).
              new_stat_level = 1 + floor(new_xp / 100)
              setattr(user, attr_key, new_stat_level)
+
+        user.xp = (user.xp or 0) + xp_amount
              
         # Update Global Level
         # Level = Average of (STR, INT, VIT, WIS, CHA)

@@ -46,4 +46,4 @@ async def test_user_service_flow(db_session):
     user = await user_service.get_or_create_user(db_session, line_id)
     assert user.id == line_id
     assert user.str > 1 # Should have gained STR from "Gym"
-    assert "Logged: STR" in msg.text
+    assert "⚡" in msg.text

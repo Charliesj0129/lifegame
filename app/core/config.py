@@ -30,7 +30,12 @@ class Settings(BaseSettings):
 
     # OpenRouter
     OPENROUTER_API_KEY: Optional[str] = None
-    OPENROUTER_MODEL: str = "google/gemini-2.0-flash-lite-preview-02-05"
+    OPENROUTER_MODEL: str = "google/gemini-3-flash-preview"
+
+    OPENROUTER_MODEL: str = "google/gemini-3-flash-preview"
+    
+    # App Settings
+    APP_BASE_URL: str = "https://app-lifgame-955ea735.azurewebsites.net" # Default to Prod for now, override in .env
 
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=True)
 
