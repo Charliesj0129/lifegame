@@ -62,19 +62,28 @@
     OPENROUTER_MODEL=google/gemini-2.0-flash-thinking-exp
     
     # Database
-    SQLALCHEMY_DATABASE_URI=sqlite+aiosqlite:///./test.db
+    DATABASE_URL=sqlite+aiosqlite:///./test.db
+
+    # Ops (optional)
+    AUTO_MIGRATE=0
     ```
 
 3.  **Install Dependencies**
-    We use `uv` for fast package management, or standard pip:
+    Use `uv` for fast, repeatable environments:
     ```bash
-    pip install -r requirements.txt
+    uv sync --frozen --dev
     ```
 
 4.  **Run Locally**
     ```bash
     uvicorn app.main:app --reload
     ```
+
+### Database Migrations
+Run alembic migrations before first boot or after schema changes:
+```bash
+python scripts/ops.py migrate
+```
 
 ---
 
@@ -89,6 +98,9 @@ This project is tuned for **Azure App Service (Linux, Free Tier)**.
 
 ### Deploy Command
 See `deploy_azure.sh` for the full automated script.
+
+### Azure App Settings
+Set `DATABASE_URL` and `AUTO_MIGRATE=1` if you want migrations on container boot.
 
 ---
 
@@ -106,9 +118,13 @@ lifgame/
 │   ├── rules_of_the_world.md # The "Bible" for the AI's logic
 │   └── PLAYER_GUIDE.md       # Interactive Tutorial & Features
 ├── scripts/
-│   └── setup_rich_menu.py # Line Rich Menu Uploader
+│   └── ops.py         # Migrations + Rich Menu setup
 └── main.py             # Entry point
 ```
 
 ## 📜 License
 MIT License. Hack the planet.
+
+## Docs
+- `doc/architecture.md`
+- `doc/changes_cleanup.md`

@@ -1,10 +1,9 @@
 from fastapi import APIRouter, Request, Header, HTTPException
 from linebot.v3.exceptions import InvalidSignatureError
-from linebot.v3.messaging import AsyncApiClient, AsyncMessagingApi, ReplyMessageRequest, TextMessage, ShowLoadingAnimationRequest
+from linebot.v3.messaging import ReplyMessageRequest, TextMessage, ShowLoadingAnimationRequest
 from linebot.v3.webhooks import MessageEvent, TextMessageContent
 
 from app.services.line_bot import get_line_handler, get_messaging_api
-from app.services.ai_engine import ai_engine
 from app.services.flex_renderer import flex_renderer
 from app.services.persona_service import persona_service
 from app.services.audio_service import audio_service
@@ -41,11 +40,11 @@ async def callback(request: Request, x_line_signature: str = Header(None)):
 webhook_handler = get_line_handler()
 
 from app.services.user_service import user_service
-from app.services.inventory_service import inventory_service
-from app.api.deps import get_db
 import app.core.database
 from app.services.quest_service import quest_service
-
+from app.services.boss_service import boss_service
+from app.services.shop_service import shop_service
+from app.services.crafting_service import crafting_service
 from app.services.rival_service import rival_service
 
 # ... (Previous imports)
@@ -71,6 +70,7 @@ async def handle_message(event: MessageEvent):
     response_message = TextMessage(text="System Error")
     sender_persona = persona_service.SYSTEM
     rival_log = ""
+    result_data = {}
 
     try:
         async with app.core.database.AsyncSessionLocal() as session:
@@ -81,60 +81,71 @@ async def handle_message(event: MessageEvent):
             try:
                 rival_log = await rival_service.process_encounter(session, user)
             except Exception as e:
+                rival_log = await rival_service.process_encounter(session, user)
+            except Exception as e:
                 logger.warning(f"Rival encounter failed: {e}")
             
-            # Command Handling
-            if user_text.strip().lower() == "status":
-                # user is already fetched above
-                try:
-                    response_message = flex_renderer.render_status(user)
-                    sender_persona = persona_service.SYSTEM
-                except Exception as e:
-                    logger.error(f"Flex Render Failed: {e}", exc_info=True)
-                    response_message = TextMessage(text=f"⚠️ Status Render Error: {e}")
-                    sender_persona = persona_service.SYSTEM
-
-            elif user_text.strip().lower() == "inventory":
-                items = await inventory_service.get_user_inventory(session, user_id)
-                if not items:
-                    response_message = TextMessage(text="🎒 Inventory is empty.")
-                else:
-                    item_list = "\n".join([f"- {ui.item.name} x{ui.quantity}" for ui in items])
-                    response_message = TextMessage(text=f"🎒 **INVENTORY** 🎒\n{item_list}")
-                sender_persona = persona_service.SYSTEM
-
-            elif user_text.strip().lower() == "quests":
-                quests = await quest_service.get_daily_quests(session, user_id)
-                response_message = flex_renderer.render_quest_list(quests)
-                sender_persona = persona_service.SYSTEM
-            
-            elif user_text.strip().lower().startswith("use "):
-                item_keyword = user_text.strip()[4:]
-                result_text = await inventory_service.use_item(session, user_id, item_keyword)
-                response_message = TextMessage(text=result_text)
-                sender_persona = persona_service.MENTOR # Guidance Persona
-
-            elif user_text.strip().lower().startswith("/new_goal ") or user_text.strip().lower().startswith("goal: "):
-                # Extract Goal
-                if user_text.startswith("/new_goal"):
-                    goal_text = user_text[10:].strip()
-                else:
-                    goal_text = user_text[6:].strip()
+            # Manual Override for Shop (Phase 6)
+            if "shop" in user_text.lower() or "store" in user_text.lower() or "market" in user_text.lower():
+                items = await shop_service.list_shop_items(session)
+                response_message = flex_renderer.render_shop_list(items, user.gold or 0)
+                # Skip Router
+                intent_tool = "shop"
+            elif "craft" in user_text.lower() or "workshop" in user_text.lower():
+                recipes = await crafting_service.get_available_recipes(session, user_id)
+                response_message = flex_renderer.render_crafting_menu(recipes)
+                intent_tool = "craft"
+            elif "boss" in user_text.lower():
+                boss = await boss_service.get_active_boss(session, user_id)
+                if not boss:
+                    msg = await boss_service.spawn_boss(session, user_id)
+                    boss = await boss_service.get_active_boss(session, user_id)
+                    # Ideally we show the msg then the status, but for now just status
                 
-                # Call Quest Service
-                goal, plan = await quest_service.create_new_goal(session, user_id, goal_text)
-                
-                # Render Response
-                milestone_txt = "\n".join([f"- {m['title']} ({m.get('difficulty','C')})" for m in plan.get("milestones", [])])
-                msg_txt = f"🎯 **TACTICAL PLAN ACQUIRED**\nGoal: {goal.title}\n\n**Milestones Detected:**\n{milestone_txt}\n\nSystem is calibrating daily routines..."
-                response_message = TextMessage(text=msg_txt)
-                sender_persona = persona_service.MENTOR
-
+                response_message = flex_renderer.render_boss_status(boss)
+                intent_tool = "boss"
+            elif "attack" in user_text.lower():
+                challenge = await boss_service.generate_attack_challenge()
+                # Create a simple confirmation button for the challenge
+                # For MVP, just text with quick reply or button?
+                # Let's use a Text Message with a Quick Reply for "DONE"
+                from linebot.v3.messaging import QuickReply, QuickReplyItem, PostbackAction as LinePostbackAction
+                response_message = TextMessage(
+                    text=f"⚔️ BOSS CHALLENGE: {challenge}",
+                    quick_reply=QuickReply(items=[
+                        QuickReplyItem(
+                            action=LinePostbackAction(label="COMPLETED!", data="action=strike_boss&dmg=50")
+                        )
+                    ])
+                )
+                intent_tool = "attack"
             else:
-                # Regular Action (RPG Log)
-                result = await user_service.process_action(session, user_id, user_text)
-                response_message = flex_renderer.render(result)
-                sender_persona = persona_service.SYSTEM 
+                # 3. AI-Native Router (Phase 4)
+                # Replaces manual if/else blocks for status/inventory etc.
+                from app.services.ai_service import ai_router
+                
+                router_result = await ai_router.router(session, user_id, user_text)
+                if isinstance(router_result, tuple) and len(router_result) == 3:
+                    response_message, intent_tool, result_data = router_result
+                else:
+                    response_message, intent_tool = router_result
+            
+            # Persona Logic (Simplified for now, Router returns message directly)
+            if intent_tool in ["get_status", "get_inventory", "get_quests"]:
+                sender_persona = persona_service.SYSTEM
+            elif intent_tool in ["set_goal", "use_item"]:
+                sender_persona = persona_service.MENTOR
+            else:
+                sender_persona = persona_service.SYSTEM
+
+            # 4. Prepend Rival Narrative if exists
+            if rival_log:
+                if isinstance(response_message, TextMessage):
+                    response_message.text = f"{rival_log}\n\n{response_message.text}"
+                else:
+                    # If it's not a TextMessage (e.g., FlexMessage), send rival_log as a separate message
+                    # This case is handled below in messages_to_send construction
+                    pass
             
     except Exception as e:
         logger.error(f"Error processing action: {e}", exc_info=True)
@@ -147,14 +158,14 @@ async def handle_message(event: MessageEvent):
     messages_to_send = []
     
     # Add Rival Log if exists
-    if rival_log:
+    if rival_log and not isinstance(response_message, TextMessage):
          viper_msg = TextMessage(text=rival_log)
          viper_msg.sender = persona_service.get_sender_object(persona_service.VIPER)
          messages_to_send.append(viper_msg)
 
     messages_to_send.append(response_message)
-    
-    if 'result' in locals() and hasattr(result, 'leveled_up') and result.leveled_up:
+
+    if result_data.get("leveled_up"):
          fanfare = audio_service.get_level_up_audio()
          messages_to_send.append(fanfare)
 
@@ -198,7 +209,7 @@ async def handle_follow(event: FollowEvent):
 @webhook_handler.add(PostbackEvent)
 async def handle_postback(event: PostbackEvent):
     user_id = event.source.user_id
-    data = event.postback.data
+    data = event.postback.data or ""
     reply_token = event.reply_token
     
     logger.info(f"Received Postback from {user_id}: {data}")
@@ -206,10 +217,14 @@ async def handle_postback(event: PostbackEvent):
     # Parse Query String style data (e.g. action=equip&item_id=123)
     # Simple parsing:
     params = {}
+    if not isinstance(data, str):
+        data = str(data)
     for part in data.split('&'):
-        if '=' in part:
-            k, v = part.split('=', 1)
-            params[k] = v
+        if not isinstance(part, str) or '=' not in part:
+            continue
+        key, value = part.split('=', 1)
+        if key:
+            params[key] = value
             
     action = params.get('action')
     response_text = "Action received."
@@ -219,8 +234,17 @@ async def handle_postback(event: PostbackEvent):
             messages = []
             
             if action == "reroll_quests":
-                quests = await quest_service.reroll_quests(session, user_id)
+                reroll_result = await quest_service.reroll_quests(session, user_id)
+                if isinstance(reroll_result, tuple) and len(reroll_result) == 2:
+                    quests, viper_taunt = reroll_result
+                else:
+                    quests, viper_taunt = reroll_result, None
+
                 messages.append(flex_renderer.render_quest_list(quests))
+
+                if viper_taunt:
+                    messages.append(TextMessage(text=viper_taunt))
+
                 response_text = "Quests Rerolled." # Fallback log
                 
             elif action == "complete_quest":
@@ -248,6 +272,33 @@ async def handle_postback(event: PostbackEvent):
                 item_id = params.get('item_id')
                 response_text = f"⚔️ Equipping Item {item_id}..."
                 messages.append(TextMessage(text=response_text))
+
+            elif action == "buy_item":
+                item_id = params.get('item_id')
+                user = await user_service.get_or_create_user(session, user_id)
+                result = await shop_service.buy_item(session, user_id, item_id)
+                if result["success"]:
+                    messages.append(TextMessage(text=f"✅ {result['message']}"))
+                else:
+                    messages.append(TextMessage(text=f"❌ {result['message']}"))
+
+            elif action == "craft":
+                recipe_id = params.get('recipe_id')
+                user = await user_service.get_or_create_user(session, user_id)
+                result = await crafting_service.craft_item(session, user_id, recipe_id)
+                if result["success"]:
+                    messages.append(TextMessage(text=f"⚒️ {result['message']}"))
+                else:
+                     messages.append(TextMessage(text=f"❌ {result['message']}"))
+
+            elif action == "strike_boss":
+                 user = await user_service.get_or_create_user(session, user_id)
+                 dmg = int(params.get('dmg', 10))
+                 msg = await boss_service.deal_damage(session, user_id, dmg)
+                 if msg:
+                     messages.append(TextMessage(text=msg))
+                 else:
+                     messages.append(TextMessage(text="No active boss."))
             
             else:
                 response_text = f"Unknown Action: {action}"

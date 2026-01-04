@@ -86,6 +86,7 @@ class QuestService:
         """Generates quests. Checks for BOSS MODE first."""
         from app.services.rival_service import rival_service
         from app.services.user_service import user_service
+        from app.services.boss_service import boss_service
         
         # 0. Boss Mode Check
         user = await user_service.get_user(session, user_id)
@@ -235,28 +236,59 @@ class QuestService:
         if quest and quest.status != QuestStatus.DONE.value:
             quest.status = QuestStatus.DONE.value
             await session.commit()
+            # Passive Boss Damage
+            from app.services.boss_service import boss_service
+            await boss_service.deal_damage(session, user_id, 50) # 50 dmg per quest
             return quest
         return None
 
     async def reroll_quests(self, session: AsyncSession, user_id: str):
-        """Archives current daily quests and generates new ones."""
+        """Archives current daily quests and generates new ones. Returns (new_quests, viper_taunt)."""
         today = datetime.date.today()
         
-        # Archive old ones (Delete or Mark failed/archived)
-        # For MVP, let's just delete them to keep DB clean or mark FAILED
+        # Archive old ones
         stmt = select(Quest).where(
             Quest.user_id == user_id,
             func.date(Quest.created_at) == today,
             Quest.status != QuestStatus.DONE.value
         )
         result = await session.execute(stmt)
-        quests = result.scalars().all()
+        failed_quests = result.scalars().all()
         
-        for q in quests:
+        viper_taunt = None
+        if failed_quests:
+            # Proactive Nuance: Viper mocks failure
+            # We need to fetch User/Rival
+            from app.services.rival_service import rival_service
+            from app.services.user_service import user_service
+            
+            user = await user_service.get_user(session, user_id)
+            rival = await rival_service.get_rival(session, user_id)
+            
+            if user and rival:
+                # Construct context
+                count = len(failed_quests)
+                context_prompt = f"User failed {count} quests (e.g. '{failed_quests[0].title}')."
+                
+                # We can reuse get_taunt logic but inject specific context
+                # Or just manually call AI here. Let's manually call for specificity.
+                prompt = f"Context: {context_prompt}. Viper Lv.{rival.level}. Generate a short mocking comment."
+                
+                try:
+                    response = await ai_engine.generate_json(
+                        "You are Viper. Mock the user's failure. JSON: {'taunt': 'str'}",
+                        prompt
+                    )
+                    viper_taunt = f"Viper: '{response.get('taunt', 'Failure is your nature.')}'"
+                except:
+                    viper_taunt = "Viper: 'Disappointing performance.'"
+
+        for q in failed_quests:
             await session.delete(q) # Reset logic
             
         await session.commit()
         
-        return await self._generate_daily_batch(session, user_id)
+        new_quests = await self._generate_daily_batch(session, user_id)
+        return new_quests, viper_taunt
 
 quest_service = QuestService()

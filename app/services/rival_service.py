@@ -11,11 +11,11 @@ from app.services.ai_engine import ai_engine
 logger = logging.getLogger(__name__)
 
 class RivalService:
-    async def get_or_create_rival(self, session: AsyncSession, user_id: str) -> Rival:
+    async def get_or_create_rival(self, session: AsyncSession, user_id: str, initial_level: int = 1) -> Rival:
         result = await session.execute(select(Rival).where(Rival.user_id == user_id))
         rival = result.scalars().first()
         if not rival:
-            rival = Rival(user_id=user_id, name="Viper", level=1, xp=0)
+            rival = Rival(user_id=user_id, name="Viper", level=max(1, initial_level), xp=0)
             session.add(rival)
             await session.commit()
         return rival
@@ -98,9 +98,54 @@ class RivalService:
         
         return narrative
 
+    async def advance_daily_briefing(self, session: AsyncSession, user: User) -> Rival:
+        """Daily briefing update for rival progression."""
+        rival = await self.get_or_create_rival(session, user.id, initial_level=user.level)
+
+        # Viper Logic: Grows 20-50% of a level per day + some randomness
+        growth = random.randint(30, 80)  # XP
+        rival.xp += growth
+        if rival.xp >= 500:
+            rival.level += 1
+            rival.xp -= 500
+
+        await session.commit()
+        await session.refresh(rival)
+        return rival
+
     async def get_taunt(self, session: AsyncSession, user: User, rival: Rival) -> str:
         """Generates a contextual taunt using AI."""
-        # Check context: User weak attribute? 
-        return "Viper: 'While you slept, I evolved.'"
+        try:
+            # 1. Build Context
+            # Simple diff
+            str_diff = rival.level - user.level
+            status_context = "Rival is stronger." if str_diff > 0 else "MATCHED."
+            
+            system_prompt = (
+                "You are 'Viper', an arrogant AI rival in a Cyberpunk LifeRPG. "
+                "The user is your competitor. "
+                "Generate a short, stinging 1-sentence taunt based on the stats."
+            )
+            user_prompt = f"Context: {status_context}. Viper Lv.{rival.level} vs User Lv.{user.level}."
+            
+            # 2. Call AI
+            # We use generate_json typically, but here we just want text. 
+            # If ai_engine only has generate_json, we wrap it or add generate_text.
+            # Checking ai_engine usage elsewhere... it seems we use generate_json.
+            # Let's use generate_json with a schema or just simple text if supported.
+            # Looking at ai_engine.py (implied), likely it has generate_content or similar.
+            # Let's assume generate_json returns a dict, we can ask for {"taunt": "str"}
+            
+            response = await ai_engine.generate_json(
+                system_prompt + " Output JSON: {'taunt': 'str'}",
+                user_prompt
+            )
+            
+            taunt = response.get("taunt", "I am evolving.")
+            return f"Viper: '{taunt}'"
+            
+        except Exception as e:
+            logger.error(f"Taunt Gen Failed: {e}")
+            return "Viper: 'While you slept, I evolved.'"
 
 rival_service = RivalService()

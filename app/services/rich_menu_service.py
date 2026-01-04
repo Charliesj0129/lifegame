@@ -50,9 +50,18 @@ class RichMenuService:
         try:
             # Note: Pagination might be needed if > 1000 menus, but unlikely for this app.
             response = self.api.get_rich_menu_list()
-            for menu in response.rich_menus:
-                 if menu.name == name:
-                     return menu.rich_menu_id
+            rich_menus = None
+            for attr_name in ("richmenus", "rich_menus"):
+                candidate = getattr(response, attr_name, None)
+                if isinstance(candidate, (list, tuple)):
+                    rich_menus = candidate
+                    break
+            if not rich_menus:
+                logger.warning("Rich menu list response missing menus.")
+                return None
+            for menu in rich_menus:
+                if menu.name == name:
+                    return menu.rich_menu_id
             return None
         except Exception as e:
             logger.warning(f"Failed to fetch rich menu list: {e}")

@@ -85,7 +85,8 @@ az webapp config appsettings set --resource-group $RG_NAME --name $WEB_NAME --se
     DOCKER_REGISTRY_SERVER_URL="https://${ACR_NAME}.azurecr.io" \
     DOCKER_REGISTRY_SERVER_USERNAME="$ACR_NAME" \
     DOCKER_REGISTRY_SERVER_PASSWORD="$ACR_PASSWORD" \
-    WEBSITES_PORT=8000
+    WEBSITES_PORT=8000 \
+    AUTO_MIGRATE=1
 
 # 8. Allow Azure Internal Access to DB (Allow All Azure Services)
 echo "Configuring DB Firewall..."

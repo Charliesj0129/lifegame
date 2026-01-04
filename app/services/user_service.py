@@ -143,6 +143,7 @@ class UserService:
             user_id=user.id,
             action_text=text,
             attribute=attribute,
+            difficulty_tier=difficulty,
             xp_gained=xp_gain,
             new_level=user.level,
             leveled_up=(user.level > old_level),

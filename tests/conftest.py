@@ -8,6 +8,7 @@ from app.models.base import Base
 from app.models.user import User
 from app.models.gamification import Item, UserItem, UserBuff
 from app.models.action_log import ActionLog
+from app.models.conversation_log import ConversationLog
 
 DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 

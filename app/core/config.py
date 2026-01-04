@@ -1,9 +1,10 @@
+from pydantic import Field, AliasChoices
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Optional
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "Life Gamification Agent"
-    VERSION: str = "0.1.0"
+    PROJECT_NAME: str = "Life Gamification Agent v6"
+    VERSION: str = "0.6.0"
     API_V1_STR: str = "/api/v1"
 
     # Database
@@ -12,7 +13,10 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str = "changethis"
     POSTGRES_DB: str = "lifgame"
     POSTGRES_PORT: int = 5432
-    DATABASE_URL: Optional[str] = None
+    DATABASE_URL: Optional[str] = Field(
+        default=None,
+        validation_alias=AliasChoices("DATABASE_URL", "SQLALCHEMY_DATABASE_URI"),
+    )
 
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:
@@ -36,6 +40,7 @@ class Settings(BaseSettings):
     
     # App Settings
     APP_BASE_URL: str = "https://app-lifgame-955ea735.azurewebsites.net" # Default to Prod for now, override in .env
+    AUTO_MIGRATE: bool = False
 
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=True)
 

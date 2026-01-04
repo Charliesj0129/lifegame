@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LifeGame Dashboard</title>
+    <!-- TailwindCSS for quick styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js for Radar Chart -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      body {
+        background-color: #0f172a;
+        color: #e2e8f0;
+        font-family: "Courier New", monospace;
+      }
+      .cyberpunk-border {
+        border: 2px solid #22d3ee;
+        box-shadow: 0 0 10px #22d3ee;
+      }
+      .rival-border {
+        border: 2px solid #ef4444;
+        box-shadow: 0 0 15px #ef4444;
+      }
+      .glass {
+        background: rgba(30, 41, 59, 0.7);
+        backdrop-filter: blur(10px);
+      }
+    </style>
+  </head>
+  <body class="p-4 max-w-md mx-auto">
+    <!-- Header: User Stats -->
+    <div class="glass p-4 rounded-lg cyberpunk-border mb-6 text-center">
+      <h1 class="text-2xl font-bold text-cyan-400 mb-2">
+        {{ user.name }} (Lv.{{ user.level }})
+      </h1>
+
+      <!-- XP Bar -->
+      <div
+        class="w-full bg-gray-700 rounded-full h-4 mb-2 relative overflow-hidden"
+      >
+        <div class="bg-cyan-500 h-4 rounded-full" style="width: 50%"></div>
+        <!-- Mock 50% for now -->
+        <p class="absolute top-0 right-2 text-xs text-white font-bold">
+          {{ user.xp }} XP
+        </p>
+      </div>
+
+      <p class="text-xs text-gray-400">
+        Class: {{ user.character_class or 'Novice' }}
+      </p>
+    </div>
+
+    <!-- Active Goal -->
+    {% if goal %}
+    <div class="glass p-4 rounded-lg border border-cyan-800 mb-6">
+      <h2 class="text-lg font-bold text-yellow-400 mb-1">🎯 Current Focus</h2>
+      <p class="text-sm italic">"{{ goal.title }}"</p>
+    </div>
+    {% endif %}
+
+    <!-- Radar Chart: Stats -->
+    <div class="glass p-4 rounded-lg border border-slate-600 mb-6">
+      <h2 class="text-center text-cyan-300 font-bold mb-2">Systems Status</h2>
+      <canvas id="statsChart"></canvas>
+    </div>
+
+    <!-- Rival Section -->
+    <div
+      class="glass p-4 rounded-lg rival-border mb-6 relative overflow-hidden"
+    >
+      <div class="absolute -right-4 -top-4 opacity-20 text-red-600 text-6xl">
+        ☠️
+      </div>
+      <h2 class="text-xl font-bold text-red-500">⚠ RIVAL DETECTED</h2>
+      <div class="flex justify-between items-center mt-2">
+        <div>
+          <p class="text-lg font-bold">{{ rival.name }}</p>
+          <p class="text-xs text-red-300">Level {{ rival.level }}</p>
+        </div>
+        <div class="text-right">
+          <p class="text-sm font-bold text-red-400">{{ rival_status }}</p>
+        </div>
+      </div>
+      <p class="text-xs text-gray-400 mt-2 italic">
+        "{{ rival.last_taunt or 'I am watching you.' }}"
+      </p>
+    </div>
+
+    <!-- Active Quests -->
+    <div class="mb-6">
+      <h2 class="text-lg font-bold text-white mb-2">📋 Active Modules</h2>
+      <div class="space-y-2">
+        {% for quest in quests %}
+        <div
+          class="p-3 bg-slate-800 rounded border-l-4 border-cyan-500 flex justify-between"
+        >
+          <div>
+            <h3 class="font-bold text-sm text-cyan-200">{{ quest.title }}</h3>
+            <p class="text-xs text-gray-400">
+              {{ quest.difficulty_tier }} Class
+            </p>
+          </div>
+          <div class="text-right">
+            <span
+              class="text-xs bg-cyan-900 px-2 py-1 rounded text-cyan-300 font-bold"
+              >+{{ quest.xp_reward }} XP</span
+            >
+          </div>
+        </div>
+        {% else %}
+        <p class="text-gray-500 text-center text-sm">
+          No active modules pending.
+        </p>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Inventory Grid -->
+    <div>
+      <h2 class="text-lg font-bold text-white mb-2">📦 Storage</h2>
+      <div class="grid grid-cols-4 gap-2">
+        {% for item in inventory %}
+        <div
+          class="bg-slate-800 aspect-square rounded flex flex-col items-center justify-center p-1 border border-slate-600 hover:border-cyan-400 transition"
+        >
+          <span class="text-2xl">{{ item.icon }}</span>
+          <span class="text-xs text-gray-300 mt-1 truncate w-full text-center"
+            >{{ item.name }}</span
+          >
+          <span class="text-[10px] text-gray-500">x{{ item.quantity }}</span>
+        </div>
+        {% else %}
+        <p class="col-span-4 text-center text-gray-500 text-sm">
+          Storage Empty.
+        </p>
+        {% endfor %}
+      </div>
+    </div>
+
+    <script>
+      // Data from Backend
+      const stats = {{ stats | tojson }};
+
+      const ctx = document.getElementById('statsChart').getContext('2d');
+      const myChart = new Chart(ctx, {
+          type: 'radar',
+          data: {
+              labels: Object.keys(stats),
+              datasets: [{
+                  label: 'Attributes',
+                  data: Object.values(stats),
+                  backgroundColor: 'rgba(34, 211, 238, 0.2)',
+                  borderColor: 'rgba(34, 211, 238, 1)',
+                  pointBackgroundColor: '#fff',
+                  pointBorderColor: '#fff',
+                  borderWidth: 2
+              }]
+          },
+          options: {
+              scales: {
+                  r: {
+                      angleLines: { color: 'rgba(255, 255, 255, 0.1)' },
+                      grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                      pointLabels: { color: '#cbd5e1' },
+                      suggestedMin: 0,
+                      suggestedMax: 20
+                  }
+              },
+              plugins: {
+                  legend: { display: false }
+              }
+          }
+      });
+    </script>
+  </body>
+</html>

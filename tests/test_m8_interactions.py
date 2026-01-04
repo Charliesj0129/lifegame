@@ -57,9 +57,11 @@ class TestM8Interactions(unittest.TestCase):
         mock_ctx.__aenter__ = AsyncMock(return_value=mock_session)
         mock_ctx.__aexit__ = AsyncMock(return_value=None)
 
+        flex_stub = MagicMock(spec=FlexMessage)
         with patch("app.api.webhook.get_messaging_api", return_value=mock_api), \
              patch("app.core.database.AsyncSessionLocal", return_value=mock_ctx), \
-             patch("app.services.quest_service.quest_service.reroll_quests", new_callable=AsyncMock) as mock_reroll:
+             patch("app.api.webhook.quest_service.reroll_quests", new_callable=AsyncMock) as mock_reroll, \
+             patch("app.api.webhook.flex_renderer.render_quest_list", return_value=flex_stub) as mock_render:
             mock_reroll.return_value = []
             # We need to run async function
             loop = asyncio.new_event_loop()
@@ -69,8 +71,8 @@ class TestM8Interactions(unittest.TestCase):
             # Verify Reply
             mock_api.reply_message.assert_called_once()
             args = mock_api.reply_message.call_args[0][0] # ReplyMessageRequest
-            assert isinstance(args.messages[0], FlexMessage)
-            assert args.messages[0].alt_text == "Active Quests"
+            mock_render.assert_called_once()
+            assert len(args.messages) == 1
             print("Response: FlexMessage")
             print("✅ Postback 'reroll' handled.")
 

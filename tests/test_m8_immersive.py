@@ -80,10 +80,12 @@ class TestM8Immersive(unittest.TestCase):
              patch("app.core.database.AsyncSessionLocal", return_value=mock_ctx), \
              patch("app.services.inventory_service.inventory_service.use_item", new_callable=AsyncMock) as mock_use, \
              patch("app.services.user_service.user_service.get_or_create_user", new_callable=AsyncMock) as mock_uc, \
+             patch("app.services.ai_service.ai_router.router", new_callable=AsyncMock) as mock_router, \
              patch("app.services.rival_service.RivalService.process_encounter", new_callable=AsyncMock) as mock_rival:
     
             mock_use.return_value = "You used a Potion."
             mock_uc.return_value = MagicMock(id="U_TEST_MENTOR", name="Tester", level=1)
+            mock_router.return_value = (TextMessage(text="Used"), "use_item", {})
             mock_rival.return_value = None
 
             loop = asyncio.new_event_loop()
@@ -110,19 +112,13 @@ class TestM8Immersive(unittest.TestCase):
         mock_res_user = MagicMock()
         mock_res_user.scalars.return_value = mock_scalars_user
 
-        # 2. Rival (called inside _update_rival)
-        mock_scalars_rival = MagicMock()
-        mock_scalars_rival.first.return_value = MagicMock(level=6, xp=200)
-        mock_res_rival = MagicMock()
-        mock_res_rival.scalars.return_value = mock_scalars_rival
-
         # 3. Quests
         mock_scalars_quest = MagicMock()
         mock_scalars_quest.all.return_value = []
         mock_res_quest = MagicMock()
         mock_res_quest.scalars.return_value = mock_scalars_quest
         
-        mock_session.execute = AsyncMock(side_effect=[mock_res_user, mock_res_rival, mock_res_quest])
+        mock_session.execute = AsyncMock(side_effect=[mock_res_user, mock_res_quest])
 
         mock_ctx = MagicMock()
         mock_ctx.__aenter__ = AsyncMock(return_value=mock_session)
@@ -131,8 +127,8 @@ class TestM8Immersive(unittest.TestCase):
         # Update Patch targets to Class Methods and Service Module Import
         with patch("app.services.daily_briefing_service.get_messaging_api", return_value=mock_api), \
              patch("app.services.daily_briefing_service.AsyncSessionLocal", return_value=mock_ctx), \
-             patch("app.services.daily_briefing_service.DailyBriefingService._update_rival", new_callable=AsyncMock) as mock_rival:
-            
+             patch("app.services.daily_briefing_service.rival_service.advance_daily_briefing", new_callable=AsyncMock) as mock_rival:
+             
             mock_rival.return_value = MagicMock(level=6, xp=200)
             
             # We let real _create_briefing_flex run to verify it attaches the Sender

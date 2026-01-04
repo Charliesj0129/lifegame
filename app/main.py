@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from app.core.config import settings
+from app.core.migrations import run_migrations
 from app.api import webhook
+import asyncio
 import logging
 
 # Setup logging
@@ -12,28 +14,16 @@ app = FastAPI(
     openapi_url=f"{settings.API_V1_STR}/openapi.json"
 )
 
-# Auto-Run Migration on Startup (For M6 Schema Updates)
-# Auto-Run Migration on Startup (For M6 Schema Updates)
-@app.get("/deploy_schema")
-async def manual_migration():
-    import traceback
+@app.on_event("startup")
+async def auto_migrate() -> None:
+    if not settings.AUTO_MIGRATE:
+        return
     try:
-        from scripts.migrate_m7 import migrate
-        await migrate()
-        return {"status": "Migration M7 Executed Successfully"}
-    except BaseException:
-        tb = traceback.format_exc()
-        logging.error(f"Migration Failed: {tb}")
-        return {"status": "Failed", "error": tb}
-
-@app.get("/setup_rich_menus")
-async def setup_rich_menus():
-    from app.services.rich_menu_service import rich_menu_service
-    try:
-        mappings = rich_menu_service.setup_menus()
-        return {"status": "Rich Menus Configured", "mappings": mappings}
-    except Exception as e:
-        return {"status": "Failed", "error": str(e)}
+        logging.info("AUTO_MIGRATE enabled; running migrations.")
+        await asyncio.to_thread(run_migrations)
+    except Exception:
+        logging.exception("Auto migration failed.")
+        raise
 
 # Include Router
 app.include_router(webhook.router, prefix="", tags=["line"])
@@ -42,6 +32,9 @@ app.include_router(users.router, prefix="/users", tags=["users"])
 
 from app.api import health
 app.include_router(health.router, tags=["ops"])
+
+from app.api import dashboard
+app.include_router(dashboard.router, tags=["dashboard"])
 
 # Removed simple health check
 

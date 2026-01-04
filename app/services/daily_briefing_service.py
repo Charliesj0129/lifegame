@@ -1,16 +1,14 @@
 import logging
-import random
-from datetime import date
 from sqlalchemy.future import select
-from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import AsyncSessionLocal
 from app.models.user import User
 from app.models.quest import Quest, QuestStatus, Rival
 from app.services.line_bot import get_messaging_api
-from linebot.v3.messaging import FlexMessage, FlexContainer, TextMessage, PushMessageRequest, QuickReply, QuickReplyItem, MessageAction, PostbackAction
+from linebot.v3.messaging import FlexMessage, FlexContainer, PushMessageRequest, QuickReply, QuickReplyItem, PostbackAction
 
 from app.services.persona_service import persona_service
 from app.services.audio_service import audio_service
+from app.services.rival_service import rival_service
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +21,7 @@ class DailyBriefingService:
             if not user:
                 return
 
-            rival = await self._update_rival(session, user_id, user.level)
+            rival = await rival_service.advance_daily_briefing(session, user)
             
             result = await session.execute(
                 select(Quest).where(
@@ -51,25 +49,6 @@ class DailyBriefingService:
                     logger.info(f"Daily Briefing pushed to {user_id}")
             except Exception as e:
                 logger.error(f"Failed to push briefing: {e}")
-
-    async def _update_rival(self, session: AsyncSession, user_id: str, user_level: int) -> Rival:
-        result = await session.execute(select(Rival).where(Rival.user_id == user_id))
-        rival = result.scalars().first()
-        
-        if not rival:
-            rival = Rival(user_id=user_id, name="Viper", level=max(1, user_level), xp=0)
-            session.add(rival)
-        
-        # Viper Logic: Grows 20-50% of a level per day + some randomness
-        growth = random.randint(30, 80) # XP
-        rival.xp += growth
-        if rival.xp >= 500:
-            rival.level += 1
-            rival.xp -= 500
-            
-        await session.commit()
-        await session.refresh(rival)
-        return rival
 
     def _create_briefing_flex(self, user: User, rival: Rival, quests: list[Quest]) -> FlexMessage:
         # P5 Style Header

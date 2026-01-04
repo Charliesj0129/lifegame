@@ -4,29 +4,119 @@ from app.models.user import User
 
 class FlexRenderer:
     def render(self, result: ProcessResult) -> FlexMessage:
-        # Define Color Palette
-        COLOR_PRIMARY = "#0D1117" # Dark Bg
-        COLOR_ACCENT = "#00FF9D" # Neon Green
+        COLOR_BG = "#0B0F14"
+        COLOR_PANEL = "#111827"
+        COLOR_ACCENT = "#7DF9FF"
         COLOR_TEXT = "#E6EDF3"
-        COLOR_WARN = "#FFD700"
-        
-        # Build JSON Bubble
+        COLOR_MUTED = "#8B949E"
+        COLOR_LINE = "#243041"
+        COLOR_LOOT = "#F5C542"
+        COLOR_BADGE_TEXT = "#0B0F14"
+
+        difficulty = getattr(result, "difficulty_tier", None) or "E"
+        tier_colors = {
+            "S": "#FF3B6B",
+            "A": "#FF6B6B",
+            "B": "#FFB020",
+            "C": "#F6D365",
+            "D": "#5CDE7A",
+            "E": "#20D6C7",
+            "F": "#8B949E"
+        }
+        diff_color = tier_colors.get(difficulty, COLOR_ACCENT)
+
+        loot_chance_map = {
+            "S": 80,
+            "A": 60,
+            "B": 40,
+            "C": 30,
+            "D": 24,
+            "E": 20,
+            "F": 10
+        }
+        loot_chance = loot_chance_map.get(difficulty, 20)
+
+        next_level_xp = result.next_level_xp or 1
+        progress_pct = int(min((result.current_xp / next_level_xp) * 100, 100))
+
+        header_row = {
+            "type": "box",
+            "layout": "horizontal",
+            "contents": [
+                {
+                    "type": "text",
+                    "text": "LIFEGAME / ACTION TICKET",
+                    "size": "xxs",
+                    "weight": "bold",
+                    "color": COLOR_ACCENT,
+                    "flex": 1,
+                    "wrap": True
+                },
+                {
+                    "type": "box",
+                    "layout": "vertical",
+                    "contents": [
+                        {
+                            "type": "text",
+                            "text": f"TIER {difficulty}",
+                            "size": "xxs",
+                            "weight": "bold",
+                            "color": COLOR_BADGE_TEXT,
+                            "align": "center"
+                        }
+                    ],
+                    "backgroundColor": diff_color,
+                    "paddingAll": "xs",
+                    "cornerRadius": "12px",
+                    "flex": 0
+                }
+            ]
+        }
+
+        header_meta = {
+            "type": "box",
+            "layout": "horizontal",
+            "contents": [
+                {
+                    "type": "box",
+                    "layout": "vertical",
+                    "contents": [
+                        {
+                            "type": "text",
+                            "text": f"🔥 STREAK x{result.streak_count}",
+                            "size": "xxs",
+                            "weight": "bold",
+                            "color": COLOR_ACCENT
+                        }
+                    ],
+                    "backgroundColor": COLOR_PANEL,
+                    "paddingStart": "sm",
+                    "paddingEnd": "sm",
+                    "paddingTop": "xs",
+                    "paddingBottom": "xs",
+                    "cornerRadius": "12px",
+                    "flex": 0
+                },
+                {
+                    "type": "text",
+                    "text": f"DROP {loot_chance}%",
+                    "size": "xxs",
+                    "color": COLOR_LOOT,
+                    "align": "end",
+                    "flex": 1
+                }
+            ],
+            "margin": "sm"
+        }
+
         bubble = {
             "type": "bubble",
             "size": "mega",
             "header": {
                 "type": "box",
                 "layout": "vertical",
-                "contents": [
-                    {
-                        "type": "text",
-                        "text": f"ACTION LOGGED 🔥 x{result.streak_count}",
-                        "weight": "bold",
-                        "color": COLOR_ACCENT,
-                        "size": "xxs"
-                    }
-                ],
-                "backgroundColor": COLOR_PRIMARY,
+                "contents": [header_row, header_meta],
+                "backgroundColor": COLOR_BG,
                 "paddingAll": "lg"
             },
             "hero": {
@@ -36,50 +126,28 @@ class FlexRenderer:
                     {
                         "type": "text",
                         "text": f"{result.attribute} +{result.xp_gained}",
-                        "size": "3xl", # Keeping it big
+                        "size": "3xl",
                         "weight": "bold",
-                        "color": "#FFFFFF",
+                        "color": COLOR_TEXT,
                         "align": "center"
                     },
                     {
                         "type": "text",
-                        "text": result.user_title, # Show Identity Title
-                        "size": "sm",
-                        "color": "#8B949E", # Subtitle color
+                        "text": result.user_title,
+                        "size": "xs",
+                        "color": COLOR_MUTED,
                         "align": "center",
-                        "margin": "sm"
-                    }
-                ],
-                "paddingAll": "none",
-                "backgroundColor": COLOR_PRIMARY,
-                "paddingBottom": "lg"
-            },
-            "body": {
-                "type": "box",
-                "layout": "vertical",
-                "contents": [
-                     # Action Text
-                    {
-                        "type": "text",
-                        "text": result.narrative or f"\"{result.action_text}\"",
-                        "style": "normal",
-                        "size": "sm",
-                        "color": "#E6EDF3",
-                        "wrap": True,
-                        "align": "start",
-                        "margin": "md"
+                        "margin": "xs"
                     },
-                     # Level Info
                     {
                         "type": "box",
                         "layout": "horizontal",
                         "contents": [
-                             {"type": "text", "text": f"Lv.{result.new_level}", "color": COLOR_TEXT, "flex": 2, "weight": "bold"},
-                             {"type": "text", "text": f"{result.current_xp} / {result.next_level_xp} XP", "color": "#8B949E", "size": "xs", "align": "end", "flex": 3}
+                            {"type": "text", "text": f"LV {result.new_level}", "color": COLOR_TEXT, "size": "sm", "weight": "bold", "flex": 0},
+                            {"type": "text", "text": f"{result.current_xp}/{next_level_xp} XP", "color": COLOR_MUTED, "size": "xxs", "align": "end", "flex": 1}
                         ],
-                        "margin": "xl"
+                        "margin": "md"
                     },
-                    # Progress Bar (Simulated with Box) - Simple calculation
                     {
                         "type": "box",
                         "layout": "vertical",
@@ -87,62 +155,82 @@ class FlexRenderer:
                             {
                                 "type": "box",
                                 "layout": "vertical",
-                                "width": f"{int(min((result.current_xp / result.next_level_xp)*100, 100))}%",
+                                "width": f"{progress_pct}%",
                                 "height": "6px",
                                 "backgroundColor": COLOR_ACCENT,
                                 "contents": []
                             }
                         ],
-                        "backgroundColor": "#30363D",
+                        "backgroundColor": COLOR_LINE,
                         "height": "6px",
                         "cornerRadius": "3px",
                         "margin": "sm"
                     }
                 ],
-                "backgroundColor": COLOR_PRIMARY,
+                "backgroundColor": COLOR_PANEL,
+                "paddingAll": "lg"
+            },
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": result.narrative or f"\"{result.action_text}\"",
+                        "style": "normal",
+                        "size": "sm",
+                        "color": COLOR_TEXT,
+                        "wrap": True,
+                        "align": "start",
+                        "margin": "md"
+                    },
+                    {"type": "separator", "margin": "md", "color": COLOR_LINE}
+                ],
+                "backgroundColor": COLOR_BG,
                 "paddingAll": "lg"
             }
         }
-        
-        # Loot Section
+
+        if result.leveled_up:
+            bubble["body"]["contents"].append({
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": "LEVEL UP",
+                        "size": "xs",
+                        "weight": "bold",
+                        "color": COLOR_BADGE_TEXT,
+                        "align": "center"
+                    }
+                ],
+                "backgroundColor": "#FFD166",
+                "cornerRadius": "12px",
+                "paddingAll": "sm",
+                "margin": "md"
+            })
+
         if result.loot_name:
-             bubble["body"]["contents"].extend([
-                 {
-                     "type": "separator",
-                     "margin": "lg",
-                     "color": "#30363D"
-                 },
-                 {
+            bubble["body"]["contents"].extend([
+                {"type": "separator", "margin": "md", "color": COLOR_LINE},
+                {
                     "type": "text",
-                    "text": "🎁 LOOT FOUND!",
+                    "text": "🎁 LOOT FOUND",
                     "weight": "bold",
-                    "color": COLOR_WARN, 
-                    "margin": "lg",
+                    "color": COLOR_LOOT,
+                    "margin": "md",
                     "size": "xs"
-                 },
-                 {
+                },
+                {
                     "type": "text",
                     "text": f"[{result.loot_rarity}] {result.loot_name}",
                     "color": COLOR_TEXT,
                     "wrap": True,
-                    "margin": "sm",
+                    "margin": "xs",
                     "size": "sm"
-                 }
-             ])
-             
-        # Level Up Animation/Text
-        if result.leveled_up:
-             bubble["header"]["contents"].append({
-                 "type": "text",
-                 "text": "🎉 LEVEL UP!",
-                 "weight": "bold",
-                 "color": "#FF79C6", 
-                 "size": "sm",
-                 "align": "end",
-                 "position": "absolute",
-                 "offsetEnd": "20px",
-                 "offsetTop": "20px"
-             })
+                }
+            ])
 
         return FlexMessage(
             alt_text=result.to_text_message(),
@@ -362,9 +450,9 @@ class FlexRenderer:
             "footer": {
                 "type": "box",
                 "layout": "horizontal",
+                "spacing": "sm",
                 "contents": [
                     {"type": "button", "action": {"type": "message", "label": "🎒 BAG", "text": "inventory"}, "style": "secondary", "height": "sm", "color": "#E6EDF3", "flex": 1},
-                    {"type": "separator", "color": "transparent"}, 
                     {"type": "button", "action": {"type": "message", "label": "📜 QUESTS", "text": "quests"}, "style": "secondary", "height": "sm", "color": "#E6EDF3", "flex": 1}
                 ],
                 "backgroundColor": COLOR_BG,
@@ -512,6 +600,245 @@ class FlexRenderer:
         
         return FlexMessage(
             alt_text="Active Quests",
+            contents=FlexContainer.from_dict(bubble)
+        )
+
+    def render_shop_list(self, items: list, user_gold: int) -> FlexMessage:
+        COLOR_BG = "#0D1117"
+        COLOR_ACCENT = "#F5C542" # Gold
+        
+        item_rows = []
+        for item in items:
+            row = {
+                "type": "box",
+                "layout": "horizontal",
+                "contents": [
+                    {
+                        "type": "box",
+                        "layout": "vertical",
+                        "contents": [
+                            {"type": "text", "text": item.name, "weight": "bold", "color": "#E6EDF3", "size": "sm"},
+                            {"type": "text", "text": f"{item.price} G", "color": COLOR_ACCENT, "size": "xs"}
+                        ],
+                        "flex": 1
+                    },
+                    {
+                        "type": "button",
+                        "style": "primary",
+                        "height": "sm",
+                        "color": "#238636", # Green
+                        "action": {
+                            "type": "postback",
+                            "label": "BUY",
+                            "data": f"action=buy_item&item_id={item.id}",
+                            "displayText": f"Buying {item.name}"
+                        },
+                        "flex": 0
+                    }
+                ],
+                "margin": "md",
+                "alignItems": "center"
+            }
+            item_rows.append(row)
+            item_rows.append({"type": "separator", "margin": "md", "color": "#30363D"})
+            
+        if not item_rows:
+            item_rows.append({"type": "text", "text": "Shop is empty.", "color": "#8B949E", "align": "center"})
+            
+        bubble = {
+            "type": "bubble",
+            "header": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {"type": "text", "text": "🛒 BLACK MARKET", "weight": "bold", "color": COLOR_ACCENT, "size": "md"},
+                    {"type": "text", "text": f"Balance: {user_gold} G", "color": "#E6EDF3", "size": "xs", "align": "end"}
+                ],
+                "backgroundColor": COLOR_BG,
+                "paddingAll": "lg"
+            },
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": item_rows,
+                "backgroundColor": COLOR_BG,
+                "paddingAll": "lg"
+            }
+        }
+        
+        return FlexMessage(
+            alt_text="Cycle Shop",
+            contents=FlexContainer.from_dict(bubble)
+        )
+
+    def render_crafting_menu(self, recipes: list) -> FlexMessage:
+        COLOR_BG = "#0D1117"
+        COLOR_ACCENT = "#D2A8FF" # Purple
+        
+        recipe_rows = []
+        for r_data in recipes:
+            recipe = r_data['recipe']
+            can_craft = r_data['can_craft']
+            missing = r_data['missing']
+            
+            # Button Logic
+            if can_craft:
+                action_btn = {
+                    "type": "button",
+                    "style": "primary",
+                    "height": "sm",
+                    "color": COLOR_ACCENT,
+                    "action": {
+                        "type": "postback",
+                        "label": "CRAFT",
+                        "data": f"action=craft&recipe_id={recipe.id}",
+                        "displayText": f"Crafting {recipe.name}"
+                    },
+                    "flex": 0
+                }
+                status_text = {"type": "text", "text": "✅ Ready", "size": "xxs", "color": "#00FF9D"}
+            else:
+                action_btn = {
+                     "type": "button",
+                     "style": "secondary",
+                     "height": "sm",
+                     "color": "#30363D",
+                     "action": {
+                         "type": "postback",
+                         "label": "LOCKED",
+                         "data": "action=noop",
+                     },
+                     "flex": 0
+                }
+                status_text = {"type": "text", "text": f"❌ Missing: {', '.join(missing)}", "size": "xxs", "color": "#FF5555", "wrap": True}
+
+            row = {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {
+                         "type": "box",
+                         "layout": "horizontal",
+                         "contents": [
+                             {"type": "text", "text": recipe.name, "weight": "bold", "color": "#E6EDF3", "size": "sm", "flex": 1},
+                             action_btn
+                         ],
+                         "alignItems": "center"
+                    },
+                    status_text,
+                    {"type": "separator", "margin": "md", "color": "#30363D"}
+                ],
+                "margin": "md"
+            }
+            recipe_rows.append(row)
+            
+        if not recipe_rows:
+            recipe_rows.append({"type": "text", "text": "No known recipes.", "color": "#8B949E", "align": "center"})
+
+        bubble = {
+            "type": "bubble",
+            "header": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {"type": "text", "text": "⚒️ WORKSHOP", "weight": "bold", "color": COLOR_ACCENT, "size": "md"},
+                    {"type": "text", "text": "Combine ingredients to create items.", "color": "#8B949E", "size": "xs"}
+                ],
+                "backgroundColor": COLOR_BG,
+                "paddingAll": "lg"
+            },
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": recipe_rows,
+                "backgroundColor": COLOR_BG,
+                "paddingAll": "lg"
+            }
+        }
+        
+        return FlexMessage(
+            alt_text="Crafting Workshop",
+            contents=FlexContainer.from_dict(bubble)
+        )
+
+    def render_boss_status(self, boss) -> FlexMessage:
+        if not boss:
+             # Fallback Message
+            return TextMessage(text="No active boss. Type 'Boss' to summon one.")
+            
+        # Calc HP Bar
+        percentage = int((boss.hp / boss.max_hp) * 100)
+        bar_color = "#00FF9D" if percentage > 50 else "#FF5555"
+        
+        bubble = {
+            "type": "bubble",
+            "size": "giga",
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "backgroundColor": "#0D1117",
+                "contents": [
+                    {"type": "text", "text": "☠️ BOSS BATTLE", "weight": "bold", "color": "#FF5555", "size": "sm"},
+                    {"type": "text", "text": boss.name, "weight": "bold", "color": "#FFFFFF", "size": "xl", "margin": "sm"},
+                    {"type": "text", "text": f"Lv.{boss.level}", "color": "#8B949E", "size": "xs"},
+                    
+                    # HP Bar Container
+                    {
+                        "type": "box",
+                        "layout": "vertical",
+                        "margin": "lg",
+                        "backgroundColor": "#30363D",
+                        "cornerRadius": "md",
+                        "height": "10px",
+                        "contents": [
+                            {
+                                "type": "box",
+                                "layout": "vertical",
+                                "backgroundColor": bar_color,
+                                "width": f"{percentage}%",
+                                "height": "10px",
+                                "cornerRadius": "md"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "box",
+                        "layout": "horizontal",
+                        "contents": [
+                             {"type": "text", "text": f"HP: {boss.hp}/{boss.max_hp}", "size": "xs", "color": "#E6EDF3"},
+                             {"type": "text", "text": f"{percentage}%", "size": "xs", "color": "#E6EDF3", "align": "end"}
+                        ],
+                        "margin": "sm"
+                    },
+                    
+                    {"type": "separator", "margin": "md", "color": "#30363D"},
+                    
+                    # Actions
+                    {
+                         "type": "box",
+                         "layout": "horizontal",
+                         "margin": "md",
+                         "spacing": "sm",
+                         "contents": [
+                             {
+                                 "type": "button",
+                                 "style": "primary",
+                                 "color": "#FF5555",
+                                 "action": {
+                                     "type": "message",
+                                     "label": "⚔️ ATTACK",
+                                     "text": "Attack"
+                                 }
+                             }
+                         ]
+                    }
+                ],
+                "paddingAll": "lg"
+            }
+        }
+        
+        return FlexMessage(
+            alt_text=f"Boss: {boss.name}",
             contents=FlexContainer.from_dict(bubble)
         )
 

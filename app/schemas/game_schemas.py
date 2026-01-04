@@ -7,6 +7,7 @@ class ProcessResult(BaseModel):
     user_id: str
     action_text: str
     attribute: str
+    difficulty_tier: str = "E"
     xp_gained: int
     new_level: int
     leveled_up: bool

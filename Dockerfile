@@ -13,5 +13,8 @@ RUN uv sync --frozen --no-dev
 # Copy application code
 COPY . .
 
-# Run the application with Gunicorn for production stability
-CMD ["uv", "run", "gunicorn", "app.main:app", "--workers", "4", "--worker-class", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000", "--access-logfile", "-", "--error-logfile", "-"]
+# Azure App Service expects the container to declare its port
+EXPOSE 8000
+
+# Run uvicorn directly from the virtual environment (Bypassing 'uv run' runtime checks)
+CMD ["/app/.venv/bin/uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

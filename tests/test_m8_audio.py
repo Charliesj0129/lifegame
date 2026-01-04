@@ -30,16 +30,14 @@ class TestM8Audio(unittest.IsolatedAsyncioTestCase):
         mock_ctx.__aexit__ = AsyncMock(return_value=None)
 
         with patch("app.api.webhook.get_messaging_api", return_value=mock_api), \
-             patch("app.api.webhook.user_service.process_action", new_callable=AsyncMock) as mock_process_action, \
-             patch("app.api.webhook.flex_renderer.render", return_value=TextMessage(text="Flex")), \
+             patch("app.services.ai_service.ai_router.router", new_callable=AsyncMock) as mock_router, \
              patch("app.api.webhook.audio_service.get_level_up_audio") as mock_audio_svc, \
              patch("app.core.database.AsyncSessionLocal", return_value=mock_ctx), \
              patch("app.api.webhook.user_service.get_or_create_user", new_callable=AsyncMock), \
              patch("app.services.rival_service.RivalService.process_encounter", new_callable=AsyncMock) as mock_rival_encounter:
              
              mock_rival_encounter.return_value = None
-             
-             mock_process_action.return_value = mock_result
+             mock_router.return_value = (TextMessage(text="Flex"), "log_action", {"leveled_up": True})
 
              # Mock Audio Return
              mock_audio_msg = AudioMessage(original_content_url="https://audio", duration=1000)
@@ -66,7 +64,7 @@ class TestM8Audio(unittest.IsolatedAsyncioTestCase):
         # Mock Deps
         with patch("app.services.daily_briefing_service.get_messaging_api") as mock_get_api, \
              patch("app.services.daily_briefing_service.AsyncSessionLocal") as mock_db, \
-             patch("app.services.daily_briefing_service.DailyBriefingService._update_rival", new_callable=AsyncMock) as mock_update_rival:
+             patch("app.services.daily_briefing_service.rival_service.advance_daily_briefing", new_callable=AsyncMock) as mock_update_rival:
              
              mock_update_rival.return_value = mock_rival
              

@@ -1,40 +1,40 @@
-import pytest
-from sqlalchemy.ext.asyncio import create_async_engine
-from sqlalchemy import text
-from scripts.migrate_m7 import migrate
-from app.models.base import Base
+import sqlite3
+from pathlib import Path
 
-@pytest.mark.asyncio
-async def test_migration_idempotency():
+from alembic import command
+from alembic.config import Config
+
+from app.core.config import settings
+
+
+def _run_migrations(db_url: str) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    config = Config(str(repo_root / "alembic.ini"))
+    original_url = settings.DATABASE_URL
+    settings.DATABASE_URL = db_url
+    try:
+        command.upgrade(config, "head")
+    finally:
+        settings.DATABASE_URL = original_url
+
+
+def test_migration_idempotency(tmp_path):
     """
-    Verifies that the migration script can be run multiple times 
-    without crashing (Idempotency).
+    Verifies that alembic upgrade can be run multiple times without crashing.
     """
-    # 1. Setup specific test DB (file-based to verify across connections)
-    import os
-    db_file = "./test_stability.db"
-    if os.path.exists(db_file):
-        os.remove(db_file)
-        
+    db_file = tmp_path / "test_stability.db"
     db_url = f"sqlite+aiosqlite:///{db_file}"
-    test_engine = create_async_engine(db_url)
-    
-    # 2. Run Migration First Time
-    try:
-        await migrate(engine_override=test_engine)
-    except Exception as e:
-        pytest.fail(f"First migration failed: {e}")
-        
-    # Check tables exist
-    async with test_engine.connect() as conn:
-        # SQLite specific check
-        result = await conn.execute(text("SELECT name FROM sqlite_master WHERE type='table' AND name='users'"))
-        assert result.scalar() == 'users'
 
-    # 3. Run Migration Second Time (Should not fail)
+    _run_migrations(db_url)
+
+    conn = sqlite3.connect(db_file)
     try:
-        await migrate(engine_override=test_engine)
-    except Exception as e:
-        pytest.fail(f"Second migration (idempotency check) failed: {e}")
-        
-    await test_engine.dispose()
+        cursor = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='users'"
+        )
+        row = cursor.fetchone()
+        assert row and row[0] == "users"
+    finally:
+        conn.close()
+
+    _run_migrations(db_url)
