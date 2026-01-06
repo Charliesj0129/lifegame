@@ -7,6 +7,7 @@ import logging
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
+
 @router.get("/health", status_code=status.HTTP_200_OK)
 async def health_check(db: AsyncSession = Depends(get_db)):
     """
@@ -22,5 +23,5 @@ async def health_check(db: AsyncSession = Depends(get_db)):
         # Return 503 Service Unavailable if DB is down
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail={"status": "error", "db": "disconnected", "error": str(e)}
+            detail={"status": "error", "db": "disconnected", "error": str(e)},
         )

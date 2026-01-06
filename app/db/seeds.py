@@ -11,7 +11,7 @@ initial_items = [
         type=ItemType.CONSUMABLE,
         price=80,
         is_purchasable=False,
-        effect_meta={"effect": "grant_xp", "amount": 50}
+        effect_meta={"effect": "grant_xp", "amount": 50},
     ),
     Item(
         id="POTION_FOCUS",
@@ -21,7 +21,12 @@ initial_items = [
         type=ItemType.CONSUMABLE,
         price=150,
         is_purchasable=False,
-        effect_meta={"effect": "buff_multiplier", "attribute": "INT", "multiplier": 1.5, "duration_minutes": 120}
+        effect_meta={
+            "effect": "buff_multiplier",
+            "attribute": "INT",
+            "multiplier": 1.5,
+            "duration_minutes": 120,
+        },
     ),
     Item(
         id="COUPON_COFFEE",
@@ -31,7 +36,7 @@ initial_items = [
         type=ItemType.REWARD,
         price=300,
         is_purchasable=False,
-        effect_meta={"effect": "redeem_o2o"}
+        effect_meta={"effect": "redeem_o2o"},
     ),
     Item(
         id="ITEM_DATA_SHARD",
@@ -41,7 +46,7 @@ initial_items = [
         type=ItemType.KEY,
         price=250,
         is_purchasable=False,
-        effect_meta={"effect": "lore_unlock"}
+        effect_meta={"effect": "lore_unlock"},
     ),
     Item(
         id="ITEM_REDEMPTION_TICKET",
@@ -51,7 +56,7 @@ initial_items = [
         type=ItemType.CONSUMABLE,
         price=300,
         is_purchasable=False,
-        effect_meta={"effect": "clear_penalty"}
+        effect_meta={"effect": "clear_penalty"},
     ),
     Item(
         id="POTION_VITAL_S",
@@ -61,7 +66,7 @@ initial_items = [
         type=ItemType.CONSUMABLE,
         price=90,
         is_purchasable=False,
-        effect_meta={"effect": "restore_hp", "amount": 10}
+        effect_meta={"effect": "restore_hp", "amount": 10},
     ),
     Item(
         id="MAT_HERB",
@@ -71,7 +76,7 @@ initial_items = [
         type=ItemType.KEY,
         price=40,
         is_purchasable=False,
-        effect_meta={}
+        effect_meta={},
     ),
     Item(
         id="MAT_METAL",
@@ -81,9 +86,10 @@ initial_items = [
         type=ItemType.KEY,
         price=50,
         is_purchasable=False,
-        effect_meta={}
-    )
+        effect_meta={},
+    ),
 ]
+
 
 async def seed_items():
     async with AsyncSessionLocal() as session:
@@ -105,14 +111,14 @@ async def seed_recipes():
                 name="專注藥水配方",
                 result_item_id="POTION_FOCUS",
                 result_quantity=1,
-                success_rate=0.9
+                success_rate=0.9,
             ),
             Recipe(
                 id="RECIPE_VITAL_POTION",
                 name="體力修復藥水配方",
                 result_item_id="POTION_VITAL_S",
                 result_quantity=1,
-                success_rate=1.0
+                success_rate=1.0,
             ),
         ]
 
@@ -122,15 +128,24 @@ async def seed_recipes():
                 session.add(recipe)
 
         ingredients = [
-            RecipeIngredient(recipe_id="RECIPE_FOCUS_POTION", item_id="MAT_HERB", quantity_required=2),
-            RecipeIngredient(recipe_id="RECIPE_FOCUS_POTION", item_id="MAT_METAL", quantity_required=1),
-            RecipeIngredient(recipe_id="RECIPE_VITAL_POTION", item_id="MAT_HERB", quantity_required=1),
+            RecipeIngredient(
+                recipe_id="RECIPE_FOCUS_POTION", item_id="MAT_HERB", quantity_required=2
+            ),
+            RecipeIngredient(
+                recipe_id="RECIPE_FOCUS_POTION",
+                item_id="MAT_METAL",
+                quantity_required=1,
+            ),
+            RecipeIngredient(
+                recipe_id="RECIPE_VITAL_POTION", item_id="MAT_HERB", quantity_required=1
+            ),
         ]
 
         for ing in ingredients:
             session.add(ing)
 
         await session.commit()
+
 
 if __name__ == "__main__":
     asyncio.run(seed_items())

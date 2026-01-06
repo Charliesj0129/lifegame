@@ -67,7 +67,13 @@ class HPService:
             await session.commit()
         if trigger_rescue and user.is_hollowed and not was_hollowed:
             await self.trigger_rescue_protocol(session, user)
-        logger.info("HP change user=%s delta=%s source=%s hp=%s", user.id, delta, source, user.hp)
+        logger.info(
+            "HP change user=%s delta=%s source=%s hp=%s",
+            user.id,
+            delta,
+            source,
+            user.hp,
+        )
         return user
 
     async def calculate_daily_drain(self, session: AsyncSession, user: User) -> int:
@@ -84,13 +90,17 @@ class HPService:
             await self.trigger_rescue_protocol(session, user)
         return drain
 
-    async def restore_by_difficulty(self, session: AsyncSession, user: User, difficulty: str | None) -> int:
+    async def restore_by_difficulty(
+        self, session: AsyncSession, user: User, difficulty: str | None
+    ) -> int:
         diff_key = (difficulty or "E").upper()
         delta = self.HP_RECOVERY_BY_DIFF.get(diff_key, 6)
         await self.apply_hp_change(session, user, delta, source="quest_complete")
         return delta
 
-    async def restore_hp_from_quest(self, session: AsyncSession, user: User, difficulty: str | None) -> User:
+    async def restore_hp_from_quest(
+        self, session: AsyncSession, user: User, difficulty: str | None
+    ) -> User:
         await self.restore_by_difficulty(session, user, difficulty)
         return user
 
@@ -106,7 +116,10 @@ class HPService:
         await session.commit()
 
         from app.services.dungeon_service import dungeon_service
-        rescue = await dungeon_service.start_dungeon(session, user.id, dungeon_type="RESCUE", duration_minutes=30)
+
+        rescue = await dungeon_service.start_dungeon(
+            session, user.id, dungeon_type="RESCUE", duration_minutes=30
+        )
         return rescue.get("message", "⚠️ Hollowed Protocol 啟動。")
 
     async def get_hp_display(self, user: User) -> dict:

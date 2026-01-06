@@ -8,6 +8,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 class ToolRegistry:
     """
     Exposes a unified interface for the AI to call system functions.
@@ -20,7 +21,7 @@ class ToolRegistry:
         user = await user_service.get_user(session, user_id)
         if not user:
             return {"error": "User not found"}, TextMessage(text="⚠️ 使用者不存在。")
-        
+
         lore_prog = await lore_service.get_user_progress(session, user_id)
         msg = flex_renderer.render_status(user, lore_prog)
         return {"status": "success", "level": user.level}, msg
@@ -31,7 +32,7 @@ class ToolRegistry:
         items = await inventory_service.get_user_inventory(session, user_id)
         if not items:
             return {"count": 0}, TextMessage(text="🎒 背包是空的。")
-        
+
         item_list = "\n".join([f"- {ui.item.name} x{ui.quantity}" for ui in items])
         # In a real app, this would be a Flex Message Grid
         msg = TextMessage(text=f"🎒 背包清單\n{item_list}")
@@ -63,12 +64,12 @@ class ToolRegistry:
         result = await user_service.process_action(session, user_id, text)
         msg = flex_renderer.render(result)
         return result.dict(), msg
-    
+
     @staticmethod
     async def set_goal(session, user_id: str, goal_text: str):
         """Sets a new macro goal."""
         goal, plan = await quest_service.create_new_goal(session, user_id, goal_text)
-        
+
         milestones = (
             plan.get("milestones")
             or plan.get("tactical_quests")
@@ -78,7 +79,8 @@ class ToolRegistry:
         habits = plan.get("daily_habits", [])
 
         msg = flex_renderer.render_plan_confirmation(goal.title, milestones, habits)
-        
+
         return {"goal": goal.title, "milestones": len(milestones)}, msg
+
 
 tool_registry = ToolRegistry()

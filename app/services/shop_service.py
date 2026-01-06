@@ -6,6 +6,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 class ShopService:
     async def list_shop_items(self, session: AsyncSession):
         stmt = select(Item).where(Item.is_purchasable)
@@ -17,44 +18,47 @@ class ShopService:
         stmt = select(User).where(User.id == user_id)
         result = await session.execute(stmt)
         user = result.scalars().first()
-        
+
         item = await session.get(Item, item_id)
-        
+
         if not user:
             return {"success": False, "message": "找不到使用者。"}
         if not item:
             return {"success": False, "message": "找不到商品。"}
         if not item.is_purchasable:
             return {"success": False, "message": "此商品不可購買。"}
-        
+
         # 2. Check Funds
         price = item.price or 0
         if user.gold < price:
             return {"success": False, "message": f"金幣不足，需要 {price} G。"}
-        
+
         # 3. Transact
         user.gold -= price
-        
+
         # 4. Add to Inventory (or apply instant effect)
         effect = (item.effect_meta or {}).get("effect")
         if effect == "clear_penalty":
             user.penalty_pending = False
             session.add(user)
-        stmt_inv = select(UserItem).where(UserItem.user_id == user_id, UserItem.item_id == item_id)
+        stmt_inv = select(UserItem).where(
+            UserItem.user_id == user_id, UserItem.item_id == item_id
+        )
         result_inv = await session.execute(stmt_inv)
         user_item = result_inv.scalars().first()
-        
+
         if user_item:
             user_item.quantity += 1
         else:
             user_item = UserItem(user_id=user_id, item_id=item_id, quantity=1)
             session.add(user_item)
-            
+
         await session.commit()
         return {"success": True, "message": f"已購買 {item.name}（-{price} G）。"}
 
     async def refresh_daily_stock(self, session: AsyncSession, slots: int = 3):
         from app.models.gamification import ItemRarity
+
         result = await session.execute(select(Item))
         items = result.scalars().all()
         if not items:
@@ -65,7 +69,12 @@ class ShopService:
             session.add(item)
 
         import random
-        rare_pool = [i for i in items if i.rarity in {ItemRarity.RARE, ItemRarity.EPIC, ItemRarity.LEGENDARY}]
+
+        rare_pool = [
+            i
+            for i in items
+            if i.rarity in {ItemRarity.RARE, ItemRarity.EPIC, ItemRarity.LEGENDARY}
+        ]
         [i for i in items if i not in rare_pool]
 
         selected = []
@@ -82,5 +91,6 @@ class ShopService:
 
         await session.commit()
         return selected[:slots]
+
 
 shop_service = ShopService()

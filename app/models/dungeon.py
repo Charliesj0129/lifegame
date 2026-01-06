@@ -72,29 +72,33 @@ DUNGEON_TEMPLATES = {
     },
 }
 
+
 class Dungeon(Base):
     __tablename__ = "dungeons"
-    
+
     id = Column(String, primary_key=True)
-    user_id = Column(String, ForeignKey('users.id'), nullable=False)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
     dungeon_type = Column(String, nullable=False)
     name = Column(String, nullable=False)
     duration_minutes = Column(Integer, default=60)
-    status = Column(String, server_default='ACTIVE')
+    status = Column(String, server_default="ACTIVE")
     deadline = Column(DateTime(timezone=True), nullable=True)
     xp_reward = Column(Integer, default=100)
     reward_claimed = Column(Boolean, server_default=text("FALSE"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     completed_at = Column(DateTime(timezone=True), nullable=True)
-    
+
     # Relationships
-    stages = relationship("DungeonStage", backref="dungeon", order_by="DungeonStage.order")
+    stages = relationship(
+        "DungeonStage", backref="dungeon", order_by="DungeonStage.order"
+    )
+
 
 class DungeonStage(Base):
     __tablename__ = "dungeon_stages"
-    
+
     id = Column(String, primary_key=True)
-    dungeon_id = Column(String, ForeignKey('dungeons.id'), nullable=False)
+    dungeon_id = Column(String, ForeignKey("dungeons.id"), nullable=False)
     title = Column(String, nullable=False)
     description = Column(String, nullable=True)
     order = Column(Integer, default=1)

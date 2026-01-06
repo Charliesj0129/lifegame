@@ -22,7 +22,12 @@ from app.services.quest_service import quest_service
 from app.services.rival_service import rival_service
 from app.services.flex_renderer import flex_renderer
 from app.services.line_bot import get_messaging_api
-from linebot.v3.messaging import PushMessageRequest, QuickReply, QuickReplyItem, PostbackAction
+from linebot.v3.messaging import (
+    PushMessageRequest,
+    QuickReply,
+    QuickReplyItem,
+    PostbackAction,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -30,19 +35,19 @@ logger = logging.getLogger(__name__)
 class DDAScheduler:
     """
     Manages scheduled DDA push notifications.
-    
+
     Time blocks:
     - Morning: 08:00 - Generate and push daily quests
-    - Midday: 12:30 - Reminder for incomplete quests  
+    - Midday: 12:30 - Reminder for incomplete quests
     - Night: 21:00 - Daily review and rival advancement
     """
-    
+
     def __init__(self):
         self.scheduler = AsyncIOScheduler()
         self._is_running = False
         self._lock = asyncio.Lock()
         self._last_shop_refresh_date: datetime.date | None = None
-    
+
     def start(self):
         """Start the scheduler with all configured jobs."""
         if self._is_running:
@@ -61,14 +66,14 @@ class DDAScheduler:
         self.scheduler.start()
         self._is_running = True
         logger.info("DDA Scheduler started with interval job (%ss)", interval)
-    
+
     def shutdown(self):
         """Gracefully shutdown the scheduler."""
         if self._is_running:
             self.scheduler.shutdown(wait=True)
             self._is_running = False
             logger.info("DDA Scheduler shutdown complete")
-    
+
     async def _get_all_users(self, session: AsyncSession) -> list[User]:
         """Fetch all users for push preference checks."""
         stmt = select(User)
@@ -88,14 +93,20 @@ class DDAScheduler:
                 for user in users:
                     try:
                         if not user.push_enabled:
-                            logger.info("Push skipped: user preference user=%s", user.id)
+                            logger.info(
+                                "Push skipped: user preference user=%s", user.id
+                            )
                             continue
                         await self._process_user(session, user)
                     except Exception as e:
                         logger.error("Push tick failed for %s: %s", user.id, e)
 
-    async def _get_or_create_profile(self, session: AsyncSession, user_id: str) -> PushProfile:
-        result = await session.execute(select(PushProfile).where(PushProfile.user_id == user_id))
+    async def _get_or_create_profile(
+        self, session: AsyncSession, user_id: str
+    ) -> PushProfile:
+        result = await session.execute(
+            select(PushProfile).where(PushProfile.user_id == user_id)
+        )
         profile = result.scalars().first()
         if profile:
             return profile
@@ -110,7 +121,12 @@ class DDAScheduler:
         except Exception:
             return ZoneInfo("UTC")
 
-    def _should_send(self, now_local: datetime.datetime, target_time: str, last_sent: datetime.date | None) -> bool:
+    def _should_send(
+        self,
+        now_local: datetime.datetime,
+        target_time: str,
+        last_sent: datetime.date | None,
+    ) -> bool:
         if not target_time:
             return False
         if now_local.strftime("%H:%M") != target_time:
@@ -121,23 +137,35 @@ class DDAScheduler:
         return QuickReply(
             items=[
                 QuickReplyItem(
-                    action=PostbackAction(label="🔄 重新生成", data="action=reroll_quests", display_text="重新生成任務...")
+                    action=PostbackAction(
+                        label="🔄 重新生成",
+                        data="action=reroll_quests",
+                        display_text="重新生成任務...",
+                    )
                 ),
                 QuickReplyItem(
-                    action=PostbackAction(label="✅ 全部接受", data="action=accept_all_quests", display_text="全部接受任務...")
+                    action=PostbackAction(
+                        label="✅ 全部接受",
+                        data="action=accept_all_quests",
+                        display_text="全部接受任務...",
+                    )
                 ),
             ]
         )
 
-    async def _maybe_refresh_shop(self, session: AsyncSession, users: list[User]) -> None:
+    async def _maybe_refresh_shop(
+        self, session: AsyncSession, users: list[User]
+    ) -> None:
         now = datetime.datetime.utcnow().date()
         if self._last_shop_refresh_date == now:
             return
         from app.services.shop_service import shop_service
+
         await shop_service.refresh_daily_stock(session)
         api = get_messaging_api()
         if api:
             from linebot.v3.messaging import TextMessage
+
             for user in users:
                 if not user.push_enabled:
                     continue
@@ -145,7 +173,9 @@ class DDAScheduler:
                     await api.push_message(
                         PushMessageRequest(
                             to=user.id,
-                            messages=[TextMessage(text="🛒 黑市已更新，稀有貨物已上架。")]
+                            messages=[
+                                TextMessage(text="🛒 黑市已更新，稀有貨物已上架。")
+                            ],
                         )
                     )
                 except Exception as exc:
@@ -167,11 +197,15 @@ class DDAScheduler:
             return
 
         if self._should_send(now_local, morning_time, profile.last_morning_date):
-            await quest_service.trigger_push_quests(session, user.id, time_block="Morning")
+            await quest_service.trigger_push_quests(
+                session, user.id, time_block="Morning"
+            )
             quests = await quest_service.get_daily_quests(session, user.id)
             habits = await quest_service.get_daily_habits(session, user.id)
             dda_hint = await self._daily_hint(session, user.id)
-            flex = flex_renderer.render_push_briefing("🌅 早安任務", quests, habits, dda_hint)
+            flex = flex_renderer.render_push_briefing(
+                "🌅 早安任務", quests, habits, dda_hint
+            )
             flex.quick_reply = self._build_quick_reply()
             await api.push_message(PushMessageRequest(to=user.id, messages=[flex]))
             profile.last_morning_date = now_local.date()
@@ -179,7 +213,9 @@ class DDAScheduler:
             return
 
         if self._should_send(now_local, midday_time, profile.last_midday_date):
-            await quest_service.trigger_push_quests(session, user.id, time_block="Midday")
+            await quest_service.trigger_push_quests(
+                session, user.id, time_block="Midday"
+            )
             quests = await quest_service.get_daily_quests(session, user.id)
             habits = await quest_service.get_daily_habits(session, user.id)
             incomplete = [q for q in quests if q.status != "DONE"]
@@ -188,7 +224,9 @@ class DDAScheduler:
                 reminder = "中午提醒：尚有未完成任務，先完成最小一步。"
             else:
                 reminder = "中午提醒：今日任務已完成，保持節奏。"
-            flex = flex_renderer.render_push_briefing("🧠 中午提醒", incomplete or quests, habits, reminder)
+            flex = flex_renderer.render_push_briefing(
+                "🧠 中午提醒", incomplete or quests, habits, reminder
+            )
             await api.push_message(PushMessageRequest(to=user.id, messages=[flex]))
             profile.last_midday_date = now_local.date()
             await session.commit()
@@ -196,6 +234,7 @@ class DDAScheduler:
 
         if self._should_send(now_local, night_time, profile.last_night_date):
             from app.services.hp_service import hp_service
+
             await hp_service.calculate_daily_drain(session, user)
             quests = await quest_service.get_daily_quests(session, user.id)
             completed = [q for q in quests if q.status == "DONE"]
@@ -211,7 +250,7 @@ class DDAScheduler:
             await api.push_message(PushMessageRequest(to=user.id, messages=[flex]))
             profile.last_night_date = now_local.date()
             await session.commit()
-    
+
     async def trigger_manual_push(self, user_id: str, time_block: str = "Morning"):
         """
         Manually trigger a push for testing purposes.
@@ -232,7 +271,9 @@ class DDAScheduler:
             return "偵測到能量低落：今日任務已降階，先穩住連勝。"
         return None
 
-    async def _update_daily_outcome(self, session: AsyncSession, user_id: str, done: bool, has_quests: bool) -> None:
+    async def _update_daily_outcome(
+        self, session: AsyncSession, user_id: str, done: bool, has_quests: bool
+    ) -> None:
         today = datetime.date.today()
         stmt = select(DailyOutcome).where(
             DailyOutcome.user_id == user_id,

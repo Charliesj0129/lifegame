@@ -5,12 +5,13 @@ from app.services.user_service import user_service
 
 router = APIRouter()
 
+
 @router.get("/{user_id}/status")
 async def get_user_status(user_id: str, db: AsyncSession = Depends(get_db)):
     user = await user_service.get_user(db, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    
+
     return {
         "id": user.id,
         "name": user.name,
@@ -20,22 +21,21 @@ async def get_user_status(user_id: str, db: AsyncSession = Depends(get_db)):
             "INT": user.int,
             "VIT": user.vit,
             "WIS": user.wis,
-            "CHA": user.cha
+            "CHA": user.cha,
         },
-        "currencies": {
-            "gold": user.gold,
-            "xp": user.xp if hasattr(user, 'xp') else 0
-        },
+        "currencies": {"gold": user.gold, "xp": user.xp if hasattr(user, "xp") else 0},
         "vitals": {
             "hp": user.hp,
             "max_hp": user.max_hp,
-            "is_hollowed": user.is_hollowed
-        }
+            "is_hollowed": user.is_hollowed,
+        },
     }
+
 
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from app.models.gamification import UserItem
+
 
 @router.get("/{user_id}/inventory")
 async def get_user_inventory(user_id: str, db: AsyncSession = Depends(get_db)):
@@ -49,16 +49,18 @@ async def get_user_inventory(user_id: str, db: AsyncSession = Depends(get_db)):
         .options(selectinload(UserItem.item))
     )
     user_items = result.scalars().all()
-    
+
     inventory = []
     for ui in user_items:
-        inventory.append({
-            "item_id": ui.item_id,
-            "name": ui.item.name,
-            "quantity": ui.quantity,
-            "rarity": ui.item.rarity,
-            "type": ui.item.type,
-            "description": ui.item.description
-        })
-        
+        inventory.append(
+            {
+                "item_id": ui.item_id,
+                "name": ui.item.name,
+                "quantity": ui.quantity,
+                "rarity": ui.item.rarity,
+                "type": ui.item.type,
+                "description": ui.item.description,
+            }
+        )
+
     return inventory

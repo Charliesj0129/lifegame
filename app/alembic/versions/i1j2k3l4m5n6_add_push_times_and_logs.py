@@ -4,6 +4,7 @@ Revision ID: i1j2k3l4m5n6
 Revises: i7j8k9l0m1n2
 Create Date: 2026-01-05 15:45:00.000000
 """
+
 from typing import Sequence, Union
 
 from alembic import op
@@ -31,11 +32,18 @@ def upgrade() -> None:
 
     if _has_column("push_profiles", "id"):
         if not _has_column("push_profiles", "last_morning_date"):
-            op.add_column("push_profiles", sa.Column("last_morning_date", sa.Date(), nullable=True))
+            op.add_column(
+                "push_profiles",
+                sa.Column("last_morning_date", sa.Date(), nullable=True),
+            )
         if not _has_column("push_profiles", "last_midday_date"):
-            op.add_column("push_profiles", sa.Column("last_midday_date", sa.Date(), nullable=True))
+            op.add_column(
+                "push_profiles", sa.Column("last_midday_date", sa.Date(), nullable=True)
+            )
         if not _has_column("push_profiles", "last_night_date"):
-            op.add_column("push_profiles", sa.Column("last_night_date", sa.Date(), nullable=True))
+            op.add_column(
+                "push_profiles", sa.Column("last_night_date", sa.Date(), nullable=True)
+            )
 
 
 def downgrade() -> None:

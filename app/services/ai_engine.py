@@ -5,6 +5,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 class AIEngine:
     def __init__(self):
         self.client = None
@@ -24,7 +25,7 @@ class AIEngine:
             self.client = AsyncOpenAI(
                 api_key=settings.OPENROUTER_API_KEY,
                 base_url="https://openrouter.ai/api/v1",
-                timeout=15.0
+                timeout=15.0,
             )
             self.model = settings.OPENROUTER_MODEL
             self.provider = "openrouter"
@@ -33,17 +34,20 @@ class AIEngine:
             genai.configure(api_key=settings.GOOGLE_API_KEY)
             self.model = genai.GenerativeModel(settings.GEMINI_MODEL)
             self.provider = "google"
-            logger.info(f"AI Engine initialized with Google Gemini ({self.model.model_name})")
+            logger.info(
+                f"AI Engine initialized with Google Gemini ({self.model.model_name})"
+            )
         else:
             logger.warning("No AI API Keys set. AI Engine disabled.")
 
     def _minify_rules(self, text: str) -> str:
         """Strip markdown and extra whitespace to save tokens."""
         import re
-        text = re.sub(r'#+\s*', '', text) # Remove headers
-        text = re.sub(r'\n+', ' ', text)  # Collapse newlines
-        text = re.sub(r'\s+', ' ', text)  # Collapse spaces
-        return text.strip()[:2000] # Cap length just in case
+
+        text = re.sub(r"#+\s*", "", text)  # Remove headers
+        text = re.sub(r"\n+", " ", text)  # Collapse newlines
+        text = re.sub(r"\s+", " ", text)  # Collapse spaces
+        return text.strip()[:2000]  # Cap length just in case
 
     def _strip_code_fences(self, content: str) -> str:
         if not content:
@@ -62,10 +66,11 @@ class AIEngine:
         end = max(content.rfind("}"), content.rfind("]"))
         if end == -1 or end <= start:
             return None
-        return content[start:end + 1]
+        return content[start : end + 1]
 
     def _safe_json_load(self, content: str) -> dict | list | None:
         import json
+
         try:
             return json.loads(content)
         except Exception:
@@ -74,12 +79,15 @@ class AIEngine:
     def _log_latency(self, event: str, elapsed_ms: float) -> None:
         if not settings.ENABLE_LATENCY_LOGS:
             return
-        logger.debug("event=%s duration_ms=%.2f model=%s", event, elapsed_ms, self.model)
+        logger.debug(
+            "event=%s duration_ms=%.2f model=%s", event, elapsed_ms, self.model
+        )
 
     async def analyze_action(self, user_text: str) -> dict:
         import time
+
         start_time = time.time() if settings.ENABLE_LATENCY_LOGS else None
-        
+
         if self.provider == "none":
             return {
                 "narrative": "⚠️ 神經連結離線。執行本地模擬程序。",
@@ -87,7 +95,7 @@ class AIEngine:
                 "stat_type": "VIT",
                 "loot_drop": {"has_loot": False},
                 "feedback_tone": "WARNING",
-                "difficulty_tier": "F" 
+                "difficulty_tier": "F",
             }
 
         # Optimized "One-Shot" Prompt
@@ -103,7 +111,7 @@ Output Schema:
   "loot_drop": {{ "has_loot": bool, "item_name": "str", "description": "str" }},
   "feedback_tone": "ENCOURAGING"|"SARCASTIC"|"WARNING"
 }}"""
-        
+
         user_prompt = f"Action: {user_text}"
 
         try:
@@ -113,12 +121,12 @@ Output Schema:
                     model=self.model,
                     messages=[
                         {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt}
+                        {"role": "user", "content": user_prompt},
                     ],
-                    response_format={"type": "json_object"}
+                    response_format={"type": "json_object"},
                 )
                 content = completion.choices[0].message.content
-            
+
             elif self.provider == "google":
                 full_prompt = system_prompt + " " + user_prompt
                 response = await self.model.generate_content_async(full_prompt)
@@ -129,11 +137,12 @@ Output Schema:
                 self._log_latency("ai_request_latency", elapsed)
 
             import json
+
             if "```json" in content:
                 content = content.replace("```json", "").replace("```", "")
             elif "```" in content:
                 content = content.replace("```", "")
-            
+
             return json.loads(content)
 
         except Exception as e:
@@ -143,77 +152,95 @@ Output Schema:
                 "difficulty_tier": "E",
                 "stat_type": "VIT",
                 "loot_drop": {"has_loot": False},
-                "feedback_tone": "WARNING"
+                "feedback_tone": "WARNING",
             }
 
-    async def analyze_image(self, image_bytes: bytes, mime_type: str, prompt: str) -> dict:
+    async def analyze_image(
+        self, image_bytes: bytes, mime_type: str, prompt: str
+    ) -> dict:
         """
         Analyzes an image using Vision Model (Gemini).
         Returns JSON verification result.
         """
         import time
+
         start = time.time() if settings.ENABLE_LATENCY_LOGS else None
-        
+
         system_prompt = (
             "Role: Verification AI (The Arbiter). "
             "Task: Verify if the image matches the User's Quest Requirement. "
             "Language: ALWAYS use Traditional Chinese (繁體中文). "
             "Output JSON: { 'verdict': 'APPROVED'|'REJECTED'|'UNCERTAIN', 'reason': 'str', 'tags': ['str'] }"
         )
-        
+
         try:
             content = ""
             if self.provider == "google":
                 # Gemini Pro Vision / Flash support byte data
-                image_part = {
-                    "mime_type": mime_type,
-                    "data": image_bytes
-                }
-                
-                full_prompt = [system_prompt, f"Quest Requirement: {prompt}", image_part]
-                
+                image_part = {"mime_type": mime_type, "data": image_bytes}
+
+                full_prompt = [
+                    system_prompt,
+                    f"Quest Requirement: {prompt}",
+                    image_part,
+                ]
+
                 # Note: Some older gemini libs expect 'parts' list differently.
                 # But generate_content_async usually accepts a list of [text, image].
                 response = await self.model.generate_content_async(full_prompt)
                 content = response.text
-                
+
             elif self.provider == "openrouter":
-                # OpenRouter Vision support varies. 
+                # OpenRouter Vision support varies.
                 # Assuming simple GPT-4o style if available, but usually requires URL or base64.
                 # For MVP if OpenRouter is used, might fall back or skip.
                 # Let's assume we skip or just fail for now if not Google.
                 import base64
-                b64 = base64.b64encode(image_bytes).decode('utf-8')
-                
+
+                b64 = base64.b64encode(image_bytes).decode("utf-8")
+
                 completion = await self.client.chat.completions.create(
                     model=self.model,
                     messages=[
                         {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": [
-                            {"type": "text", "text": f"Requirement: {prompt}"},
-                            {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{b64}"}}
-                        ]}
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": f"Requirement: {prompt}"},
+                                {
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": f"data:{mime_type};base64,{b64}"
+                                    },
+                                },
+                            ],
+                        },
                     ],
-                    response_format={"type": "json_object"}
+                    response_format={"type": "json_object"},
                 )
                 content = completion.choices[0].message.content
-                
+
             if start is not None:
                 elapsed = (time.time() - start) * 1000
                 self._log_latency("ai_vision_latency", elapsed)
-            
+
             # Clean JSON
             if "```json" in content:
                 content = content.replace("```json", "").replace("```", "")
             elif "```" in content:
                 content = content.replace("```", "")
-            
+
             import json
+
             return json.loads(content)
-            
+
         except Exception as e:
             logger.error(f"Image Analysis Failed: {e}")
-            return {"verdict": "UNCERTAIN", "reason": f"Vision AI Error: {str(e)}", "tags": []}
+            return {
+                "verdict": "UNCERTAIN",
+                "reason": f"Vision AI Error: {str(e)}",
+                "tags": [],
+            }
 
     async def generate_json(self, system_prompt: str, user_prompt: str) -> dict:
         """
@@ -221,18 +248,20 @@ Output Schema:
         Supports both OpenRouter (Native JSON) and Google (Markdown parsing).
         """
         import time
+
         start = time.time() if settings.ENABLE_LATENCY_LOGS else None
-        
+
         try:
+
             async def _call_model(prompt_system: str, prompt_user: str) -> str:
                 if self.provider == "openrouter":
                     completion = await self.client.chat.completions.create(
                         model=self.model,
                         messages=[
                             {"role": "system", "content": prompt_system},
-                            {"role": "user", "content": prompt_user}
+                            {"role": "user", "content": prompt_user},
                         ],
-                        response_format={"type": "json_object"}
+                        response_format={"type": "json_object"},
                     )
                     return completion.choices[0].message.content
 
@@ -251,7 +280,7 @@ Output Schema:
             if start is not None:
                 elapsed = (time.time() - start) * 1000
                 self._log_latency("ai_json_latency", elapsed)
-            
+
             cleaned = self._strip_code_fences(content)
             parsed = self._safe_json_load(cleaned)
             if parsed is not None:
@@ -332,7 +361,13 @@ Output Schema:
             if self.provider == "google" and image_bytes:
                 try:
                     response = await self.model.generate_content_async(
-                        [system_prompt + "\n" + user_prompt, {"mime_type": mime_type or "image/jpeg", "data": image_bytes}]
+                        [
+                            system_prompt + "\n" + user_prompt,
+                            {
+                                "mime_type": mime_type or "image/jpeg",
+                                "data": image_bytes,
+                            },
+                        ]
                     )
                     content = response.text
                     if "```json" in content:
@@ -340,6 +375,7 @@ Output Schema:
                     elif "```" in content:
                         content = content.replace("```", "")
                     import json
+
                     return json.loads(content)
                 except Exception as e:
                     logger.error(f"Vision verification failed: {e}")

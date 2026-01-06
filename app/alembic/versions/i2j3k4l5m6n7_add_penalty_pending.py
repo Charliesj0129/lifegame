@@ -4,6 +4,7 @@ Revision ID: i2j3k4l5m6n7
 Revises: i1j2k3l4m5n6
 Create Date: 2026-01-05 16:05:00.000000
 """
+
 from typing import Sequence, Union
 
 from alembic import op
@@ -26,7 +27,15 @@ def _has_column(table: str, column: str) -> bool:
 
 def upgrade() -> None:
     if not _has_column("users", "penalty_pending"):
-        op.add_column("users", sa.Column("penalty_pending", sa.Boolean(), server_default=sa.text("false"), nullable=False))
+        op.add_column(
+            "users",
+            sa.Column(
+                "penalty_pending",
+                sa.Boolean(),
+                server_default=sa.text("false"),
+                nullable=False,
+            ),
+        )
 
 
 def downgrade() -> None:

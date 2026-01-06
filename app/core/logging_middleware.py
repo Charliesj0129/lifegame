@@ -11,13 +11,14 @@ from app.core.config import settings
 
 logger = logging.getLogger("app.middleware")
 
+
 class LoggingMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         if not settings.ENABLE_LATENCY_LOGS:
             return await call_next(request)
 
         start_time = time.time()
-        
+
         # Process request
         try:
             response = await call_next(request)
@@ -27,7 +28,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             raise e
         finally:
             process_time = (time.time() - start_time) * 1000
-            
+
             log_data = {
                 "method": request.method,
                 "path": request.url.path,
@@ -35,7 +36,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
                 "duration_ms": round(process_time, 2),
                 "client_ip": request.client.host if request.client else None,
             }
-            
+
             # If we want pure JSON logs, we should configure the formatter.
             # For now, we log as info with dict which can be parsed.
             logger.info(json.dumps(log_data))

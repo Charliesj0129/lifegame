@@ -5,11 +5,11 @@ from app.services.ai_service import ai_engine
 from app.services.rival_service import rival_service
 import random
 
+
 class BossService:
     async def get_active_boss(self, session: AsyncSession, user_id: str) -> Boss:
         stmt = select(Boss).where(
-            Boss.user_id == user_id,
-            Boss.status == BossStatus.ACTIVE
+            Boss.user_id == user_id, Boss.status == BossStatus.ACTIVE
         )
         result = await session.execute(stmt)
         return result.scalars().first()
@@ -32,7 +32,7 @@ class BossService:
             else:
                 boss_name = "Shadow of Sloth"
         except Exception:
-             boss_name = "Shadow of Sloth"
+            boss_name = "Shadow of Sloth"
 
         new_boss = Boss(
             user_id=user_id,
@@ -40,7 +40,7 @@ class BossService:
             hp=1000,
             max_hp=1000,
             level=5,
-            status=BossStatus.ACTIVE
+            status=BossStatus.ACTIVE,
         )
         session.add(new_boss)
         await session.commit()
@@ -58,13 +58,14 @@ class BossService:
             boss.hp = 0
             boss.status = BossStatus.DEFEATED
             msg += f"\n🏆 {boss.name} DEFEATED! +500 Gold!"
-            
+
             # Grant rewards (Direct User modification for now, ideally via user_service)
             from app.models.user import User
+
             user = await session.get(User, user_id)
             if user:
                 user.gold = (user.gold or 0) + 500
-        
+
         await session.commit()
         return msg
 
@@ -74,8 +75,9 @@ class BossService:
             "Do 20 Pushups NOW!",
             "Drink a glass of water!",
             "Meditate for 1 minute!",
-            "Clean your desk immediately!"
+            "Clean your desk immediately!",
         ]
         return random.choice(challenges)
+
 
 boss_service = BossService()

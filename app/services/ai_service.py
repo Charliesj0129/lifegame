@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 from app.models.conversation_log import ConversationLog
 from sqlalchemy import select, desc
 
+
 class AIService:
     """
     Phase 4 Brain: Handles Intent Routing and Tool Execution with Memory.
@@ -29,11 +30,18 @@ class AIService:
     async def _get_history(session, user_id: str, limit: int = 3) -> str:
         """Fetch last N turns for context injection."""
         try:
-            stmt = select(ConversationLog).filter_by(user_id=user_id).order_by(desc(ConversationLog.created_at)).limit(limit)
+            stmt = (
+                select(ConversationLog)
+                .filter_by(user_id=user_id)
+                .order_by(desc(ConversationLog.created_at))
+                .limit(limit)
+            )
             result = await session.execute(stmt)
             logs = result.scalars().all()
             # Reverse to chronological order
-            history_text = "\n".join([f"{log.role}: {log.content}" for log in reversed(logs)])
+            history_text = "\n".join(
+                [f"{log.role}: {log.content}" for log in reversed(logs)]
+            )
             return history_text if history_text else "No recent history."
         except Exception as e:
             logger.error(f"Failed to fetch history: {e}")
@@ -51,7 +59,7 @@ class AIService:
         user = await user_service.get_or_create_user(session, user_id)
         rival = await rival_service.get_or_create_rival(session, user_id)
         history = await AIService._get_history(session, user_id)
-        
+
         # 2. Enhanced System Prompt
         context_str = f"""
 Current User State:
@@ -62,7 +70,7 @@ Current User State:
 Recent History:
 {history}
 """
-        
+
         system_prompt = f"""Role: LifeOS Gamification Manager (v2.0).
 {context_str}
 
@@ -92,10 +100,10 @@ Schema (Chain):
         final_msg = None
         main_tool_name = "unknown"
         final_data = {}
-        
+
         try:
             ai_resp = await ai_engine.generate_json(system_prompt, user_text)
-            
+
             # Normalize to List of Actions
             actions = []
             if isinstance(ai_resp, dict):
@@ -105,18 +113,18 @@ Schema (Chain):
                     actions = [ai_resp]
             elif isinstance(ai_resp, list):
                 actions = ai_resp
-            
+
             logger.info(f"AI Router Plan: {len(actions)} steps. {actions}")
-            
+
             # 4. Execution Loop
             results = []
             for act in actions:
                 tool = act.get("tool", "log_action")
                 args = act.get("arguments") or {}
-                
+
                 # Update main tool name for logging/return (use last significant one)
                 main_tool_name = tool
-                
+
                 if tool == "get_status":
                     data, msg = await tool_registry.get_status(session, user_id)
                     results.append(msg)
@@ -128,10 +136,14 @@ Schema (Chain):
                     data, msg = await tool_registry.get_quests(session, user_id)
                     results.append(msg)
                 elif tool == "use_item":
-                    data, msg = await tool_registry.use_item(session, user_id, args.get("item_name", "unknown"))
+                    data, msg = await tool_registry.use_item(
+                        session, user_id, args.get("item_name", "unknown")
+                    )
                     results.append(msg)
                 elif tool == "set_goal":
-                    data, msg = await tool_registry.set_goal(session, user_id, args.get("goal_text", user_text))
+                    data, msg = await tool_registry.set_goal(
+                        session, user_id, args.get("goal_text", user_text)
+                    )
                     results.append(msg)
                 elif tool == "give_advice":
                     # Special Tool: Just return text advice? Or use a renderer?
@@ -150,20 +162,20 @@ Schema (Chain):
                     final_data = data
 
             # 5. response aggregation (If multiple messages, how to send?)
-            # Webhook expects Single Message usually. 
-            # If multiple, we might need to return a list? 
+            # Webhook expects Single Message usually.
+            # If multiple, we might need to return a list?
             # Existing webhook.py handles: response_message = TextMessage or FlexContainer.
             # It sends `line_bot_api.reply_message`. reply_message supports LIST of messages (up to 5).
             # So we should return a LIST of messages if possible, or composite.
-            
+
             # But the signature expected by webhook is `response_message, intent_tool, result_data`.
             # If `response_message` is a list, we need to check if webhook handles it.
-            # Let's check webhook.py next. For now, let's return the LAST parsed message, 
+            # Let's check webhook.py next. For now, let's return the LAST parsed message,
             # OR a special "MultiMessage" if supported.
-            # Actually, `reply_message` takes `messages=[]`. 
+            # Actually, `reply_message` takes `messages=[]`.
             # If we change the return type to List[Message], we must update webhook.py.
             # To keep it simple for now: Return the LAST one, but if multiple, maybe combine text?
-            
+
             if len(results) > 1:
                 # Combine standard text messages
                 combined_text = ""
@@ -172,31 +184,40 @@ Schema (Chain):
                     if isinstance(res, TextMessage):
                         combined_text += f"{res.text}\n"
                     else:
-                        flex_msg = res # Keep the last flex
-                
+                        flex_msg = res  # Keep the last flex
+
                 if flex_msg:
-                    final_msg = flex_msg # Prioritize Flex (UI)
+                    final_msg = flex_msg  # Prioritize Flex (UI)
                 else:
                     final_msg = TextMessage(text=combined_text.strip())
             elif results:
                 final_msg = results[0]
             else:
                 final_msg = TextMessage(text="...")
-            
+
             # Log Response
-            resp_log = getattr(final_msg, 'text', '[Complex Message]')
+            resp_log = getattr(final_msg, "text", "[Complex Message]")
             await AIService._save_log(session, user_id, "assistant", resp_log)
-            
+
             return final_msg, main_tool_name, final_data
 
         except Exception as e:
             logger.error(f"Router Fail: {e}", exc_info=True)
             # Fallback
             try:
-                result_data, msg = await tool_registry.log_action(session, user_id, user_text)
+                result_data, msg = await tool_registry.log_action(
+                    session, user_id, user_text
+                )
                 return msg, "fallback_log", result_data
             except Exception as fallback_error:
-                logger.error(f"Fallback log_action failed: {fallback_error}", exc_info=True)
-                return TextMessage(text="⚠️ 系統異常：行動未記錄，請查看日誌。"), "fallback_error", {}
+                logger.error(
+                    f"Fallback log_action failed: {fallback_error}", exc_info=True
+                )
+                return (
+                    TextMessage(text="⚠️ 系統異常：行動未記錄，請查看日誌。"),
+                    "fallback_error",
+                    {},
+                )
+
 
 ai_router = AIService()

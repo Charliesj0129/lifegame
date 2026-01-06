@@ -5,6 +5,7 @@ Revises: b2c3d4e5f6g7
 Create Date: 2026-01-05 14:30:00.000000
 
 """
+
 from typing import Sequence, Union
 
 from alembic import op
@@ -28,9 +29,13 @@ def _has_column(table: str, column: str) -> bool:
 
 def upgrade() -> None:
     if not _has_column("quests", "verification_type"):
-        op.add_column("quests", sa.Column("verification_type", sa.String(), nullable=True))
+        op.add_column(
+            "quests", sa.Column("verification_type", sa.String(), nullable=True)
+        )
     if not _has_column("quests", "verification_keywords"):
-        op.add_column("quests", sa.Column("verification_keywords", sa.JSON(), nullable=True))
+        op.add_column(
+            "quests", sa.Column("verification_keywords", sa.JSON(), nullable=True)
+        )
     if not _has_column("quests", "location_target"):
         op.add_column("quests", sa.Column("location_target", sa.JSON(), nullable=True))
 

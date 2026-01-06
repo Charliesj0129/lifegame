@@ -4,6 +4,7 @@ Revision ID: i3j4k5l6m7n8
 Revises: i2j3k4l5m6n7
 Create Date: 2026-01-05 16:12:00.000000
 """
+
 from typing import Sequence, Union
 
 from alembic import op
@@ -26,7 +27,12 @@ def _has_column(table: str, column: str) -> bool:
 
 def upgrade() -> None:
     if not _has_column("recipes", "success_rate"):
-        op.add_column("recipes", sa.Column("success_rate", sa.Float(), server_default=sa.text("1.0"), nullable=True))
+        op.add_column(
+            "recipes",
+            sa.Column(
+                "success_rate", sa.Float(), server_default=sa.text("1.0"), nullable=True
+            ),
+        )
 
 
 def downgrade() -> None:

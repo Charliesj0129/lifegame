@@ -5,6 +5,7 @@ Revises: d4e5f6g7h8i9
 Create Date: 2026-01-05 15:05:00.000000
 
 """
+
 from typing import Sequence, Union
 
 from alembic import op
@@ -34,11 +35,27 @@ def _has_table(table: str) -> bool:
 
 def upgrade() -> None:
     if not _has_column("users", "hp"):
-        op.add_column("users", sa.Column("hp", sa.Integer(), server_default=sa.text("100"), nullable=True))
+        op.add_column(
+            "users",
+            sa.Column("hp", sa.Integer(), server_default=sa.text("100"), nullable=True),
+        )
     if not _has_column("users", "max_hp"):
-        op.add_column("users", sa.Column("max_hp", sa.Integer(), server_default=sa.text("100"), nullable=True))
+        op.add_column(
+            "users",
+            sa.Column(
+                "max_hp", sa.Integer(), server_default=sa.text("100"), nullable=True
+            ),
+        )
     if not _has_column("users", "is_hollowed"):
-        op.add_column("users", sa.Column("is_hollowed", sa.Boolean(), server_default=sa.text("FALSE"), nullable=True))
+        op.add_column(
+            "users",
+            sa.Column(
+                "is_hollowed",
+                sa.Boolean(),
+                server_default=sa.text("FALSE"),
+                nullable=True,
+            ),
+        )
 
     if not _has_table("lore_entries"):
         op.create_table(
@@ -48,19 +65,30 @@ def upgrade() -> None:
             sa.Column("chapter", sa.Integer(), nullable=False),
             sa.Column("title", sa.String(), nullable=False),
             sa.Column("body", sa.String(), nullable=False),
-            sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+            sa.Column(
+                "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
+            ),
         )
 
     if not _has_table("lore_progress"):
         op.create_table(
             "lore_progress",
             sa.Column("id", sa.String(), primary_key=True),
-            sa.Column("user_id", sa.String(), sa.ForeignKey("users.id"), nullable=False),
+            sa.Column(
+                "user_id", sa.String(), sa.ForeignKey("users.id"), nullable=False
+            ),
             sa.Column("series", sa.String(), nullable=False),
-            sa.Column("current_chapter", sa.Integer(), server_default=sa.text("0"), nullable=True),
+            sa.Column(
+                "current_chapter",
+                sa.Integer(),
+                server_default=sa.text("0"),
+                nullable=True,
+            ),
             sa.Column("updated_at", sa.DateTime(timezone=True), nullable=True),
         )
-        op.create_index(op.f("ix_lore_progress_user_id"), "lore_progress", ["user_id"], unique=False)
+        op.create_index(
+            op.f("ix_lore_progress_user_id"), "lore_progress", ["user_id"], unique=False
+        )
 
 
 def downgrade() -> None:
