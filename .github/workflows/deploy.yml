@@ -47,6 +47,19 @@ jobs:
             --resource-group "${AZURE_RESOURCE_GROUP}" \
             --docker-custom-image-name "${AZURE_ACR_NAME}.azurecr.io/${IMAGE_NAME}:${IMAGE_TAG}" \
             --docker-registry-server-url "https://${AZURE_ACR_NAME}.azurecr.io"
+
+          # Configure App Settings
+          az webapp config appsettings set \
+            --name "${AZURE_WEBAPP_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --settings \
+              DATABASE_URL="${DATABASE_URL}" \
+              APP_BASE_URL="${APP_BASE_URL}" \
+              LINE_CHANNEL_ACCESS_TOKEN="${LINE_CHANNEL_ACCESS_TOKEN}" \
+              LINE_CHANNEL_SECRET="${LINE_CHANNEL_SECRET}" \
+              ENABLE_LATENCY_LOGS="true" \
+              ENABLE_SCHEDULER="true"
+              
           az webapp restart --name "${AZURE_WEBAPP_NAME}" --resource-group "${AZURE_RESOURCE_GROUP}"
       - name: Post-deploy smoke
         run: scripts/post_deploy_smoke.sh
