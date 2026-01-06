@@ -108,7 +108,9 @@ async def handle_message(event: MessageEvent):
 
             from app.services.hp_service import hp_service
 
-            if user.is_hollowed or getattr(user, "hp_status", "") == "HOLLOWED":
+            is_hollowed = getattr(user, "is_hollowed", False) is True
+            hp_status = getattr(user, "hp_status", "")
+            if is_hollowed or hp_status == "HOLLOWED":
                 rescue_msg = await hp_service.trigger_rescue_protocol(session, user)
                 response_message = TextMessage(text=f"⚠️ 瀕死狀態啟動。\n{rescue_msg}")
                 sender_persona = persona_service.SYSTEM

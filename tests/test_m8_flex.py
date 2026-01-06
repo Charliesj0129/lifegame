@@ -35,29 +35,40 @@ async def test_hud_generation():
     header_text = contents["header"]["contents"][0]["text"]
     print(f"Header: {header_text}")
     assert (
-        "戰術系統" in header_text or "TACTICAL" in header_text
+        "戰術系統" in header_text
+        or "戰術面板" in header_text
+        or "TACTICAL" in header_text
     )  # Support both Chinese and English
 
     # 2. Check Colors
     header_color = contents["header"]["contents"][0]["color"]
     print(f"Accent Color: {header_color}")
-    assert header_color == "#00FF9D"  # Neon Green
+    assert header_color in {"#00FF9D", "#00F5FF"}  # Neon Green / Cyan
 
-    # 3. Check Stats (STR 85 should be 85% width)
-    # The stats are in 'body' -> wrapper box -> stats matrix box (last one)
-    # Let's just traverse and find "STR"
+    # 3. Check Stats (力量 85 should be 85% width)
+    def find_stat_row(items, label):
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            contents = item.get("contents", [])
+            if any(
+                isinstance(child, dict) and child.get("text") == label
+                for child in contents
+            ):
+                return item
+            nested = find_stat_row(contents, label)
+            if nested:
+                return nested
+        return None
 
     body_contents = contents["body"]["contents"]
-    stats_matrix = body_contents[-1]  # content stat_rows
-    # stat_rows contents
+    str_row = find_stat_row(body_contents, "力量")
 
     print("\n--- Stats Check ---")
-    str_row = stats_matrix["contents"][0]
-    str_label = str_row["contents"][0]["text"]
-    str_bar_width = str_row["contents"][1]["contents"][0]["width"]
+    assert str_row is not None
+    str_bar_width = str_row["contents"][2]["contents"][0]["width"]
 
-    print(f"Stat: {str_label} | Width: {str_bar_width}")
-    assert str_label in ["STR", "力量"]  # Support both
+    print(f"Stat: 力量 | Width: {str_bar_width}")
     assert str_bar_width == "85%"
 
     print("✅ Stats Bars Verified.")

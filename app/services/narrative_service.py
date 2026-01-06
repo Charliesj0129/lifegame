@@ -65,7 +65,8 @@ class NarrativeService:
 
         try:
             data = await ai_engine.generate_json(system_prompt, f"Context: {context}")
-            return f"🐍 Viper: \"{data.get('comment', 'Pathetic.')}\""
+            comment = data.get("comment") or data.get("taunt") or "太弱了。"
+            return f"🐍 Viper: \"{comment}\""
         except Exception:
             return '🐍 Viper: "..."'
 

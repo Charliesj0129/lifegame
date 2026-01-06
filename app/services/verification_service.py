@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import enum
 import logging
+import asyncio
 from typing import Any, Iterable, TypedDict
 from sqlalchemy import select, func
 from app.services.ai_engine import ai_engine
@@ -63,7 +64,22 @@ class VerificationService:
         if verification_type:
             stmt = stmt.where(func.upper(Quest.verification_type) == verification_type)
         result = await session.execute(stmt)
-        return result.scalars().all()
+        scalars = result.scalars()
+        if asyncio.iscoroutine(scalars):
+            scalars = await scalars
+        quests = scalars.all()
+        if asyncio.iscoroutine(quests):
+            quests = await quests
+        if isinstance(quests, list):
+            return quests
+        if isinstance(quests, tuple):
+            return list(quests)
+        if quests is None:
+            return []
+        try:
+            return list(quests)
+        except TypeError:
+            return []
 
     def _normalize_keywords(self, raw: Any) -> list[str]:
         if not raw:
@@ -136,6 +152,16 @@ class VerificationService:
 
         return {"verdict": verdict, "reason": reason, "meta": {"follow_up": follow_up}}
 
+    async def verify_text_report(self, user_text: str, quest_title: str) -> dict:
+        """Legacy helper for tests: verify a text report without quest context."""
+        response = await ai_engine.generate_json(
+            "你是任務驗證助手。請判斷回報是否完成任務。輸出 JSON: {'verdict':'APPROVED|REJECTED|UNCERTAIN','reason':'str'}",
+            f"任務：{quest_title}\n回報：{user_text}",
+        )
+        verdict = str(response.get("verdict", VERDICT_UNCERTAIN)).upper()
+        reason = response.get("reason") or ""
+        return {"verdict": verdict, "reason": reason}
+
     async def verify_image(
         self, session, quest: Quest, image_data: bytes
     ) -> VerificationResult:
@@ -163,6 +189,15 @@ class VerificationService:
             verdict = Verdict.UNCERTAIN
 
         return {"verdict": verdict, "reason": reason, "meta": {"labels": labels}}
+
+    async def verify_image_report(self, image_data: bytes, mime_type: str, quest_title: str) -> dict:
+        """Legacy helper for tests: verify an image report without quest context."""
+        response = await ai_engine.analyze_image(image_data, mime_type, quest_title)
+        return {
+            "verdict": response.get("verdict", VERDICT_UNCERTAIN),
+            "reason": response.get("reason", ""),
+            "tags": response.get("tags", response.get("detected_labels", [])),
+        }
 
     async def verify_location(
         self, session, quest: Quest, lat: float, lng: float

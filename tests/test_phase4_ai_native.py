@@ -152,11 +152,13 @@ async def test_router_multi_tool_calls(db_session):
         mock_use_item.return_value = ({"result": "used"}, "Item Message")
         mock_log_action.return_value = ({"result": "logged"}, "Log Message")
 
-        messages, tools, result = await AIService.router(
+        msg, tool, result = await AIService.router(
             db_session, user_id, "I'm tired, drink a potion and sleep"
         )
 
-        assert tools == ["use_item", "log_action"]
-        assert messages == ["Item Message", "Log Message"]
+        assert tool == "log_action"
+        assert result.get("tools") == ["use_item", "log_action"]
+        assert "Item Message" in msg.text
+        assert "Log Message" in msg.text
         assert result.get("response_voice") == "Mentor"
         assert result.get("tool_results")[0]["result"] == "used"

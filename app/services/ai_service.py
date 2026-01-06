@@ -106,8 +106,12 @@ Schema (Chain):
 
             # Normalize to List of Actions
             actions = []
+            tool_calls = False
             if isinstance(ai_resp, dict):
-                if "plan" in ai_resp:
+                if isinstance(ai_resp.get("tool_calls"), list):
+                    actions = ai_resp["tool_calls"]
+                    tool_calls = True
+                elif "plan" in ai_resp:
                     actions = ai_resp["plan"]
                 else:
                     actions = [ai_resp]
@@ -118,12 +122,16 @@ Schema (Chain):
 
             # 4. Execution Loop
             results = []
+            tool_names = []
+            tool_results = []
             for act in actions:
                 tool = act.get("tool", "log_action")
                 args = act.get("arguments") or {}
+                data = {}
 
                 # Update main tool name for logging/return (use last significant one)
                 main_tool_name = tool
+                executed_tool = tool
 
                 if tool == "get_status":
                     data, msg = await tool_registry.get_status(session, user_id)
@@ -152,14 +160,33 @@ Schema (Chain):
                     topic = args.get("topic", "General")
                     advice_text = f"💡 建議：{topic}。先休息，補充精神值。"
                     msg = TextMessage(text=advice_text)
+                    data = {"advice": topic}
                     results.append(msg)
-                    final_data = {"advice": topic}
+                    final_data = data
                 else:
                     # log_action
                     txt = args.get("text", user_text)
                     data, msg = await tool_registry.log_action(session, user_id, txt)
                     results.append(msg)
+                    executed_tool = "log_action"
                     final_data = data
+
+                if isinstance(msg, str):
+                    msg = TextMessage(text=msg)
+                    results[-1] = msg
+
+                tool_names.append(executed_tool)
+                tool_results.append(data if isinstance(data, dict) else {})
+                main_tool_name = executed_tool
+
+            if isinstance(ai_resp, dict):
+                if "response_voice" in ai_resp:
+                    final_data["response_voice"] = ai_resp.get("response_voice")
+                if "confidence" in ai_resp:
+                    final_data["confidence"] = ai_resp.get("confidence")
+            if tool_results:
+                final_data["tool_results"] = tool_results
+                final_data["tools"] = tool_names
 
             # 5. response aggregation (If multiple messages, how to send?)
             # Webhook expects Single Message usually.

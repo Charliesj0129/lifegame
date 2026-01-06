@@ -178,7 +178,7 @@ async def test_loot_drop_end_to_end(db_session):
         # 4. Verify Message (Result Object)
         assert msg.loot_name == "Test Potion"
         # msg.text does not contain loot info anymore
-        assert "🎁 掉寶" in msg.to_text_message()
+        assert "🎁 掉落" in msg.to_text_message()
 
         # 5. Verify Database Persistence
         res = await db_session.execute(

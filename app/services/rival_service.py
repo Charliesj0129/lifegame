@@ -96,7 +96,7 @@ class RivalService:
                     expires_at=expires,
                 )
                 session.add(debuff)
-                narrative += f"\n🦠 病毒上傳：{target} 降低 20%（24 小時）。"
+                narrative += f"\n🦠 病毒植入：{target} 降低 20%（24 小時）。"
 
         session.add(rival)
         session.add(user)  # Persist theft

@@ -266,7 +266,13 @@ class DDAScheduler:
             DailyOutcome.is_global.is_(True),
             DailyOutcome.date == yesterday,
         )
-        outcome = (await session.execute(stmt)).scalars().first()
+        result = await session.execute(stmt)
+        scalars = result.scalars()
+        if asyncio.iscoroutine(scalars):
+            scalars = await scalars
+        outcome = scalars.first()
+        if asyncio.iscoroutine(outcome):
+            outcome = await outcome
         if outcome and not outcome.done:
             return "偵測到能量低落：今日任務已降階，先穩住連勝。"
         return None

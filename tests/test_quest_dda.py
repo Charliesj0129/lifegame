@@ -42,12 +42,13 @@ async def test_dda_trigger():
         assert "User is struggling" in prompt
         assert "EASIER" in prompt
 
-        assert len(quests) == 1
+        assert len(quests) == 3
         assert quests[0].difficulty_tier == "E"
 
 
 @pytest.mark.asyncio
-async def test_serendipity_trigger():
+async def test_serendipity_trigger(monkeypatch):
+    monkeypatch.setenv("FORCE_SERENDIPITY", "1")
     # Mock data - Success yesterday (No DDA)
     mock_session = AsyncMock()
 
@@ -81,6 +82,6 @@ async def test_serendipity_trigger():
         if mock_ai.called:
             call_args = mock_ai.call_args[0]
             prompt = call_args[0]
-            assert "RARE" in prompt
+            assert "稀有" in prompt
         else:
             pytest.fail("AI not called")

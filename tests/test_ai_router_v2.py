@@ -116,4 +116,5 @@ async def test_router_fuzzy_advice():
 
         # Verify
         assert tool == "give_advice"
-        assert "Advisor: Burnout" in msg.text
+        assert "建議" in msg.text
+        assert "Burnout" in msg.text

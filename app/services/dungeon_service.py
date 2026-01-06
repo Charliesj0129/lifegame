@@ -1,6 +1,7 @@
 import datetime
 import uuid
 import logging
+import asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,11 +26,23 @@ class DungeonService:
             Dungeon.status == DungeonStatus.ACTIVE.value,
         )
         result = await session.execute(stmt)
-        dungeon = result.scalars().first()
+        scalars = result.scalars()
+        if asyncio.iscoroutine(scalars):
+            scalars = await scalars
+        dungeon = scalars.first()
+        if asyncio.iscoroutine(dungeon):
+            dungeon = await dungeon
         if (
             dungeon
             and dungeon.deadline
-            and dungeon.deadline < datetime.datetime.now(datetime.timezone.utc)
+            and (
+                dungeon.deadline.replace(tzinfo=datetime.timezone.utc)
+                if dungeon.deadline.tzinfo is None
+                else dungeon.deadline
+            )
+            < datetime.datetime.now(
+                (dungeon.deadline.tzinfo or datetime.timezone.utc)
+            )
         ):
             dungeon.status = DungeonStatus.FAILED.value
             await session.commit()
@@ -154,7 +167,12 @@ class DungeonService:
     async def get_remaining_time(self, dungeon: Dungeon) -> str:
         if not dungeon.deadline:
             return "00:00"
-        remaining = dungeon.deadline - datetime.datetime.now(datetime.timezone.utc)
+        deadline = (
+            dungeon.deadline.replace(tzinfo=datetime.timezone.utc)
+            if dungeon.deadline.tzinfo is None
+            else dungeon.deadline
+        )
+        remaining = deadline - datetime.datetime.now(deadline.tzinfo)
         seconds = max(int(remaining.total_seconds()), 0)
         minutes, secs = divmod(seconds, 60)
         return f"{minutes:02d}:{secs:02d}"

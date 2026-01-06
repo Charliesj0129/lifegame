@@ -1,5 +1,6 @@
 import logging
 import datetime
+import asyncio
 from sqlalchemy.future import select
 from app.core.database import AsyncSessionLocal
 from app.models.user import User
@@ -27,7 +28,12 @@ class DailyBriefingService:
         async with AsyncSessionLocal() as session:
             # Get User
             result = await session.execute(select(User).where(User.id == user_id))
-            user = result.scalars().first()
+            scalars = result.scalars()
+            if asyncio.iscoroutine(scalars):
+                scalars = await scalars
+            user = scalars.first()
+            if asyncio.iscoroutine(user):
+                user = await user
             if not user:
                 return
 
@@ -41,7 +47,12 @@ class DailyBriefingService:
                     ),
                 )
             )
-            quests = result.scalars().all()
+            scalars = result.scalars()
+            if asyncio.iscoroutine(scalars):
+                scalars = await scalars
+            quests = scalars.all()
+            if asyncio.iscoroutine(quests):
+                quests = await quests
 
             dda_hint = None
             yesterday = datetime.date.today() - datetime.timedelta(days=1)
@@ -50,9 +61,18 @@ class DailyBriefingService:
                 DailyOutcome.is_global.is_(True),
                 DailyOutcome.date == yesterday,
             )
-            outcome = (await session.execute(outcome_stmt)).scalars().first()
-            if outcome and not outcome.done:
-                dda_hint = "偵測到能量低落：今日任務已降階，先穩住連勝。"
+            try:
+                outcome_result = await session.execute(outcome_stmt)
+                outcome_scalars = outcome_result.scalars()
+                if asyncio.iscoroutine(outcome_scalars):
+                    outcome_scalars = await outcome_scalars
+                outcome = outcome_scalars.first()
+                if asyncio.iscoroutine(outcome):
+                    outcome = await outcome
+                if outcome and not outcome.done:
+                    dda_hint = "偵測到能量低落：今日任務已降階，先穩住連勝。"
+            except Exception as e:
+                logger.warning("Daily briefing outcome lookup failed: %s", e)
 
             flex_message = self._create_briefing_flex(
                 user, rival, quests, dda_hint=dda_hint

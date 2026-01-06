@@ -239,10 +239,15 @@ class QuestService:
             rival = await rival_service.get_rival(session, user_id)
 
             # Hollowed State: force emergency recovery quest
+            is_hollowed = getattr(user, "is_hollowed", False) is True
+            hp_status = getattr(user, "hp_status", "")
+            hp_value = getattr(user, "hp", None)
+            has_hp_value = isinstance(hp_value, (int, float))
+
             if user and (
-                user.is_hollowed
-                or getattr(user, "hp_status", "") == "HOLLOWED"
-                or (user.hp is not None and user.hp <= 0)
+                is_hollowed
+                or hp_status == "HOLLOWED"
+                or (has_hp_value and hp_value <= 0)
             ):
                 emergency = Quest(
                     user_id=user_id,
@@ -344,9 +349,15 @@ class QuestService:
             logger.info(f"DDA Triggered: Easy Mode for {user_id}")
 
         # Serendipity Check (Feature 3)
+        force_serendipity = os.environ.get("FORCE_SERENDIPITY") == "1"
+        disable_serendipity = os.environ.get("DISABLE_SERENDIPITY") == "1"
         is_lucky = False
-        if os.environ.get("TESTING") != "1" and not os.environ.get(
-            "PYTEST_CURRENT_TEST"
+        if force_serendipity:
+            is_lucky = True
+        elif (
+            not disable_serendipity
+            and os.environ.get("TESTING") != "1"
+            and not os.environ.get("PYTEST_CURRENT_TEST")
         ):
             is_lucky = random.random() < 0.2  # 20%
         serendipity_prompt = ""
@@ -373,7 +384,7 @@ class QuestService:
             # Enforce 3s timeout for responsiveness
             ai_data = await asyncio.wait_for(
                 ai_engine.generate_json(system_prompt, user_prompt),
-                timeout=5.0,  # Increased for DDA/Serendipity
+                timeout=3.0,
             )
 
             if isinstance(ai_data, dict) and ai_data.get("error"):

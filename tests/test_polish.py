@@ -41,15 +41,17 @@ async def test_verification_service_standardization():
         with (
             patch.object(verification_service, "auto_match_quest", return_value=quest),
             patch.object(
-                verification_service, "_complete_quest", return_value="Mission Complete"
+                verification_service,
+                "_complete_quest",
+                return_value={"xp": 10, "gold": 0, "story": "Mission Complete"},
             ),
         ):
 
-            q, v, msg = await verification_service.process_verification(
+            response = await verification_service.process_verification(
                 mock_session, "u1", "I ran 5k", "TEXT"
             )
-            assert v == Verdict.APPROVED
-            assert "Mission Complete" in msg
+            assert response["verdict"] == Verdict.APPROVED
+            assert "Mission Complete" in response["message"]
 
 
 @pytest.mark.asyncio
@@ -140,7 +142,7 @@ async def test_quest_service_dda_push():
 
         mock_ai.generate_json = AsyncMock(
             return_value=[
-                {"title": "Morning Jog", "desc": "Run", "diff": "D", "xp": 20}
+                {"title": "晨間慢跑", "desc": "慢跑 10 分鐘", "diff": "D", "xp": 20}
             ]
         )
 
@@ -159,5 +161,5 @@ async def test_quest_service_dda_push():
 
         quests = await quest_service.trigger_push_quests(mock_session, "u1", "Morning")
 
-        assert len(quests) == 1
-        assert quests[0].title == "Morning Jog"
+        assert len(quests) == 3
+        assert quests[0].title == "晨間慢跑"

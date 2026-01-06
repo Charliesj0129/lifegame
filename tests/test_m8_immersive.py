@@ -35,6 +35,7 @@ class TestM8Immersive(unittest.TestCase):
         with (
             patch("app.api.webhook.get_messaging_api", return_value=mock_api),
             patch("app.core.database.AsyncSessionLocal", return_value=mock_ctx),
+            patch("app.api.webhook.settings.ENABLE_LOADING_ANIMATION", True),
             patch(
                 "app.services.user_service.user_service.get_or_create_user",
                 new_callable=AsyncMock,
@@ -48,7 +49,13 @@ class TestM8Immersive(unittest.TestCase):
             ) as mock_rival,
         ):
 
-            mock_uc.return_value = MagicMock(id="U_TEST_LOAD", name="Tester", level=1)
+            mock_uc.return_value = MagicMock(
+                id="U_TEST_LOAD",
+                name="Tester",
+                level=1,
+                is_hollowed=False,
+                hp_status="HEALTHY",
+            )
             mock_render.return_value = TextMessage(text="Mock Status")
             mock_rival.return_value = None
 
@@ -110,7 +117,13 @@ class TestM8Immersive(unittest.TestCase):
         ):
 
             mock_use.return_value = "You used a Potion."
-            mock_uc.return_value = MagicMock(id="U_TEST_MENTOR", name="Tester", level=1)
+            mock_uc.return_value = MagicMock(
+                id="U_TEST_MENTOR",
+                name="Tester",
+                level=1,
+                is_hollowed=False,
+                hp_status="HEALTHY",
+            )
             mock_router.return_value = (TextMessage(text="Used"), "use_item", {})
             mock_rival.return_value = None
 

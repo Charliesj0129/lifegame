@@ -26,3 +26,5 @@ logs/
 # IDEs
 .vscode/
 .idea/
+acr_password.txt
+acr_password_new.txt

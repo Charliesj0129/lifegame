@@ -12,16 +12,24 @@ async def get_user_status(user_id: str, db: AsyncSession = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    attr_labels = {
+        "STR": "力量",
+        "INT": "智力",
+        "VIT": "體力",
+        "WIS": "智慧",
+        "CHA": "魅力",
+    }
+
     return {
         "id": user.id,
         "name": user.name,
         "level": user.level,
         "attributes": {
-            "STR": user.str,
-            "INT": user.int,
-            "VIT": user.vit,
-            "WIS": user.wis,
-            "CHA": user.cha,
+            attr_labels["STR"]: user.str,
+            attr_labels["INT"]: user.int,
+            attr_labels["VIT"]: user.vit,
+            attr_labels["WIS"]: user.wis,
+            attr_labels["CHA"]: user.cha,
         },
         "currencies": {"gold": user.gold, "xp": user.xp if hasattr(user, "xp") else 0},
         "vitals": {
