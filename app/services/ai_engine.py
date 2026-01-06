@@ -45,9 +45,40 @@ class AIEngine:
         text = re.sub(r'\s+', ' ', text)  # Collapse spaces
         return text.strip()[:2000] # Cap length just in case
 
+    def _strip_code_fences(self, content: str) -> str:
+        if not content:
+            return content
+        cleaned = content.replace("```json", "").replace("```", "")
+        return cleaned.strip()
+
+    def _extract_json_block(self, content: str) -> str | None:
+        if not content:
+            return None
+        start_candidates = [content.find("{"), content.find("[")]
+        start_candidates = [idx for idx in start_candidates if idx != -1]
+        if not start_candidates:
+            return None
+        start = min(start_candidates)
+        end = max(content.rfind("}"), content.rfind("]"))
+        if end == -1 or end <= start:
+            return None
+        return content[start:end + 1]
+
+    def _safe_json_load(self, content: str) -> dict | list | None:
+        import json
+        try:
+            return json.loads(content)
+        except Exception:
+            return None
+
+    def _log_latency(self, event: str, elapsed_ms: float) -> None:
+        if not settings.ENABLE_LATENCY_LOGS:
+            return
+        logger.debug("event=%s duration_ms=%.2f model=%s", event, elapsed_ms, self.model)
+
     async def analyze_action(self, user_text: str) -> dict:
         import time
-        start_time = time.time()
+        start_time = time.time() if settings.ENABLE_LATENCY_LOGS else None
         
         if self.provider == "none":
             return {
@@ -93,9 +124,9 @@ Output Schema:
                 response = await self.model.generate_content_async(full_prompt)
                 content = response.text
 
-            # Latency Log
-            elapsed = (time.time() - start_time) * 1000
-            print(f"AI_LATENCY_MS: {elapsed:.2f}ms | Model: {self.model}")
+            if start_time is not None:
+                elapsed = (time.time() - start_time) * 1000
+                self._log_latency("ai_request_latency", elapsed)
 
             import json
             if "```json" in content:
@@ -115,6 +146,74 @@ Output Schema:
                 "feedback_tone": "WARNING"
             }
 
+    async def analyze_image(self, image_bytes: bytes, mime_type: str, prompt: str) -> dict:
+        """
+        Analyzes an image using Vision Model (Gemini).
+        Returns JSON verification result.
+        """
+        import time
+        start = time.time() if settings.ENABLE_LATENCY_LOGS else None
+        
+        system_prompt = (
+            "Role: Verification AI (The Arbiter). "
+            "Task: Verify if the image matches the User's Quest Requirement. "
+            "Language: ALWAYS use Traditional Chinese (繁體中文). "
+            "Output JSON: { 'verdict': 'APPROVED'|'REJECTED'|'UNCERTAIN', 'reason': 'str', 'tags': ['str'] }"
+        )
+        
+        try:
+            content = ""
+            if self.provider == "google":
+                # Gemini Pro Vision / Flash support byte data
+                image_part = {
+                    "mime_type": mime_type,
+                    "data": image_bytes
+                }
+                
+                full_prompt = [system_prompt, f"Quest Requirement: {prompt}", image_part]
+                
+                # Note: Some older gemini libs expect 'parts' list differently.
+                # But generate_content_async usually accepts a list of [text, image].
+                response = await self.model.generate_content_async(full_prompt)
+                content = response.text
+                
+            elif self.provider == "openrouter":
+                # OpenRouter Vision support varies. 
+                # Assuming simple GPT-4o style if available, but usually requires URL or base64.
+                # For MVP if OpenRouter is used, might fall back or skip.
+                # Let's assume we skip or just fail for now if not Google.
+                import base64
+                b64 = base64.b64encode(image_bytes).decode('utf-8')
+                
+                completion = await self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": [
+                            {"type": "text", "text": f"Requirement: {prompt}"},
+                            {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{b64}"}}
+                        ]}
+                    ],
+                    response_format={"type": "json_object"}
+                )
+                content = completion.choices[0].message.content
+                
+            if start is not None:
+                elapsed = (time.time() - start) * 1000
+                self._log_latency("ai_vision_latency", elapsed)
+            
+            # Clean JSON
+            if "```json" in content:
+                content = content.replace("```json", "").replace("```", "")
+            elif "```" in content:
+                content = content.replace("```", "")
+                
+            return json.loads(content)
+            
+        except Exception as e:
+            logger.error(f"Image Analysis Failed: {e}")
+            return {"verdict": "UNCERTAIN", "reason": f"Vision AI Error: {str(e)}", "tags": []}
+
     async def generate_json(self, system_prompt: str, user_prompt: str) -> dict:
         """
         Generic method to generate JSON from AI.
@@ -122,43 +221,154 @@ Output Schema:
         """
         import json
         import time
-        start = time.time()
+        start = time.time() if settings.ENABLE_LATENCY_LOGS else None
         
         try:
-            content = ""
-            if self.provider == "openrouter":
-                completion = await self.client.chat.completions.create(
-                    model=self.model,
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt}
-                    ],
-                    response_format={"type": "json_object"}
-                )
-                content = completion.choices[0].message.content
-            
-            elif self.provider == "google":
-                # Force JSON in prompt for legacy Google models
-                full_prompt = f"{system_prompt}\n\nUSER INPUT: {user_prompt}\n\nIMPORTANT: OUTPUT JSON ONLY."
-                response = await self.model.generate_content_async(full_prompt)
-                content = response.text
-            else:
-                 return {"error": "AI_OFFLINE"}
+            async def _call_model(prompt_system: str, prompt_user: str) -> str:
+                if self.provider == "openrouter":
+                    completion = await self.client.chat.completions.create(
+                        model=self.model,
+                        messages=[
+                            {"role": "system", "content": prompt_system},
+                            {"role": "user", "content": prompt_user}
+                        ],
+                        response_format={"type": "json_object"}
+                    )
+                    return completion.choices[0].message.content
 
-            elapsed = (time.time() - start) * 1000
-            print(f"AI_GEN_LATENCY: {elapsed:.2f}ms | {self.model}")
+                if self.provider == "google":
+                    full_prompt = f"{prompt_system}\n\nUSER INPUT: {prompt_user}\n\nIMPORTANT: OUTPUT JSON ONLY."
+                    response = await self.model.generate_content_async(full_prompt)
+                    return response.text
+
+                return ""
+
+            if self.provider == "none":
+                return {"error": "AI_OFFLINE"}
+
+            content = await _call_model(system_prompt, user_prompt)
+
+            if start is not None:
+                elapsed = (time.time() - start) * 1000
+                self._log_latency("ai_json_latency", elapsed)
             
-            # Clean Markdown
-            if "```json" in content:
-                content = content.replace("```json", "").replace("```", "")
-            elif "```" in content:
-                content = content.replace("```", "")
-            
-            return json.loads(content)
+            cleaned = self._strip_code_fences(content)
+            parsed = self._safe_json_load(cleaned)
+            if parsed is not None:
+                return parsed
+
+            extracted = self._extract_json_block(cleaned)
+            if extracted:
+                parsed = self._safe_json_load(extracted)
+                if parsed is not None:
+                    return parsed
+
+            repair_system = "你是 JSON 修復器，只能輸出有效 JSON。"
+            repair_user = f"以下內容無法解析為 JSON，請修正後只輸出 JSON：\n{cleaned}"
+            repair_content = await _call_model(repair_system, repair_user)
+            repair_cleaned = self._strip_code_fences(repair_content)
+            parsed = self._safe_json_load(repair_cleaned)
+            if parsed is not None:
+                return parsed
+
+            extracted = self._extract_json_block(repair_cleaned)
+            if extracted:
+                parsed = self._safe_json_load(extracted)
+                if parsed is not None:
+                    return parsed
+
+            return {"error": "JSON_PARSE_FAILED"}
 
         except Exception as e:
             logger.error(f"AI JSON Gen Failed: {e}")
             return {"error": str(e)}
+
+    async def verify_multimodal(
+        self,
+        mode: str,
+        quest_title: str,
+        user_text: str | None = None,
+        image_bytes: bytes | None = None,
+        mime_type: str | None = None,
+        keywords: list[str] | None = None,
+    ) -> dict:
+        mode = (mode or "TEXT").upper()
+        keywords = keywords or []
+
+        if self.provider == "none":
+            return {
+                "verdict": "UNCERTAIN",
+                "reason": "AI 離線，無法判定。",
+                "detected_labels": [],
+            }
+
+        if mode == "TEXT":
+            system_prompt = (
+                "Role: Quest Arbiter. "
+                "Task: Determine if the report proves the quest completion. "
+                "If vague, return UNCERTAIN with a follow_up question. "
+                "Language: ALWAYS use Traditional Chinese (繁體中文). "
+                "Output JSON: { 'verdict': 'APPROVED'|'REJECTED'|'UNCERTAIN', "
+                "'reason': 'str', 'follow_up': 'str|null', 'detected_labels': ['str'] }"
+            )
+            user_prompt = (
+                f"Quest: {quest_title}\n"
+                f"Keywords: {', '.join(keywords)}\n"
+                f"User Report: {user_text or ''}"
+            )
+            return await self.generate_json(system_prompt, user_prompt)
+
+        if mode == "IMAGE":
+            system_prompt = (
+                "Role: Vision Arbiter. "
+                "Task: Check if the image matches the Quest Requirement. "
+                "Language: ALWAYS use Traditional Chinese (繁體中文). "
+                "Output JSON: { 'verdict': 'APPROVED'|'REJECTED'|'UNCERTAIN', "
+                "'reason': 'str', 'detected_labels': ['str'] }"
+            )
+            user_prompt = f"Quest: {quest_title}\nKeywords: {', '.join(keywords)}"
+
+            # Google Gemini supports image input
+            if self.provider == "google" and image_bytes:
+                try:
+                    response = await self.model.generate_content_async(
+                        [system_prompt + "\n" + user_prompt, {"mime_type": mime_type or "image/jpeg", "data": image_bytes}]
+                    )
+                    content = response.text
+                    if "```json" in content:
+                        content = content.replace("```json", "").replace("```", "")
+                    elif "```" in content:
+                        content = content.replace("```", "")
+                    import json
+                    return json.loads(content)
+                except Exception as e:
+                    logger.error(f"Vision verification failed: {e}")
+                    return {
+                        "verdict": "UNCERTAIN",
+                        "reason": "無法解析圖片內容。",
+                        "detected_labels": [],
+                    }
+
+            # Fallback: no vision
+            return {
+                "verdict": "UNCERTAIN",
+                "reason": "目前未啟用圖片辨識。",
+                "detected_labels": [],
+            }
+
+        return {
+            "verdict": "UNCERTAIN",
+            "reason": "未知的驗證模式。",
+            "detected_labels": [],
+        }
+
+    async def analyze_image(self, image_data: bytes, mime_type: str, quest_title: str) -> dict:
+        return await self.verify_multimodal(
+            mode="IMAGE",
+            quest_title=quest_title,
+            image_bytes=image_data,
+            mime_type=mime_type,
+        )
 
 # Global instance
 ai_engine = AIEngine()

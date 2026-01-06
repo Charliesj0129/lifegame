@@ -12,6 +12,7 @@ async def health_check(db: AsyncSession = Depends(get_db)):
     """
     Checks if the API is running and the database is accessible.
     """
+    logger.info("Health Check Accessed")
     try:
         # Lightweight query to check connection
         await db.execute(text("SELECT 1"))

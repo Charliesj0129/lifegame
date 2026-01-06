@@ -69,7 +69,7 @@ async def test_buy_item_insufficient_funds(db_session):
     # Buy
     res = await shop_service.buy_item(db_session, "u2", "SWORD")
     assert res["success"] is False
-    assert "Insufficient funds" in res["message"]
+    assert "金幣不足" in res["message"]
     
     # Check Gold Unchanged
     await db_session.refresh(u)

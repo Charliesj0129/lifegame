@@ -67,7 +67,7 @@ class RichMenuService:
             logger.warning(f"Failed to fetch rich menu list: {e}")
             return None
 
-    def create_menu(self, name, areas, image_path=None):
+    def create_menu(self, name, areas, image_path=None, chat_bar_text=None):
         if not self.api:
             return None
 
@@ -82,7 +82,7 @@ class RichMenuService:
             size=RichMenuSize(width=2500, height=1686),
             selected=False, # Don't auto-open
             name=name,
-            chat_bar_text=name.upper(),
+            chat_bar_text=chat_bar_text or name.upper(),
             areas=areas
         )
         try:
@@ -112,29 +112,64 @@ class RichMenuService:
         """Creates Standard Menus if they don't exist."""
         # Define Layouts
         def get_main_areas():
-            return [
-                RichMenuArea(
-                    bounds=RichMenuBounds(x=0, y=0, width=1250, height=843),
-                    action=MessageAction(label="Status", text="Status")
-                ),
-                RichMenuArea(
-                    bounds=RichMenuBounds(x=1250, y=0, width=1250, height=843),
-                    action=MessageAction(label="Inventory", text="Inventory")
-                ),
-                RichMenuArea(
-                    bounds=RichMenuBounds(x=0, y=843, width=2500, height=843),
-                    action=MessageAction(label="Quests", text="Quests")
-                )
+            buttons = [
+                MessageAction(label="狀態", text="狀態"),
+                MessageAction(label="任務", text="任務"),
+                MessageAction(label="背包", text="背包"),
+                MessageAction(label="商店", text="商店"),
+                MessageAction(label="合成", text="合成"),
+                MessageAction(label="首領", text="首領"),
+                MessageAction(label="攻擊", text="攻擊"),
+                MessageAction(label="簽到", text="簽到"),
+                PostbackAction(label="重新生成", data="action=reroll_quests", display_text="重新生成任務"),
+                PostbackAction(label="全部接受", data="action=accept_all_quests", display_text="全部接受任務"),
+                PostbackAction(label="略過 Viper", data="action=skip_rival_update", display_text="略過 Viper 更新"),
+                MessageAction(label="指令", text="指令"),
             ]
+
+            areas = []
+            cols = 4
+            rows = 3
+            width = 2500
+            height = 1686
+            cell_w = width // cols
+            cell_h = height // rows
+
+            for idx, action in enumerate(buttons):
+                row = idx // cols
+                col = idx % cols
+                areas.append(
+                    RichMenuArea(
+                        bounds=RichMenuBounds(
+                            x=col * cell_w,
+                            y=row * cell_h,
+                            width=cell_w,
+                            height=cell_h,
+                        ),
+                        action=action,
+                    )
+                )
+
+            return areas
 
         # Define Menus to Create
         menus = {
-            "MAIN": {"areas": get_main_areas(), "image": "assets/rich_menu.jpg"}
+            "MAIN": {
+                "name": "LIFGAME_MAIN_V2",
+                "areas": get_main_areas(),
+                "image": "assets/rich_menu.jpg",
+                "chat_bar_text": "操作面板",
+            }
         }
 
         mappings = {}
         for key, config in menus.items():
-            mid = self.create_menu(f"LIFGAME_{key}", config["areas"], config["image"])
+            mid = self.create_menu(
+                config["name"],
+                config["areas"],
+                config["image"],
+                chat_bar_text=config.get("chat_bar_text"),
+            )
             if mid:
                 mappings[key] = mid
         

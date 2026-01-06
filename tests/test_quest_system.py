@@ -5,7 +5,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from app.models.base import Base
-from app.models.quest import Quest, QuestStatus, Goal, GoalStatus
+from app.models.quest import Quest, QuestStatus, Goal, GoalStatus, QuestType
+from app.models.user import User
 from app.services.quest_service import quest_service
 from app.services.flex_renderer import flex_renderer
 from app.services.ai_engine import ai_engine
@@ -31,6 +32,8 @@ async def test_quest_generation(db_session):
     print("\n--- Testing Quest Generation ---")
     
     user_id = "U_TEST_QUEST"
+    db_session.add(User(id=user_id, name="Tester"))
+    await db_session.commit()
     
     with patch("app.services.ai_engine.ai_engine.generate_json", new_callable=AsyncMock) as mock_ai, \
          patch("app.services.rival_service.RivalService.get_rival", new_callable=AsyncMock) as mock_get_rival, \
@@ -64,6 +67,8 @@ async def test_quest_completion(db_session):
     print("\n--- Testing Quest Completion ---")
     user_id = "U_TEST_QA"
     quest_id = "Q_123"
+    db_session.add(User(id=user_id, name="Tester"))
+    await db_session.commit()
     
     # Mock Quest
     mock_quest = Quest(
@@ -93,13 +98,15 @@ async def test_quest_ui_render():
     ]
     
     flex = flex_renderer.render_quest_list(quests)
-    assert flex.alt_text == "Active Quests"
+    assert flex.alt_text == "今日任務"
     assert flex.contents is not None
 
 @pytest.mark.asyncio
 async def test_reroll_logic(db_session):
     print("\n--- Testing Reroll ---")
     user_id = "U_REROLL"
+    db_session.add(User(id=user_id, name="Tester"))
+    await db_session.commit()
     
     # Existing quests
     q1 = Quest(
@@ -108,7 +115,9 @@ async def test_reroll_logic(db_session):
         title="Old Quest",
         description="Desc",
         difficulty_tier="E",
-        status="ACTIVE"
+        status="ACTIVE",
+        quest_type=QuestType.SIDE.value,
+        scheduled_date=datetime.date.today()
     )
     db_session.add(q1)
     await db_session.commit()
@@ -119,8 +128,8 @@ async def test_reroll_logic(db_session):
          
         # side_effect for multiple calls: 1. Taunt (due to failed q1), 2. New Batch
         mock_ai.side_effect = [
-            {"taunt": "Ha ha failed."}, # Taunt
-            {"quests": [{"title": "New Q1", "diff": "C", "xp": 10}]} # Batch
+            {"taunt": "太弱了。"}, # Taunt
+            {"quests": [{"title": "新任務 1", "desc": "重啟節奏", "habit_tag": "體力", "duration_minutes": 10}]} # Batch
         ]
         mock_get_rival.return_value = MagicMock(level=1)
         mock_get_user.return_value = MagicMock(level=1)
@@ -136,7 +145,7 @@ async def test_reroll_logic(db_session):
     
     # Verify Taunt
     assert taunt is not None
-    assert "Ha ha failed" in taunt 
+    assert "太弱" in taunt
 
 @pytest.mark.asyncio
 async def test_create_new_goal_with_ai(db_session):
@@ -144,11 +153,11 @@ async def test_create_new_goal_with_ai(db_session):
     
     # Mock AI Response
     mock_plan = {
-        "milestones": [
-            {"title": "Learn Python Basics", "desc": "Variables and Loops", "difficulty": "C"},
-            {"title": "Build a Script", "desc": "File I/O", "difficulty": "C"}
-        ],
-        "daily_habits": [{"title": "Code 30m", "desc": "Every day"}]
+        "micro_missions": [
+            {"title": "學 Python 變數", "desc": "練習 3 個例子", "duration_minutes": 30, "habit_tag": "智力"},
+            {"title": "完成一個小腳本", "desc": "讀寫檔案", "duration_minutes": 40, "habit_tag": "智力"},
+            {"title": "整理開發環境", "desc": "安裝套件", "duration_minutes": 20, "habit_tag": "智慧"}
+        ]
     }
     
     with patch("app.services.ai_engine.ai_engine.generate_json", new_callable=AsyncMock) as mock_ai:
@@ -156,6 +165,8 @@ async def test_create_new_goal_with_ai(db_session):
         
         user_id = "U_AI_TEST"
         goal_text = "Become a Developer"
+        db_session.add(User(id=user_id, name="Tester"))
+        await db_session.commit()
         
         goal, plan = await quest_service.create_new_goal(db_session, user_id, goal_text)
         
@@ -164,17 +175,18 @@ async def test_create_new_goal_with_ai(db_session):
         assert goal.status == GoalStatus.ACTIVE.value
         assert goal.decomposition_json == mock_plan
         
-        # Verify Milestones (Quests) added to session
-        # We need to query DB to be sure
+        # Verify Micro Missions (Side Quests) added to session
         from sqlalchemy import select
-        res = await db_session.execute(select(Quest).where(Quest.quest_type == "MAIN"))
-        milestones = res.scalars().all()
-        assert len(milestones) == 2
+        res = await db_session.execute(select(Quest).where(Quest.goal_id == goal.id))
+        micro_quests = res.scalars().all()
+        assert len(micro_quests) == 3
 
 @pytest.mark.asyncio
 async def test_generate_daily_quests_with_active_goal(db_session):
     print("\n--- Testing AI Daily Quest Gen ---")
     user_id = "U_AI_DAILY"
+    db_session.add(User(id=user_id, name="Tester"))
+    await db_session.commit()
     
     # Mock Existing Goal
     mock_goal = Goal(user_id=user_id, title="Become a Runner", status="ACTIVE")
@@ -186,9 +198,9 @@ async def test_generate_daily_quests_with_active_goal(db_session):
          patch("app.services.user_service.UserService.get_user", new_callable=AsyncMock) as mock_get_user:
         
         mock_ai.return_value = {"quests": [
-            {"title": "Focused Work", "desc": "Focus", "diff": "D", "xp": 20},
-            {"title": "Clean", "desc": "Clean", "diff": "E", "xp": 20},
-            {"title": "Hydrate", "desc": "Drink", "diff": "F", "xp": 10}
+            {"title": "專注工作", "desc": "Focus", "habit_tag": "智力", "duration_minutes": 25},
+            {"title": "清理桌面", "desc": "Clean", "habit_tag": "力量", "duration_minutes": 10},
+            {"title": "補水", "desc": "Drink", "habit_tag": "體力", "duration_minutes": 5}
         ]}
         mock_get_rival.return_value = MagicMock(level=1)
         mock_get_user.return_value = MagicMock(level=1)
@@ -212,6 +224,8 @@ async def test_ai_timeout_fallback(db_session):
     immediately correctly (approx 3s)
     """
     user_id = "test_user_timeout"
+    db_session.add(User(id=user_id, name="Tester"))
+    await db_session.commit()
     
     # Mock the AI engine's generate_json method
     with patch.object(ai_engine, 'generate_json', side_effect=slow_ai_response):
@@ -240,5 +254,5 @@ async def test_ai_timeout_fallback(db_session):
         # 2. Check Fallback Content
         assert len(quests) == 3
         # Fallback template #1 title is "System Reboot"
-        assert quests[0].title == "System Reboot"
-        assert "(Fallback)" in quests[0].description
+        assert quests[0].title == "系統重啟"
+        assert "備援" in quests[0].description

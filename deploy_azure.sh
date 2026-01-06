@@ -5,7 +5,7 @@ set -e
 REGION="eastasia"
 APP_NAME="lifgame"
 # Generate random suffix for uniqueness
-SUFFIX=$(openssl rand -hex 4)
+SUFFIX=${DEPLOY_SUFFIX:-$(openssl rand -hex 4)}
 RG_NAME="rg-${APP_NAME}"
 ACR_NAME="${APP_NAME}acr${SUFFIX}"
 ASP_NAME="asp-${APP_NAME}"
@@ -55,8 +55,13 @@ az postgres flexible-server create \
     --tier Burstable \
     --storage-size 32 \
     --version 16 \
-    --database-name $DB_NAME \
     --yes
+
+echo "Creating Database: $DB_NAME..."
+az postgres flexible-server db create \
+     --resource-group $RG_NAME \
+     --server-name $DB_SERVER_NAME \
+     --database-name $DB_NAME
 
 # 7. Configure Web App Settings
 echo "Configuring Web App Settings..."

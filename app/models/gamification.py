@@ -69,6 +69,7 @@ class Recipe(Base):
     name = Column(String, nullable=False)
     result_item_id = Column(String, ForeignKey("items.id"), nullable=False)
     result_quantity = Column(Integer, default=1)
+    success_rate = Column(Float, default=1.0)
     
     # Relationships
     result_item = relationship("Item")

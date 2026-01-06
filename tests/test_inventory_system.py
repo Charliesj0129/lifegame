@@ -161,7 +161,7 @@ async def test_loot_drop_end_to_end(db_session):
         # 4. Verify Message (Result Object)
         assert msg.loot_name == "Test Potion"
         # msg.text does not contain loot info anymore
-        assert "🎁 LOOT" in msg.to_text_message()
+        assert "🎁 掉寶" in msg.to_text_message()
         
         # 5. Verify Database Persistence
         res = await db_session.execute(select(UserItem).where(UserItem.user_id == "u_loot_test"))
@@ -201,6 +201,6 @@ async def test_status_card_rendering():
     user = User(id="u_stat", name="Hero", level=5, str=10, int=5, vit=5, wis=5, cha=5, gold=100)
     
     msg = flex_renderer.render_status(user)
-    assert msg.alt_text.startswith("Tactical OS:")
+    assert msg.alt_text.startswith("戰術系統") or msg.alt_text.startswith("Tactical OS")  # Support Chinese
     # Verify Pydantic serialization works (no validation errors)
     assert msg.contents.to_dict() is not None

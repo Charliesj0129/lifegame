@@ -18,6 +18,7 @@ class QuestType(str, enum.Enum):
 class QuestStatus(str, enum.Enum):
     PENDING = "PENDING"
     ACTIVE = "ACTIVE"
+    PAUSED = "PAUSED"
     DONE = "DONE"
     FAILED = "FAILED"
 
@@ -51,6 +52,11 @@ class Quest(Base):
     scheduled_date = Column(Date, nullable=True) # Target Date
     
     is_redemption = Column(Boolean, default=False)
+
+    # Verification (optional)
+    verification_type = Column(String, nullable=True) # TEXT | IMAGE | LOCATION
+    verification_keywords = Column(JSON, nullable=True) # list[str]
+    location_target = Column(JSON, nullable=True) # {"lat": float, "lng": float, "radius_m": int}
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

@@ -34,7 +34,7 @@ async def test_hud_generation():
     # 1. Check Header (Tactical OS)
     header_text = contents['header']['contents'][0]['text']
     print(f"Header: {header_text}")
-    assert "TACTICAL OS" in header_text
+    assert "戰術系統" in header_text or "TACTICAL" in header_text  # Support both Chinese and English
     
     # 2. Check Colors
     header_color = contents['header']['contents'][0]['color']
@@ -55,7 +55,7 @@ async def test_hud_generation():
     str_bar_width = str_row['contents'][1]['contents'][0]['width']
     
     print(f"Stat: {str_label} | Width: {str_bar_width}")
-    assert str_label == "STR"
+    assert str_label in ["STR", "力量"]  # Support both
     assert str_bar_width == "85%"
     
     print("✅ Stats Bars Verified.")

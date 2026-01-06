@@ -6,6 +6,7 @@ from app.services.accountant import accountant
 from app.services.ai_engine import ai_engine
 from app.services.loot_service import loot_service
 from app.services.inventory_service import inventory_service
+from app.core.config import settings
 import logging
 
 logger = logging.getLogger(__name__)
@@ -21,6 +22,10 @@ class UserService:
             session.add(user)
             await session.commit()
             await session.refresh(user)
+        if user.push_times is None:
+            user.push_times = {"morning": "08:00", "midday": "12:30", "night": "21:00"}
+            session.add(user)
+            await session.commit()
         return user
 
     async def get_user(self, session: AsyncSession, line_user_id: str) -> User | None:
@@ -44,13 +49,13 @@ class UserService:
         normalized_text = text.lower().strip()
         if len(text) < 15:
             if any(k in normalized_text for k in ["gym", "run", "lift", "workout", "str"]):
-                ai_result = {"stat_type": "STR", "difficulty_tier": "C", "narrative": "⚡ [System 1] Muscle fiber damage detected. Growth initiated.", "loot_drop": {"has_loot": False}}
+                ai_result = {"stat_type": "STR", "difficulty_tier": "C", "narrative": "⚡ [System 1] 肌肉纖維損傷偵測。生長機制啟動。", "loot_drop": {"has_loot": False}}
                 is_fast_mode = True
             elif any(k in normalized_text for k in ["study", "code", "read", "learn", "int"]):
-                ai_result = {"stat_type": "INT", "difficulty_tier": "C", "narrative": "⚡ [System 1] Neural pathways reinforced. Synapse firing rate up.", "loot_drop": {"has_loot": False}}
+                ai_result = {"stat_type": "INT", "difficulty_tier": "C", "narrative": "⚡ [System 1] 神經通路強化。突觸傳導率提升。", "loot_drop": {"has_loot": False}}
                 is_fast_mode = True
             elif any(k in normalized_text for k in ["sleep", "eat", "rest", "food", "vit"]):
-                ai_result = {"stat_type": "VIT", "difficulty_tier": "D", "narrative": "⚡ [System 1] Biological systems repairing. Homeostasis restoring.", "loot_drop": {"has_loot": False}}
+                ai_result = {"stat_type": "VIT", "difficulty_tier": "D", "narrative": "⚡ [System 1] 生物系統修復中。體內平衡恢復。", "loot_drop": {"has_loot": False}}
                 is_fast_mode = True
                 
         if not is_fast_mode:
@@ -61,7 +66,7 @@ class UserService:
         
         attribute = ai_result.get("stat_type", "VIT")
         difficulty = ai_result.get("difficulty_tier", "E")
-        narrative = ai_result.get("narrative", "Data Uploaded.")
+        narrative = ai_result.get("narrative", "數據已上傳。")
         has_loot = ai_result.get("loot_drop", {}).get("has_loot", False)
         
         # 3. Accountant Math (Central Authority for Balance)
@@ -84,13 +89,56 @@ class UserService:
         )
         session.add(log)
         
-        # M6: Update Streak
-        from datetime import datetime, timedelta
-        now = datetime.now()
+        # DDA: Habit Tracking (Point 2)
+        from app.models.dda import HabitState
+        from sqlalchemy import select
+        # Fetch active habits
+        stmt_habits = select(HabitState).where(HabitState.user_id == user.id)
+        active_habits = (await session.execute(stmt_habits)).scalars().all()
         
+        habit_update_msg = ""
+        matched_habit = None
+        for h in active_habits:
+            # Simple keyword match
+            tag = (h.habit_tag or "").lower()
+            if tag and tag in normalized_text:
+                matched_habit = h
+                break
+        
+        if matched_habit:
+            # EMA Update: P_new = P_old * (1-alpha) + 1.0 * alpha
+            alpha = 0.2
+            matched_habit.ema_p = (matched_habit.ema_p or 0.5) * (1 - alpha) + alpha
+            
+            # Tier Logic
+            current_ema = matched_habit.ema_p
+            old_tier = matched_habit.tier
+            new_tier = old_tier
+            
+            if current_ema >= 0.8:
+                new_tier = "T3" # Gold
+            elif current_ema >= 0.5:
+                new_tier = "T2" # Silver
+            else:
+                new_tier = "T1" # Bronze
+                
+            matched_habit.tier = new_tier
+            habit_update_msg = f"\n📈 習慣[{matched_habit.habit_tag}] 追蹤確認 (EMA: {current_ema:.2f})"
+            if new_tier != old_tier:
+                habit_update_msg += f" | 升階: {new_tier}!"
+            
+            session.add(matched_habit)
+
+        # M6: Update Streak
+        from datetime import datetime, timedelta, timezone
+        now = datetime.now(timezone.utc)
+
+        streak_broken = False
         if not user.last_active_date:
             user.streak_count = 1
         else:
+            if user.streak_count is None:
+                user.streak_count = 0
             last_date = user.last_active_date.date()
             today_date = now.date()
             
@@ -100,10 +148,31 @@ class UserService:
                 user.streak_count += 1 # Consecutive day
             else:
                 user.streak_count = 1 # Broken streak
+                streak_broken = True
         
+        # Apply HP penalties/recovery
+        from app.services.hp_service import hp_service
+        if streak_broken:
+            await hp_service.apply_hp_change(session, user, -20, source="streak_broken", commit=False)
+
+        if attribute == "VIT":
+            await hp_service.apply_hp_change(session, user, 5, source="vit_recovery", commit=False)
+
         user.last_active_date = now
         session.add(user)
+        
+        # 5. Lore Unlocking (Point 3)
+        lore_msg = ""
+        if user.level > old_level:
+            # Unlock next chapter of MainStory on Level Up
+            from app.services.lore_service import lore_service
+            prog = await lore_service.unlock_next_chapter(session, user.id, "MainStory")
+            lore_msg = f"\n📜 解鎖主線劇情：第 {prog.current_chapter} 章"
+        
         await session.commit()
+        if user.is_hollowed:
+            from app.services.hp_service import hp_service
+            await hp_service.trigger_rescue_protocol(session, user)
         t_db_end = time.time()
         
         # 5. Loot Handling (AI decides IF, Code decides WHAT)
@@ -119,24 +188,52 @@ class UserService:
         total_time = (time.time() - t_start) * 1000
         ai_time = (t_ai_end - t_ai_start) * 1000
         db_time = (t_db_end - t_ai_end) * 1000
-        logger.info(f"PERF: Total={total_time:.0f}ms | AI={ai_time:.0f}ms | DB={db_time:.0f}ms")
+        if settings.ENABLE_LATENCY_LOGS:
+            logger.debug(
+                "event=action_latency total_ms=%.0f ai_ms=%.0f db_ms=%.0f user=%s",
+                total_time,
+                ai_time,
+                db_time,
+                user.id,
+            )
 
-        # 6. Response Construction
-        msg = f"{narrative}\n\n[SYSTEM] {attribute} +{xp_gain} XP"
+        attr_map = {
+            "STR": "力量",
+            "INT": "智力",
+            "VIT": "體力",
+            "WIS": "智慧",
+            "CHA": "魅力",
+        }
+        attr_label = attr_map.get(attribute, attribute)
+
+        msg = f"{narrative}\n\n[系統] {attr_label} +{xp_gain} 經驗"
+
+        if streak_broken:
+            msg += "\n💔 連勝中斷！生命值 -20"
+        if user.is_hollowed:
+            msg += "\n🩸 你已進入【瀕死狀態】。請完成緊急修復任務。"
         
+        if habit_update_msg:
+            msg += habit_update_msg
+
         if loot_name:
-             msg += f"\n🎁 LOOT: {loot_name} ({loot_rarity})"
+             msg += f"\n🎁 掉落：{loot_name}（{loot_rarity}）"
 
         if user.level > old_level:
-            msg += f"\n🎉 LEVEL UP! You are now Lv.{user.level}!"
-            
-        
+            msg += f"\n🎉 等級提升！目前等級 {user.level}"
+            if lore_msg:
+                msg += lore_msg
+
         # Determine Title
-        title = "Street Rat"
-        if user.level >= 5: title = "Runner"
-        if user.level >= 10: title = "Street Samurai"
-        if user.level >= 20: title = "Cyberlegend"
-        if user.streak_count >= 3: title = f"🔥 {title}"
+        title = "街頭鼠"
+        if user.level >= 5:
+            title = "跑者"
+        if user.level >= 10:
+            title = "街頭武士"
+        if user.level >= 20:
+            title = "賽博傳奇"
+        if user.streak_count >= 3:
+            title = f"🔥 {title}"
 
         return ProcessResult(
             text=msg,

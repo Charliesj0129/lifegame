@@ -29,7 +29,7 @@ async def test_boss_spawn_and_damage(db_session):
     
     # 1. Spawn Boss
     msg = await boss_service.spawn_boss(db_session, user_id)
-    assert "BOSS SPAWNED" in msg
+    assert "首領現身" in msg
     
     boss = await boss_service.get_active_boss(db_session, user_id)
     assert boss is not None
@@ -38,14 +38,14 @@ async def test_boss_spawn_and_damage(db_session):
     
     # 2. Deal Damage
     msg = await boss_service.deal_damage(db_session, user_id, 100)
-    assert "Dealt 100 dmg" in msg
+    assert "造成 100 傷害" in msg
     
     await db_session.refresh(boss)
     assert boss.hp == 900
     
     # 3. Kill Boss
     msg = await boss_service.deal_damage(db_session, user_id, 900)
-    assert "DEFEATED" in msg
+    assert "擊敗" in msg
     
     await db_session.refresh(boss)
     assert boss.hp == 0

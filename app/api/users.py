@@ -25,6 +25,11 @@ async def get_user_status(user_id: str, db: AsyncSession = Depends(get_db)):
         "currencies": {
             "gold": user.gold,
             "xp": user.xp if hasattr(user, 'xp') else 0
+        },
+        "vitals": {
+            "hp": user.hp,
+            "max_hp": user.max_hp,
+            "is_hollowed": user.is_hollowed
         }
     }
 

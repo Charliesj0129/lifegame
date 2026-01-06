@@ -41,13 +41,13 @@ async def test_get_taunt_ai_integration(db_session):
     
     # Mock AI
     with patch("app.services.ai_engine.ai_engine.generate_json", new_callable=AsyncMock) as mock_ai:
-        mock_ai.return_value = {"taunt": "You are weak, Hero."}
+        mock_ai.return_value = {"taunt": "你太弱了。"}
         
         taunt = await rival_service.get_taunt(db_session, user, rival)
         
         # Verify
-        assert "You are weak" in taunt
-        assert taunt.startswith("Viper:")
+        assert "你太弱" in taunt
+        assert taunt.startswith("Viper：「")
         
         # Check Prompt Context
         args, _ = mock_ai.call_args
@@ -76,7 +76,7 @@ async def test_inactivity_penalty(db_session):
     await db_session.refresh(user)
     assert user.xp < 1000
     assert user.gold < 1000
-    assert "BREACH DETECTED" in narrative
+    assert "入侵警報" in narrative
 
     # Check Rival leveled up (3 missed days * 100 XP = 300 XP. Lv 1 + 0 = 1. No level up unless initial XP was high?
     # Logic: new_level = 1 + (xp // 1000). 300 XP is still Lv 1.

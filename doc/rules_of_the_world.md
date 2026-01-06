@@ -5,11 +5,11 @@ xp_curve:
   base_xp_level_1_10: "100 * level"
   base_xp_level_11_plus: "Base * (Level ^ 2.5)"
 attributes:
-  STR: "Strength (Physical Power)"
-  VIT: "Vitality (Health & Energy)"
-  INT: "Intelligence (Logic & Output)"
-  WIS: "Wisdom (Learning & Focus)"
-  CHA: "Charisma (Social)"
+  力量: "力量（Physical Power）"
+  體力: "體力（Health & Energy）"
+  智力: "智力（Logic & Output）"
+  智慧: "智慧（Learning & Focus）"
+  魅力: "魅力（Social）"
 vitals:
   EP: "Energy Points (Physical)"
   WP: "Willpower (Mental)"
@@ -33,22 +33,22 @@ game_loop:
 # Rules of the World
 
 ## 1. Core Loop
-Action -> Attribute Mapping (STR/INT...) -> Validation -> XP/Gold -> Feedback
+行動 -> 屬性對應（力量/智力...） -> 驗證 -> XP/金幣 -> 回饋
 
 ## 2. Progression System
 
 ### Attributes (The "Real Life" Stats)
 Instead of generic XP, actions feed specific attributes.
-1.  **STR (Strength)**: Physical power. (Gym, Pushups, Heavy labor)
-2.  **VIT (Vitality)**: Health & Energy. (Sleep, Diet, Cardio, Meditation)
-3.  **INT (Intelligence)**: Deep work & Logic. (Coding, Math, Engineering)
-4.  **WIS (Wisdom)**: Knowledge & Awareness. (Reading, Learning, Reflection)
-5.  **CHA (Charisma)**: Social & Influence. (Meetings, Dates, Speaking)
+1.  **力量**：身體力量。（健身、伏地挺身、勞力）
+2.  **體力**：健康與能量。（睡眠、飲食、有氧、冥想）
+3.  **智力**：深度工作與邏輯。（寫程式、數學、工程）
+4.  **智慧**：知識與覺察。（閱讀、學習、反思）
+5.  **魅力**：社交與影響力。（會議、約會、演說）
 
 ### Vitals (Daily Resource)
 Actions have a **Cost**.
-- **EP (Energy Points)**: Physical energy. Max = VIT * 10. Recover via Sleep/Food.
-- **WP (Willpower)**: Mental focus. Max = WIS * 10. Recover via Meditation/Fun.
+- **EP（能量點）**：身體能量。上限 = 體力 * 10。透過睡眠/飲食恢復。
+- **WP（意志點）**：精神專注。上限 = 智慧 * 10。透過冥想/娛樂恢復。
 
 ### Currencies
 1.  **Level**: Overall character level (Sum of all Attribute levels / 5).
@@ -81,7 +81,7 @@ Design: Levels 1-10 are fast (daily level up) to build habit. Lv 10+ is logarith
 
 ### Categories
 1.  **Real Rewards**: Coupons, "Cheat Day" pass, Coffee fund.
-2.  **Buffs**: "Early Bird" (XP boost), "Focus Potion" (Next INT task +20% XP).
+2.  **Buff**：「早鳥」(XP 加成)、「專注藥水」（下一個智力任務 +20% XP）。
 
 ### Rarity Table
 | Rarity | Chance | Color |

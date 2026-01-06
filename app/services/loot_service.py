@@ -78,4 +78,35 @@ class LootService:
         await session.refresh(user_item)
         return user_item
 
+    async def grant_guaranteed_drop(
+        self,
+        session: AsyncSession,
+        user_id: str,
+        min_rarity: ItemRarity = ItemRarity.RARE,
+    ) -> Item | None:
+        order = [
+            ItemRarity.COMMON,
+            ItemRarity.UNCOMMON,
+            ItemRarity.RARE,
+            ItemRarity.EPIC,
+            ItemRarity.LEGENDARY,
+        ]
+        try:
+            min_index = order.index(min_rarity)
+        except ValueError:
+            min_index = order.index(ItemRarity.RARE)
+
+        eligible = order[min_index:]
+        result = await session.execute(
+            select(Item)
+            .where(Item.rarity.in_(eligible))
+            .order_by(func.random())
+            .limit(1)
+        )
+        item = result.scalars().first()
+        if not item:
+            return None
+        await self.grant_item(session, user_id, item)
+        return item
+
 loot_service = LootService()

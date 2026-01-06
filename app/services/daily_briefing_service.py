@@ -1,4 +1,5 @@
 import logging
+import datetime
 from sqlalchemy.future import select
 from app.core.database import AsyncSessionLocal
 from app.models.user import User
@@ -9,6 +10,7 @@ from linebot.v3.messaging import FlexMessage, FlexContainer, PushMessageRequest,
 from app.services.persona_service import persona_service
 from app.services.audio_service import audio_service
 from app.services.rival_service import rival_service
+from app.models.dda import DailyOutcome
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +33,18 @@ class DailyBriefingService:
             )
             quests = result.scalars().all()
             
-            flex_message = self._create_briefing_flex(user, rival, quests)
+            dda_hint = None
+            yesterday = datetime.date.today() - datetime.timedelta(days=1)
+            outcome_stmt = select(DailyOutcome).where(
+                DailyOutcome.user_id == user_id,
+                DailyOutcome.is_global.is_(True),
+                DailyOutcome.date == yesterday
+            )
+            outcome = (await session.execute(outcome_stmt)).scalars().first()
+            if outcome and not outcome.done:
+                dda_hint = "偵測到能量低落：今日任務已降階，先穩住連勝。"
+
+            flex_message = self._create_briefing_flex(user, rival, quests, dda_hint=dda_hint)
             
             # Audio Briefing
             audio_msg = audio_service.get_briefing_audio()
@@ -50,8 +63,7 @@ class DailyBriefingService:
             except Exception as e:
                 logger.error(f"Failed to push briefing: {e}")
 
-    def _create_briefing_flex(self, user: User, rival: Rival, quests: list[Quest]) -> FlexMessage:
-        # P5 Style Header
+    def _create_briefing_flex(self, user: User, rival: Rival, quests: list[Quest], dda_hint: str | None = None) -> FlexMessage:
         header_color = "#FF0000" if rival.level > user.level else "#000000"
         
         quest_items = []
@@ -63,7 +75,7 @@ class DailyBriefingService:
                 "contents": [
                     {"type": "text", "text": status_icon, "flex": 1, "size": "sm"},
                     {"type": "text", "text": q.title, "flex": 5, "size": "sm", "wrap": True},
-                    {"type": "text", "text": f"{q.difficulty_tier}", "flex": 1, "size": "xs", "color": "#aaaaaa", "align": "end"}
+                    {"type": "text", "text": f"難度 {q.difficulty_tier}", "flex": 1, "size": "xs", "color": "#aaaaaa", "align": "end"}
                 ]
             })
 
@@ -73,8 +85,8 @@ class DailyBriefingService:
                 "type": "box",
                 "layout": "vertical",
                 "contents": [
-                    {"type": "text", "text": "DAILY BRIEFING", "weight": "bold", "color": "#ffffff", "size": "xl"},
-                    {"type": "text", "text": f"OP: {user.id[:8]}...", "color": "#ffffff", "size": "xs"}
+                    {"type": "text", "text": "每日簡報", "weight": "bold", "color": "#ffffff", "size": "xl"},
+                    {"type": "text", "text": f"代號：{user.id[:8]}...", "color": "#ffffff", "size": "xs"}
                 ],
                 "backgroundColor": header_color
             },
@@ -88,13 +100,15 @@ class DailyBriefingService:
             "body": {
                 "type": "box",
                 "layout": "vertical",
-                "contents": [
+                "contents": (
+                    ([{"type": "text", "text": dda_hint, "size": "xs", "color": "#ffcc00", "wrap": True}] if dda_hint else [])
+                    + [
                     {
                         "type": "box",
                         "layout": "vertical",
                         "contents": [
-                            {"type": "text", "text": f"⚠️ VIPER STATUS (Lv.{rival.level})", "weight": "bold", "color": "#ff5555", "size": "sm"},
-                            {"type": "text", "text": f"Lead: +{max(0, (rival.level - user.level)*500 + (rival.xp - (user.xp or 0)))} XP", "size": "xs", "color": "#aaaaaa"}
+                            {"type": "text", "text": f"⚠️ Viper 狀態（Lv.{rival.level}）", "weight": "bold", "color": "#ff5555", "size": "sm"},
+                            {"type": "text", "text": f"領先：+{max(0, (rival.level - user.level)*500 + (rival.xp - (user.xp or 0)))} 經驗", "size": "xs", "color": "#aaaaaa"}
                         ],
                         "margin": "md"
                     },
@@ -103,17 +117,18 @@ class DailyBriefingService:
                         "type": "box",
                         "layout": "vertical",
                         "contents": [
-                            {"type": "text", "text": "ACTIVE MISSION PROTOCOLS", "weight": "bold", "margin": "lg", "size": "sm"},
+                            {"type": "text", "text": "今日任務指令", "weight": "bold", "margin": "lg", "size": "sm"},
                         ] + quest_items,
                         "margin": "sm"
                     }
-                ]
+                    ]
+                )
             },
             "footer": {
                 "type": "box",
                 "layout": "vertical",
                 "contents": [
-                     {"type": "button", "action": {"type": "message", "label": "🌅 Start Morning Routine", "text": "Start Morning Routine"}, "style": "primary", "color": "#000000"}
+                     {"type": "button", "action": {"type": "message", "label": "🌅 開始今日任務", "text": "開始今日任務"}, "style": "primary", "color": "#000000"}
                 ]
             }
         }
@@ -122,19 +137,19 @@ class DailyBriefingService:
         quick_reply = QuickReply(
             items=[
                 QuickReplyItem(
-                    action=PostbackAction(label="🔄 Reroll Quests", data="action=reroll_quests", display_text="Rerolling Quests...")
+                    action=PostbackAction(label="🔄 重新生成", data="action=reroll_quests", display_text="重新生成任務...")
                 ),
                 QuickReplyItem(
-                    action=PostbackAction(label="✅ Accept All", data="action=accept_all_quests", display_text="Accepting All...")
+                    action=PostbackAction(label="✅ 全部接受", data="action=accept_all_quests", display_text="全部接受任務...")
                 ),
                 QuickReplyItem(
-                    action=PostbackAction(label="⏭️ Skip Viper", data="action=skip_rival_update", display_text="Skipping Viper Update")
+                    action=PostbackAction(label="⏭️ 略過 Viper", data="action=skip_rival_update", display_text="略過 Viper 更新")
                 )
             ]
         )
         
         return FlexMessage(
-            alt_text="Daily Briefing", 
+            alt_text="每日簡報", 
             contents=FlexContainer.from_dict(contents),
             quick_reply=quick_reply,
             sender=persona_service.get_sender_object(persona_service.VIPER)

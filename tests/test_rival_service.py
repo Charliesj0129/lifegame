@@ -28,7 +28,7 @@ async def test_rival_inactive_penalty():
     # Theft: 3 days * 5% = 15%. 1000 * 0.15 = 150 stolen. 
     assert user.xp == 850 
     assert rival.xp == 300
-    assert "BREACH DETECTED" in narrative
+    assert "入侵警報" in narrative
 
 @pytest.mark.asyncio
 async def test_rival_sabotage():
@@ -47,5 +47,5 @@ async def test_rival_sabotage():
     narrative = await rival_service.process_encounter(session, user)
     
     # Assertions
-    assert "VIRUS UPLOADED" in narrative
+    assert "病毒植入" in narrative
     assert session.add.call_count >= 1

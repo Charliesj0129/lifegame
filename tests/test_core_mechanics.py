@@ -133,7 +133,7 @@ async def test_webhook_creates_user(db_session):
                         app.dependency_overrides.clear()
                         
                         assert user_res.status_code == 200
-                        assert user_res.json()["attributes"]["STR"] > 1
+                        assert user_res.json()["attributes"]["力量"] > 1
 
 @pytest.mark.asyncio
 async def test_end_to_end_logic_via_api(db_session):
@@ -152,6 +152,6 @@ async def test_end_to_end_logic_via_api(db_session):
         assert response.status_code == 200
         data = response.json()
         assert data["id"] == "u1"
-        assert data["attributes"]["STR"] == 5
+        assert data["attributes"]["力量"] == 5
     
     app.dependency_overrides.clear()

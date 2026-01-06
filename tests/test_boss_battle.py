@@ -34,8 +34,8 @@ async def test_boss_battle_trigger():
         
         # Mock AI Response for Boss Quest
         mock_ai.return_value = {
-            "title": "Defeat Viper: System Purge",
-            "desc": "Reboot OS.",
+            "title": "擊敗 Viper：系統清理",
+            "desc": "完成可保住你的資料。",
             "diff": "S",
             "xp": 500
         }
@@ -49,7 +49,7 @@ async def test_boss_battle_trigger():
         assert q.difficulty_tier == "S"
         assert q.is_redemption == True
         assert q.xp_reward == 500
-        assert "System Purge" in q.title
+        assert "系統清理" in q.title
 
 @pytest.mark.asyncio
 async def test_normal_quest_gen_no_boss():
@@ -67,9 +67,9 @@ async def test_normal_quest_gen_no_boss():
         mock_get_rival.return_value = rival
         
         mock_ai.return_value = [
-            {"title": "Task 1", "desc": "d", "diff": "D", "xp": 20},
-            {"title": "Task 2", "desc": "d", "diff": "E", "xp": 20},
-            {"title": "Task 3", "desc": "d", "diff": "C", "xp": 20}
+            {"title": "任務 1", "desc": "d", "habit_tag": "體力", "duration_minutes": 10},
+            {"title": "任務 2", "desc": "d", "habit_tag": "智力", "duration_minutes": 10},
+            {"title": "任務 3", "desc": "d", "habit_tag": "力量", "duration_minutes": 10}
         ]
         
         # Mock finding NO active goal

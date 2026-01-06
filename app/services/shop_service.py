@@ -21,21 +21,25 @@ class ShopService:
         item = await session.get(Item, item_id)
         
         if not user:
-            return {"success": False, "message": "User not found."}
+            return {"success": False, "message": "找不到使用者。"}
         if not item:
-            return {"success": False, "message": "Item not found."}
+            return {"success": False, "message": "找不到商品。"}
         if not item.is_purchasable:
-            return {"success": False, "message": "This item is not for sale."}
+            return {"success": False, "message": "此商品不可購買。"}
         
         # 2. Check Funds
         price = item.price or 0
         if user.gold < price:
-            return {"success": False, "message": f"Insufficient funds. Need {price} Gold."}
+            return {"success": False, "message": f"金幣不足，需要 {price} G。"}
         
         # 3. Transact
         user.gold -= price
         
-        # 4. Add to Inventory
+        # 4. Add to Inventory (or apply instant effect)
+        effect = (item.effect_meta or {}).get("effect")
+        if effect == "clear_penalty":
+            user.penalty_pending = False
+            session.add(user)
         stmt_inv = select(UserItem).where(UserItem.user_id == user_id, UserItem.item_id == item_id)
         result_inv = await session.execute(stmt_inv)
         user_item = result_inv.scalars().first()
@@ -47,6 +51,36 @@ class ShopService:
             session.add(user_item)
             
         await session.commit()
-        return {"success": True, "message": f"Purchased {item.name} for {price} Gold."}
+        return {"success": True, "message": f"已購買 {item.name}（-{price} G）。"}
+
+    async def refresh_daily_stock(self, session: AsyncSession, slots: int = 3):
+        from app.models.gamification import ItemRarity
+        result = await session.execute(select(Item))
+        items = result.scalars().all()
+        if not items:
+            return []
+
+        for item in items:
+            item.is_purchasable = False
+            session.add(item)
+
+        import random
+        rare_pool = [i for i in items if i.rarity in {ItemRarity.RARE, ItemRarity.EPIC, ItemRarity.LEGENDARY}]
+        common_pool = [i for i in items if i not in rare_pool]
+
+        selected = []
+        if rare_pool:
+            selected.append(random.choice(rare_pool))
+        remaining = [i for i in items if i not in selected]
+        random.shuffle(remaining)
+        while remaining and len(selected) < slots:
+            selected.append(remaining.pop())
+
+        for item in selected[:slots]:
+            item.is_purchasable = True
+            session.add(item)
+
+        await session.commit()
+        return selected[:slots]
 
 shop_service = ShopService()

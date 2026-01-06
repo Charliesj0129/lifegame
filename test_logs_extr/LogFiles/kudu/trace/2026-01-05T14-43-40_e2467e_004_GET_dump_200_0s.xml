@@ -1,0 +1,4 @@
+<step title="Incoming Request" date="2026-01-05T14:43:40.187" instance="e2467e" url="/dump" method="GET" type="request" pid="768,1,18" Host="app-lifgame-f5e1fe41.scm.azurewebsites.net" User-Agent="AZURECLI/2.80.0" Accept-Encoding="identity" Authorization="Bea..." x-ms-client-request-id="ebf74ebe-ea44-11f0-9363-f4c88a48bf6a" X-ARR-LOG-ID="ebf74ebe-ea44-11f0-9363-f4c88a48bf6a" CLIENT-IP="1.171.37.189:62387" X-SITE-DEPLOYMENT-ID="app-lifgame-f5e1fe41" WAS-DEFAULT-HOSTNAME="app-lifgame-f5e1fe41.scm.azurewebsites.net" X-Forwarded-Proto="https" X-AppService-Proto="https" X-Forwarded-TlsVersion="1.3" X-WAWS-Unencoded-URL="/dump" X-Client-IP="1.171.37.189" X-Client-Port="62387" >
+  <step title="Cleanup Xml Logs" date="2026-01-05T14:43:40.190" /><!-- duration: 4ms -->
+  <step title="Outgoing response" date="2026-01-05T14:43:40.446" type="response" statusCode="200" statusText="OK" /><!-- duration: 5ms -->
+</step><!-- duration: 266ms -->

@@ -11,17 +11,17 @@ class PersonaService:
     """Manages the identity (Name/Icon) of the bot for different contexts."""
     
     SYSTEM = Persona(
-        name="Tactical OS",
+        name="戰術系統",
         icon_url="https://images.unsplash.com/photo-1542831371-29b0f74f9713?q=80&w=200&auto=format&fit=crop" 
     )
     
     VIPER = Persona(
-        name="Viper (Rival)",
+        name="Viper（對手）",
         icon_url="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200&auto=format&fit=crop" 
     )
     
     MENTOR = Persona(
-        name="The Mentor",
+        name="導師",
         icon_url="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=200&auto=format&fit=crop" 
     )
 

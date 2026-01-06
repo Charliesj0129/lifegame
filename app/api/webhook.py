@@ -1,16 +1,23 @@
 from fastapi import APIRouter, Request, Header, HTTPException
 from linebot.v3.exceptions import InvalidSignatureError
 from linebot.v3.messaging import ReplyMessageRequest, TextMessage, ShowLoadingAnimationRequest
-from linebot.v3.webhooks import MessageEvent, TextMessageContent
+from linebot.v3.webhooks import MessageEvent, TextMessageContent, ImageMessageContent, LocationMessageContent
 
 from app.services.line_bot import get_line_handler, get_messaging_api
+from app.core.config import settings
 from app.services.flex_renderer import flex_renderer
 from app.services.persona_service import persona_service
 from app.services.audio_service import audio_service
 import logging
+import uuid
 
 router = APIRouter()
 logger = logging.getLogger("lifgame")
+
+def _build_error_message(context: str, exc: Exception) -> TextMessage:
+    error_hash = uuid.uuid4().hex[:8]
+    logger.error("error_hash=%s context=%s", error_hash, context, exc_info=True)
+    return TextMessage(text=f"⚠️ 系統異常，請稍後再試\n代碼：{error_hash}")
 
 @router.post("/callback")
 async def callback(request: Request, x_line_signature: str = Header(None)):
@@ -46,28 +53,38 @@ from app.services.boss_service import boss_service
 from app.services.shop_service import shop_service
 from app.services.crafting_service import crafting_service
 from app.services.rival_service import rival_service
+from app.services.tool_registry import tool_registry
+from app.services.verification_service import verification_service, Verdict
+from app.services.lore_service import lore_service
+from app.api.handlers import setup_dispatcher
+
+# Initialize Dispatcher Strategies
+setup_dispatcher()
 
 # ... (Previous imports)
 
 @webhook_handler.add(MessageEvent, message=TextMessageContent)
 async def handle_message(event: MessageEvent):
     user_text = event.message.text
+    raw_text = user_text.strip()
+    normalized_text = raw_text.lower()
     user_id = event.source.user_id
     reply_token = event.reply_token
 
-    # 1. Trigger Loading Animation (mask latency)
-    try:
-        api = get_messaging_api()
-        if api:
-             # Loading limit is 5s-60s. Default is enough.
-             await api.show_loading_animation(
-                 ShowLoadingAnimationRequest(chat_id=user_id, loading_seconds=10)
-             )
-    except Exception as e:
-        logger.warning(f"Could not show loading animation: {e}")
+    # 1. Trigger Loading Animation (optional)
+    if settings.ENABLE_LOADING_ANIMATION:
+        try:
+            api = get_messaging_api()
+            if api:
+                 # Loading limit is 5s-60s. Default is enough.
+                 await api.show_loading_animation(
+                     ShowLoadingAnimationRequest(chat_id=user_id, loading_seconds=10)
+                 )
+        except Exception as e:
+            logger.warning(f"Could not show loading animation: {e}")
 
     # Execute Logic
-    response_message = TextMessage(text="System Error")
+    response_message = TextMessage(text="⚠️ 系統異常")
     sender_persona = persona_service.SYSTEM
     rival_log = ""
     result_data = {}
@@ -76,63 +93,46 @@ async def handle_message(event: MessageEvent):
         async with app.core.database.AsyncSessionLocal() as session:
             # 1. Get User (Required for Rival Check)
             user = await user_service.get_or_create_user(session, user_id)
-            
-            # 2. Nemesis System: Check Inactivity & Penalties
-            try:
-                rival_log = await rival_service.process_encounter(session, user)
-            except Exception as e:
-                rival_log = await rival_service.process_encounter(session, user)
-            except Exception as e:
-                logger.warning(f"Rival encounter failed: {e}")
-            
-            # Manual Override for Shop (Phase 6)
-            if "shop" in user_text.lower() or "store" in user_text.lower() or "market" in user_text.lower():
-                items = await shop_service.list_shop_items(session)
-                response_message = flex_renderer.render_shop_list(items, user.gold or 0)
-                # Skip Router
-                intent_tool = "shop"
-            elif "craft" in user_text.lower() or "workshop" in user_text.lower():
-                recipes = await crafting_service.get_available_recipes(session, user_id)
-                response_message = flex_renderer.render_crafting_menu(recipes)
-                intent_tool = "craft"
-            elif "boss" in user_text.lower():
-                boss = await boss_service.get_active_boss(session, user_id)
-                if not boss:
-                    msg = await boss_service.spawn_boss(session, user_id)
-                    boss = await boss_service.get_active_boss(session, user_id)
-                    # Ideally we show the msg then the status, but for now just status
-                
-                response_message = flex_renderer.render_boss_status(boss)
-                intent_tool = "boss"
-            elif "attack" in user_text.lower():
-                challenge = await boss_service.generate_attack_challenge()
-                # Create a simple confirmation button for the challenge
-                # For MVP, just text with quick reply or button?
-                # Let's use a Text Message with a Quick Reply for "DONE"
-                from linebot.v3.messaging import QuickReply, QuickReplyItem, PostbackAction as LinePostbackAction
-                response_message = TextMessage(
-                    text=f"⚔️ BOSS CHALLENGE: {challenge}",
-                    quick_reply=QuickReply(items=[
-                        QuickReplyItem(
-                            action=LinePostbackAction(label="COMPLETED!", data="action=strike_boss&dmg=50")
-                        )
-                    ])
-                )
-                intent_tool = "attack"
+
+            from app.services.hp_service import hp_service
+            if user.is_hollowed or getattr(user, "hp_status", "") == "HOLLOWED":
+                rescue_msg = await hp_service.trigger_rescue_protocol(session, user)
+                response_message = TextMessage(text=f"⚠️ 瀕死狀態啟動。\n{rescue_msg}")
+                sender_persona = persona_service.SYSTEM
+                rival_log = ""
+                intent_tool = "hollowed_rescue"
+                result_data = {}
             else:
-                # 3. AI-Native Router (Phase 4)
-                # Replaces manual if/else blocks for status/inventory etc.
-                from app.services.ai_service import ai_router
+                # 2. Nemesis System: Check Inactivity & Penalties
+                try:
+                    rival_log = await rival_service.process_encounter(session, user)
+                except Exception as e:
+                    logger.warning(f"Rival encounter failed: {e}")
+                    rival_log = ""
                 
-                router_result = await ai_router.router(session, user_id, user_text)
-                if isinstance(router_result, tuple) and len(router_result) == 3:
-                    response_message, intent_tool, result_data = router_result
-                else:
-                    response_message, intent_tool = router_result
+                # Dispatcher (Command Bus)
+                from app.core.dispatcher import dispatcher
+                response_message, intent_tool, result_data = await dispatcher.dispatch(session, user_id, user_text)
             
             # Persona Logic (Simplified for now, Router returns message directly)
-            if intent_tool in ["get_status", "get_inventory", "get_quests"]:
+            if intent_tool == "hollowed_rescue":
                 sender_persona = persona_service.SYSTEM
+            elif intent_tool == "get_status":
+                # Feature 5: Lore Progress
+                lore_prog = await lore_service.get_user_progress(session, user_id)
+                response_message = flex_renderer.render_status(user, lore_prog)
+                sender_persona = persona_service.SYSTEM
+            
+            elif intent_tool == "get_quests":
+                 # Feature 6: Habits
+                 quests = await quest_service.get_daily_quests(session, user_id)
+                 habits = await quest_service.get_daily_habits(session, user_id)
+                 response_message = flex_renderer.render_quest_list(quests, habits)
+                 sender_persona = persona_service.SYSTEM
+
+            elif intent_tool == "get_inventory":
+                 # (Keep existing if any, or just system persona)
+                 sender_persona = persona_service.SYSTEM
             elif intent_tool in ["set_goal", "use_item"]:
                 sender_persona = persona_service.MENTOR
             else:
@@ -148,8 +148,7 @@ async def handle_message(event: MessageEvent):
                     pass
             
     except Exception as e:
-        logger.error(f"Error processing action: {e}", exc_info=True)
-        response_message = TextMessage(text="⚠️ System Glitch: Action not logged. Check logs.")
+        response_message = _build_error_message("handle_message", e)
 
     # Attach Sender
     response_message.sender = persona_service.get_sender_object(sender_persona)
@@ -186,7 +185,90 @@ async def handle_message(event: MessageEvent):
         # We don't raise here, so Line gets 200 OK and doesn't retry endlessly if it's a logic error.
         # But if it's a token expiry, we can't do much.
 
-from linebot.v3.webhooks import MessageEvent, TextMessageContent, PostbackEvent, FollowEvent
+
+@webhook_handler.add(MessageEvent, message=ImageMessageContent)
+async def handle_image_message(event: MessageEvent):
+    user_id = event.source.user_id
+    reply_token = event.reply_token
+    response_message = TextMessage(text="⚠️ 圖片處理失敗，請稍後再試。")
+
+    try:
+        api = get_messaging_api()
+        image_bytes = None
+        if api:
+            content = await api.get_message_content(event.message.id)
+            if hasattr(content, "read"):
+                image_bytes = await content.read()
+            elif hasattr(content, "data"):
+                image_bytes = content.data
+            elif hasattr(content, "body"):
+                image_bytes = content.body
+            elif hasattr(content, "content"):
+                image_bytes = content.content
+
+        async with app.core.database.AsyncSessionLocal() as session:
+            if image_bytes:
+                result = await verification_service.process_verification(
+                    session, user_id, image_bytes, "IMAGE"
+                )
+                message = result["message"]
+                if result.get("hint"):
+                    message = f"{message}\n{result['hint']}"
+                response_message = TextMessage(text=message)
+            else:
+                response_message = TextMessage(text="⚠️ 無法讀取圖片內容，請再試一次。")
+
+    except Exception as e:
+        response_message = _build_error_message("handle_image_message", e)
+
+    try:
+        api = get_messaging_api()
+        if api:
+            await api.reply_message(
+                ReplyMessageRequest(
+                    reply_token=reply_token,
+                    messages=[response_message]
+                )
+            )
+    except Exception as e:
+        logger.error(f"Failed to send image reply: {e}", exc_info=True)
+
+
+@webhook_handler.add(MessageEvent, message=LocationMessageContent)
+async def handle_location_message(event: MessageEvent):
+    user_id = event.source.user_id
+    reply_token = event.reply_token
+    response_message = TextMessage(text="⚠️ 位置驗證失敗，請稍後再試。")
+
+    try:
+        lat = event.message.latitude
+        lng = event.message.longitude
+
+        async with app.core.database.AsyncSessionLocal() as session:
+            result = await verification_service.process_verification(
+                session, user_id, (lat, lng), "LOCATION"
+            )
+            message = result["message"]
+            if result.get("hint"):
+                message = f"{message}\n{result['hint']}"
+            response_message = TextMessage(text=message)
+
+    except Exception as e:
+        response_message = _build_error_message("handle_location_message", e)
+
+    try:
+        api = get_messaging_api()
+        if api:
+            await api.reply_message(
+                ReplyMessageRequest(
+                    reply_token=reply_token,
+                    messages=[response_message]
+                )
+            )
+    except Exception as e:
+        logger.error(f"Failed to send location reply: {e}", exc_info=True)
+
+from linebot.v3.webhooks import PostbackEvent, FollowEvent
 from app.services.rich_menu_service import rich_menu_service
 
 # ... (Previous imports and handlers)
@@ -227,7 +309,7 @@ async def handle_postback(event: PostbackEvent):
             params[key] = value
             
     action = params.get('action')
-    response_text = "Action received."
+    response_text = "已收到操作。"
     
     try:
         async with app.core.database.AsyncSessionLocal() as session:
@@ -245,32 +327,85 @@ async def handle_postback(event: PostbackEvent):
                 if viper_taunt:
                     messages.append(TextMessage(text=viper_taunt))
 
-                response_text = "Quests Rerolled." # Fallback log
+                response_text = "任務已重新生成。" # Fallback log
                 
             elif action == "complete_quest":
                 quest_id = params.get('quest_id')
                 user = await user_service.get_or_create_user(session, user_id)
-                quest = await quest_service.complete_quest(session, user_id, quest_id)
+                
+                # Fetch Quest first
+                from app.models.quest import Quest
+                quest = await session.get(Quest, quest_id)
                 
                 if quest:
-                    # Award XP
-                    user.xp = (user.xp or 0) + quest.xp_reward
-                    await session.commit()
-                    messages.append(TextMessage(text=f"✅ Quest Completed! +{quest.xp_reward} XP"))
+                    # Feature 4: Use Verification Service for Epic Feedback
+                    completion = await verification_service._complete_quest(session, user_id, quest)
+                    if completion.get("success") is False:
+                        messages.append(TextMessage(text=completion.get("message", "⚠️ 任務已完成或不存在。")))
+                    else:
+                        message = (
+                            f"{completion.get('message', '✅ 任務完成！')}\n"
+                            f"獲得：{completion.get('xp', 0)} XP / {completion.get('gold', 0)} Gold"
+                        )
+                        if completion.get("story"):
+                            message = f"{message}\n\n_{completion['story']}_"
+                        messages.append(TextMessage(text=message))
                 else:
-                    messages.append(TextMessage(text="⚠️ Quest already done or invalid."))
+                    messages.append(TextMessage(text="⚠️ 找不到任務或已完成。"))
+
+            elif action == "check_habit":
+                habit_id = params.get('habit_id')
+                # Feature 3/6: Habit Check-in
+                from app.models.dda import HabitState, DailyOutcome
+                from app.services.dda_service import dda_service
+                from sqlalchemy import select
+                import datetime
+                habit = await session.get(HabitState, habit_id)
+                if habit:
+                    habit_tag = habit.habit_tag or habit.habit_name or habit.id
+                    if not habit.habit_tag:
+                        habit.habit_tag = habit_tag
+
+                    today = datetime.date.today()
+                    outcome_stmt = select(DailyOutcome).where(
+                        DailyOutcome.user_id == user_id,
+                        DailyOutcome.habit_tag == habit_tag,
+                        DailyOutcome.date == today,
+                        DailyOutcome.is_global.is_(False),
+                    )
+                    outcome = (await session.execute(outcome_stmt)).scalars().first()
+                    if outcome and outcome.done:
+                        messages.append(TextMessage(text=f"✅ 今日已打卡：{habit.habit_name or habit_tag}"))
+                    else:
+                        await dda_service.record_completion(
+                            session,
+                            user_id,
+                            habit_tag,
+                            habit.tier or "T1",
+                            source="check_in",
+                            duration_minutes=None,
+                            quest_id=None,
+                        )
+                        habit.exp = (habit.exp or 0) + 10
+                        user = await user_service.get_or_create_user(session, user_id)
+                        user.xp = (user.xp or 0) + 5 # Small reward
+
+                        await session.commit()
+                        messages.append(TextMessage(text=f"🔄 已打卡：{habit.habit_name or habit_tag}\n連續：{habit.zone_streak_days or 0} 天（+5 經驗）"))
+                else:
+                    messages.append(TextMessage(text="⚠️ 找不到習慣模組。"))
 
             elif action == "accept_all_quests":
-                response_text = "✅ All Quests Accepted! (Mock)"
+                response_text = "✅ 已接受全部任務！（待實作）"
                 messages.append(TextMessage(text=response_text))
                 
             elif action == "skip_rival_update":
-                response_text = "⏭️ Viper update skipped."
+                response_text = "⏭️ 已略過 Viper 更新。"
                 messages.append(TextMessage(text=response_text))
                 
             elif action == "equip":
                 item_id = params.get('item_id')
-                response_text = f"⚔️ Equipping Item {item_id}..."
+                response_text = f"⚔️ 裝備中：{item_id}..."
                 messages.append(TextMessage(text=response_text))
 
             elif action == "buy_item":
@@ -298,15 +433,14 @@ async def handle_postback(event: PostbackEvent):
                  if msg:
                      messages.append(TextMessage(text=msg))
                  else:
-                     messages.append(TextMessage(text="No active boss."))
+                     messages.append(TextMessage(text="目前沒有首領。"))
             
             else:
-                response_text = f"Unknown Action: {action}"
+                response_text = f"未知操作：{action}"
                 messages.append(TextMessage(text=response_text))
             
     except Exception as e:
-        logger.error(f"Postback Error: {e}")
-        response_text = "⚠️ Error processing request."
+        response_text = _build_error_message("handle_postback", e).text
 
     # "Silent" Reply logic? 
     # Line requires a 200 OK and ideally a reply token usage or it might retry? 

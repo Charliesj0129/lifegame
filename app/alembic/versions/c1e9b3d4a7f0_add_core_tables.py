@@ -31,7 +31,7 @@ def upgrade() -> None:
     )
     op.add_column(
         "items",
-        sa.Column("is_purchasable", sa.Boolean(), server_default=sa.text("0"), nullable=False),
+        sa.Column("is_purchasable", sa.Boolean(), server_default=sa.text("false"), nullable=False),
     )
 
     op.create_table(

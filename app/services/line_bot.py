@@ -3,7 +3,7 @@ from linebot.v3.webhook import WebhookHandler, WebhookParser
 from linebot.v3.exceptions import InvalidSignatureError
 from typing import Optional, List, Any
 from app.core.config import settings
-import sys
+import logging
 import inspect
 
 class AsyncWebhookHandler(WebhookHandler):
@@ -42,13 +42,14 @@ class AsyncWebhookHandler(WebhookHandler):
 # Global instances
 handler = None
 messaging_api = None
+logger = logging.getLogger(__name__)
 
 def get_line_handler() -> AsyncWebhookHandler:
     global handler
     if handler is None:
         if settings.LINE_CHANNEL_SECRET is None:
              # In dev/test, might be None.
-             print("WARNING: LINE_CHANNEL_SECRET is not set. Webhooks will fail.", file=sys.stderr)
+             logger.warning("LINE_CHANNEL_SECRET is not set. Webhooks will fail.")
              return AsyncWebhookHandler("dummy_secret")
         handler = AsyncWebhookHandler(settings.LINE_CHANNEL_SECRET)
     return handler
@@ -57,7 +58,7 @@ def get_messaging_api() -> AsyncMessagingApi:
     global messaging_api
     if messaging_api is None:
          if settings.LINE_CHANNEL_ACCESS_TOKEN is None:
-             print("WARNING: LINE_CHANNEL_ACCESS_TOKEN is not set. Replies will fail.", file=sys.stderr)
+             logger.warning("LINE_CHANNEL_ACCESS_TOKEN is not set. Replies will fail.")
              configuration = Configuration(access_token="dummy")
          else:
              configuration = Configuration(access_token=settings.LINE_CHANNEL_ACCESS_TOKEN)

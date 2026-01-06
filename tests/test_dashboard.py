@@ -59,4 +59,4 @@ async def test_dashboard_full_stack(override_get_db):
     assert "Visual (Lv.10)" in response.text
     assert "Viper" in response.text
     assert "Visual Quest" in response.text
-    assert "Systems Status" in response.text # Chart Title
+    assert "系統狀態" in response.text # Chart Title

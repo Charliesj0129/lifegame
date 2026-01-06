@@ -14,7 +14,7 @@ class TestM8Immersive(unittest.TestCase):
         event.source.user_id = "U_TEST_LOAD"
         event.reply_token = "R_TOKEN_LOAD"
         event.message = MagicMock(spec=TextMessageContent)
-        event.message.text = "Status"
+        event.message.text = "狀態"
 
         mock_api = MagicMock()
         mock_api.show_loading_animation = AsyncMock()
@@ -55,7 +55,7 @@ class TestM8Immersive(unittest.TestCase):
             mock_api.reply_message.assert_called_once()
             reply_req = mock_api.reply_message.call_args[0][0]
             # Check Sender on the Message object (first message)
-            assert reply_req.messages[0].sender.name == "Tactical OS"
+            assert reply_req.messages[0].sender.name == "戰術系統"
             print("✅ System Persona Verified.")
 
     def test_mentor_persona(self):
@@ -65,7 +65,7 @@ class TestM8Immersive(unittest.TestCase):
         event.source.user_id = "U_TEST_MENTOR"
         event.reply_token = "R_TOKEN_MENTOR"
         event.message = MagicMock(spec=TextMessageContent)
-        event.message.text = "Use Potion"
+        event.message.text = "使用藥水"
 
         mock_api = MagicMock()
         mock_api.show_loading_animation = AsyncMock()
@@ -93,7 +93,7 @@ class TestM8Immersive(unittest.TestCase):
             loop.close()
 
             reply_req = mock_api.reply_message.call_args[0][0]
-            assert reply_req.messages[0].sender.name == "The Mentor"
+            assert reply_req.messages[0].sender.name == "導師"
             print("✅ Mentor Persona Verified.")
 
     def test_viper_persona_push(self):

@@ -77,6 +77,40 @@ async def test_router_inventory_fallback(db_session):
         msg, tool, _ = await AIService.router(db_session, user_id, "Some random text")
         
         # Assert
-        # The router logic currently returns "unknown_tool_xyz" as the tool name, content is logged default
-        assert tool == "unknown_tool_xyz"
+        # Unknown tools are ignored; router should fall back to log_action
+        assert tool == "log_action"
         mock_log_action.assert_called_once() 
+
+@pytest.mark.asyncio
+async def test_router_multi_tool_calls(db_session):
+    """Verify router can execute multiple tool calls in order."""
+    user_id = "router_multi_user"
+
+    with patch("app.services.user_service.UserService.get_or_create_user", new_callable=AsyncMock) as mock_get_user, \
+         patch("app.services.rival_service.RivalService.get_or_create_rival", new_callable=AsyncMock) as mock_get_rival, \
+         patch("app.services.ai_engine.ai_engine.generate_json", new_callable=AsyncMock) as mock_gen_json, \
+         patch("app.services.tool_registry.ToolRegistry.use_item", new_callable=AsyncMock) as mock_use_item, \
+         patch("app.services.tool_registry.ToolRegistry.log_action", new_callable=AsyncMock) as mock_log_action:
+
+        mock_get_user.return_value = User(id=user_id, level=5)
+        mock_get_rival.return_value = Rival(user_id=user_id, level=1)
+
+        mock_gen_json.return_value = {
+            "thought": "Two actions in order.",
+            "tool_calls": [
+                {"tool": "use_item", "arguments": {"item_name": "potion"}},
+                {"tool": "log_action", "arguments": {"text": "I'm tired and going to sleep"}}
+            ],
+            "response_voice": "Mentor",
+            "confidence": 0.64
+        }
+
+        mock_use_item.return_value = ({"result": "used"}, "Item Message")
+        mock_log_action.return_value = ({"result": "logged"}, "Log Message")
+
+        messages, tools, result = await AIService.router(db_session, user_id, "I'm tired, drink a potion and sleep")
+
+        assert tools == ["use_item", "log_action"]
+        assert messages == ["Item Message", "Log Message"]
+        assert result.get("response_voice") == "Mentor"
+        assert result.get("tool_results")[0]["result"] == "used"

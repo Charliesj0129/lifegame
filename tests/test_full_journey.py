@@ -43,9 +43,9 @@ async def test_full_user_journey():
          
          # AI returns standard quests
          mock_ai.return_value = [
-             {"title": "Run 5km", "diff": "C", "xp": 50},
-             {"title": "Read Book", "diff": "D", "xp": 30},
-             {"title": "Meditation", "diff": "E", "xp": 20}
+             {"title": "跑步 5 公里", "desc": "戶外慢跑", "habit_tag": "體力", "duration_minutes": 30},
+             {"title": "閱讀 20 分鐘", "desc": "閱讀一本書", "habit_tag": "智慧", "duration_minutes": 20},
+             {"title": "冥想 10 分鐘", "desc": "呼吸練習", "habit_tag": "智慧", "duration_minutes": 10}
          ]
          
          # Mock No Active Goal
@@ -59,7 +59,7 @@ async def test_full_user_journey():
          quests = await quest_service._generate_daily_batch(session, user_id)
          
          assert len(quests) == 3
-         assert quests[0].title == "Run 5km"
+         assert quests[0].title == "跑步 5 公里"
          
     # --- PHASE 3: INACTIVITY & THEFT ---
     # Fast forward time: User inactive for 5 days
@@ -78,7 +78,7 @@ async def test_full_user_journey():
     
     # Verify Theft (5 days * 5% = 25%. 1000 * 0.25 = 250 stolen. Remain 750)
     assert user.xp == 750
-    assert "siphoned 250 XP" in narrative
+    assert "竊取 250 經驗" in narrative
     
     # Verify Rival Growth (5 days * 100 = 500 XP)
     assert rival.xp == 500
@@ -95,7 +95,7 @@ async def test_full_user_journey():
          mock_get_user.return_value = user
          mock_get_rival.return_value = rival
          
-         mock_ai.return_value = {"title": "BOSS: Overthrow Viper", "diff": "S", "xp": 1000}
+         mock_ai.return_value = {"title": "擊敗 Viper：封鎖核心", "diff": "S", "xp": 1000}
          
          # User asks for daily quests...
          boss_quests = await quest_service._generate_daily_batch(session, user_id)
@@ -103,4 +103,4 @@ async def test_full_user_journey():
          # Should get 1 Boss Quest
          assert len(boss_quests) == 1
          assert boss_quests[0].difficulty_tier == "S"
-         assert "Overthrow Viper" in boss_quests[0].title
+         assert "擊敗 Viper" in boss_quests[0].title

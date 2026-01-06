@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import random
 import logging
 from app.models.user import User
@@ -33,7 +33,7 @@ class RivalService:
         rival = await self.get_or_create_rival(session, user.id)
         
         # 1. Inactivity Check
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         last_active = user.last_active_date or now
         # Simplify: If last_active was yesterday or today, no penalty.
         # If last_active was < T-1 day, we have missed days.

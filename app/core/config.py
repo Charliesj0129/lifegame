@@ -3,8 +3,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Optional
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "Life Gamification Agent v6"
-    VERSION: str = "0.6.0"
+    PROJECT_NAME: str = "Life Gamification Agent v21"
+    VERSION: str = "0.21.0"
     API_V1_STR: str = "/api/v1"
 
     # Database
@@ -35,12 +35,20 @@ class Settings(BaseSettings):
     # OpenRouter
     OPENROUTER_API_KEY: Optional[str] = None
     OPENROUTER_MODEL: str = "google/gemini-3-flash-preview"
-
-    OPENROUTER_MODEL: str = "google/gemini-3-flash-preview"
     
     # App Settings
     APP_BASE_URL: str = "https://app-lifgame-955ea735.azurewebsites.net" # Default to Prod for now, override in .env
     AUTO_MIGRATE: bool = False
+    ENABLE_LATENCY_LOGS: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("ENABLE_LATENCY_LOGS", "LOG_LATENCY_ENABLED"),
+    )
+    ENABLE_LOADING_ANIMATION: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("ENABLE_LOADING_ANIMATION", "SHOW_LOADING_ANIMATION"),
+    )
+    ENABLE_SCHEDULER: bool = False
+    SCHEDULER_INTERVAL_SECONDS: int = 60
 
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=True)
 

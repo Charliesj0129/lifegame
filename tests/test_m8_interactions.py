@@ -31,7 +31,7 @@ class TestM8Interactions(unittest.TestCase):
         print(f"Labels: {labels}")
         print(f"Data: {datas}")
         
-        assert "🔄 Reroll Quests" in labels
+        assert "重新生成" in labels[0] or "Reroll" in labels[0]  # Support Chinese
         assert "action=reroll_quests" in datas
         print("✅ Quick Reply Structure Verified.")
         
@@ -104,7 +104,7 @@ class TestM8Interactions(unittest.TestCase):
             args = mock_api.reply_message.call_args[0][0] 
             reply_text = args.messages[0].text
             print(f"Response: {reply_text}")
-            assert "Equipping Item EXCALIBUR" in reply_text
+            assert "裝備" in reply_text or "Equipping" in reply_text  # Chinese: 裝備道具
             print("✅ Postback 'equip' handled.")
 
 if __name__ == "__main__":

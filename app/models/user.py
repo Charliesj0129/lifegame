@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, DateTime
+from sqlalchemy import Column, String, Integer, DateTime, Boolean, JSON
 from sqlalchemy.sql import func
 from app.models.base import Base
 
@@ -42,6 +42,23 @@ class User(Base):
     cha_xp = Column(Integer, default=0)
 
     gold = Column(Integer, default=0)
+    penalty_pending = Column(Boolean, default=False)
+
+    # Push preferences
+    push_enabled = Column(Boolean, default=True)
+    push_timezone = Column(String, default="Asia/Taipei")
+    push_times = Column(
+        JSON,
+        default=lambda: {"morning": "08:00", "midday": "12:30", "night": "21:00"},
+    )
+
+    # Vital Stats
+    hp = Column(Integer, default=100)
+    max_hp = Column(Integer, default=100)
+    is_hollowed = Column(Boolean, default=False)
+    hp_status = Column(String, default="HEALTHY")  # HEALTHY, CRITICAL, HOLLOWED, RECOVERING
+    hollowed_at = Column(DateTime(timezone=True), nullable=True)
+    talent_points = Column(Integer, default=3, nullable=False)
     
     # M6: Habit Streaks
     streak_count = Column(Integer, default=0)

@@ -28,5 +28,6 @@ class ProcessResult(BaseModel):
     def to_text_message(self) -> str:
         msg = self.text
         if self.loot_name:
-            msg += f"\n🎁 LOOT: You found [{self.loot_name}] ({self.loot_rarity})!"
+            rarity = self.loot_rarity or ""
+            msg += f"\n🎁 掉落：獲得 {self.loot_name}（{rarity}）"
         return msg

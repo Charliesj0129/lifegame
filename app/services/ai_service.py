@@ -2,6 +2,7 @@ from app.services.ai_engine import ai_engine
 from app.services.tool_registry import tool_registry
 from app.services.user_service import user_service
 from app.services.rival_service import rival_service
+from linebot.v3.messaging import TextMessage
 import logging
 import json
 
@@ -42,100 +43,161 @@ class AIService:
     @staticmethod
     async def router(session, user_id: str, user_text: str):
         """
-        The Core Loop:
-        1. Fetch Context (User State + Rival + History)
-        2. Prompt AI for Intent (JSON)
-        3. Execute Tool
-        4. Return Response Message
+        The Core Loop (v2.0 AI-Native):
+        1. Parse Fuzzy Intent & Chain of Thought
+        2. Execute Single or Multiple Tools
+        3. Return Final Response
         """
         # 1. Gather Context
         user = await user_service.get_or_create_user(session, user_id)
         rival = await rival_service.get_or_create_rival(session, user_id)
         history = await AIService._get_history(session, user_id)
         
-        # 2. Construct System Prompt
+        # 2. Enhanced System Prompt
         context_str = f"""
 Current User State:
 - Level: {user.level} (Streak: {user.streak_count})
-- Rival (Viper): Lv.{rival.level} (Status: {"Active" if rival.level >= user.level else "Dormant"})
+- Rival: Lv.{rival.level} ({'Active' if rival.level >= user.level else 'Dormant'})
+- HP: {user.hp}/{user.max_hp}
 
-Recent Conversation History:
+Recent History:
 {history}
 """
         
-        system_prompt = f"""Role: LifeOS Gamification Manager.
+        system_prompt = f"""Role: LifeOS Gamification Manager (v2.0).
 {context_str}
 
 Available Tools:
 - get_status() : View stats
 - get_inventory() : View items
-- get_quests() : View missions
+- get_quests() : View active tasks
 - use_item(item_name: str) : Consume item
-- set_goal(goal_text: str) : Define objective
-- log_action(text: str) : Default RPG log behavior
+- set_goal(goal_text: str) : Create specific goal
+- log_action(text: str) : Log habit/action (Default)
+- give_advice(topic: str) : Provide empathy/tactical advice (for fuzzy inputs like "I'm tired")
 
 Task: Analyze input. Return JSON.
-Schema:
-{{
-  "thought": "Reasoning string",
-  "tool": "get_status" | "get_inventory" | "get_quests" | "use_item" | "set_goal" | "log_action",
-  "arguments": {{ ...key-value pairs... }}
-}}
+Support Chain of Thought (CoT): If user asks for multiple things (e.g. "Drink potion then sleep"), return a LIST of actions.
+Language: ALWAYS use Traditional Chinese (繁體中文) for any text output or reasoning that might be visible.
+
+Schema (Single):
+{{ "thought": "str (Traditional Chinese)", "tool": "tool_name", "arguments": {{...}} }}
+
+Schema (Chain):
+{{ "thought": "str (Traditional Chinese)", "plan": [ {{ "tool": "tool_name", "arguments": {{...}} }}, ... ] }}
 """
-        # Save User Input immediately
+        # Save User Input
         await AIService._save_log(session, user_id, "user", user_text)
 
         # 3. AI Inference
-        msg = None
-        tool_name = "unknown"
-        result_data = {}
+        final_msg = None
+        main_tool_name = "unknown"
+        final_data = {}
         
         try:
-            intent = await ai_engine.generate_json(system_prompt, user_text)
+            ai_resp = await ai_engine.generate_json(system_prompt, user_text)
             
-            tool_name = intent.get("tool", "log_action")
-            args = intent.get("arguments", {})
+            # Normalize to List of Actions
+            actions = []
+            if isinstance(ai_resp, dict):
+                if "plan" in ai_resp:
+                    actions = ai_resp["plan"]
+                else:
+                    actions = [ai_resp]
+            elif isinstance(ai_resp, list):
+                actions = ai_resp
             
-            logger.info(f"AI Router Decision: {tool_name} | Args: {args}")
+            logger.info(f"AI Router Plan: {len(actions)} steps. {actions}")
             
-            # 4. Dispatch
-            if tool_name == "get_status":
-                result_data, msg = await tool_registry.get_status(session, user_id)
+            # 4. Execution Loop
+            results = []
+            for act in actions:
+                tool = act.get("tool", "log_action")
+                args = act.get("arguments") or {}
                 
-            elif tool_name == "get_inventory":
-                result_data, msg = await tool_registry.get_inventory(session, user_id)
+                # Update main tool name for logging/return (use last significant one)
+                main_tool_name = tool
+                
+                if tool == "get_status":
+                    data, msg = await tool_registry.get_status(session, user_id)
+                    results.append(msg)
+                    final_data = data
+                elif tool == "get_inventory":
+                    data, msg = await tool_registry.get_inventory(session, user_id)
+                    results.append(msg)
+                elif tool == "get_quests":
+                    data, msg = await tool_registry.get_quests(session, user_id)
+                    results.append(msg)
+                elif tool == "use_item":
+                    data, msg = await tool_registry.use_item(session, user_id, args.get("item_name", "unknown"))
+                    results.append(msg)
+                elif tool == "set_goal":
+                    data, msg = await tool_registry.set_goal(session, user_id, args.get("goal_text", user_text))
+                    results.append(msg)
+                elif tool == "give_advice":
+                    # Special Tool: Just return text advice? Or use a renderer?
+                    # For now, let's just Log it as an action but with specific formatting?
+                    # Or simple TextMessage.
+                    topic = args.get("topic", "General")
+                    advice_text = f"💡 建議：{topic}。先休息，補充精神值。"
+                    msg = TextMessage(text=advice_text)
+                    results.append(msg)
+                    final_data = {"advice": topic}
+                else:
+                    # log_action
+                    txt = args.get("text", user_text)
+                    data, msg = await tool_registry.log_action(session, user_id, txt)
+                    results.append(msg)
+                    final_data = data
+
+            # 5. response aggregation (If multiple messages, how to send?)
+            # Webhook expects Single Message usually. 
+            # If multiple, we might need to return a list? 
+            # Existing webhook.py handles: response_message = TextMessage or FlexContainer.
+            # It sends `line_bot_api.reply_message`. reply_message supports LIST of messages (up to 5).
+            # So we should return a LIST of messages if possible, or composite.
             
-            elif tool_name == "get_quests":
-                result_data, msg = await tool_registry.get_quests(session, user_id)
+            # But the signature expected by webhook is `response_message, intent_tool, result_data`.
+            # If `response_message` is a list, we need to check if webhook handles it.
+            # Let's check webhook.py next. For now, let's return the LAST parsed message, 
+            # OR a special "MultiMessage" if supported.
+            # Actually, `reply_message` takes `messages=[]`. 
+            # If we change the return type to List[Message], we must update webhook.py.
+            # To keep it simple for now: Return the LAST one, but if multiple, maybe combine text?
+            
+            if len(results) > 1:
+                # Combine standard text messages
+                combined_text = ""
+                flex_msg = None
+                for res in results:
+                    if isinstance(res, TextMessage):
+                        combined_text += f"{res.text}\n"
+                    else:
+                        flex_msg = res # Keep the last flex
                 
-            elif tool_name == "use_item":
-                item_name = args.get("item_name", "unknown")
-                result_data, msg = await tool_registry.use_item(session, user_id, item_name)
-                
-            elif tool_name == "set_goal":
-                goal_text = args.get("goal_text", user_text)
-                result_data, msg = await tool_registry.set_goal(session, user_id, goal_text)
-                
+                if flex_msg:
+                    final_msg = flex_msg # Prioritize Flex (UI)
+                else:
+                    final_msg = TextMessage(text=combined_text.strip())
+            elif results:
+                final_msg = results[0]
             else:
-                # Default / log_action
-                action_text = args.get("text", user_text) 
-                result_data, msg = await tool_registry.log_action(session, user_id, action_text)
-                
-            # 5. Log Response (for Context Loop)
-            response_text = "[Flex/Image]"
-            if hasattr(msg, "text") and msg.text:
-                response_text = msg.text
-            elif tool_name == "get_status":
-                response_text = "[Displayed Status Dashboard]"
+                final_msg = TextMessage(text="...")
             
-            await AIService._save_log(session, user_id, "assistant", response_text)
-                
-            return msg, tool_name, result_data
+            # Log Response
+            resp_log = getattr(final_msg, 'text', '[Complex Message]')
+            await AIService._save_log(session, user_id, "assistant", resp_log)
+            
+            return final_msg, main_tool_name, final_data
 
         except Exception as e:
             logger.error(f"Router Fail: {e}", exc_info=True)
             # Fallback
-            result_data, msg = await tool_registry.log_action(session, user_id, user_text)
-            return msg, "fallback_log", result_data
+            try:
+                result_data, msg = await tool_registry.log_action(session, user_id, user_text)
+                return msg, "fallback_log", result_data
+            except Exception as fallback_error:
+                logger.error(f"Fallback log_action failed: {fallback_error}", exc_info=True)
+                return TextMessage(text="⚠️ 系統異常：行動未記錄，請查看日誌。"), "fallback_error", {}
 
 ai_router = AIService()
