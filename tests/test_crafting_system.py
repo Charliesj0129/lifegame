@@ -4,7 +4,6 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import select
 from app.models.base import Base
-from app.models.user import User
 from app.models.gamification import Item, UserItem, Recipe, RecipeIngredient
 from app.services.crafting_service import crafting_service
 

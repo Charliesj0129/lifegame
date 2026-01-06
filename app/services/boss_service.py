@@ -1,4 +1,3 @@
-from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.models.gamification import Boss, BossStatus
@@ -21,7 +20,6 @@ class BossService:
             return "Boss already active."
 
         # Get Rival context for flavor
-        rival_taunt = "I've summoned a demon to test you."
         try:
             rival = await rival_service.get_rival(session, user_id)
             if rival:
@@ -33,7 +31,7 @@ class BossService:
                 boss_name = json_resp.get("boss_name", "The Procrastinator")
             else:
                 boss_name = "Shadow of Sloth"
-        except:
+        except Exception:
              boss_name = "Shadow of Sloth"
 
         new_boss = Boss(

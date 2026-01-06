@@ -203,7 +203,6 @@ class QuestService:
         """Generates quests. Checks for BOSS MODE first."""
         from app.services.rival_service import rival_service
         from app.services.user_service import user_service
-        from app.services.boss_service import boss_service
         
         # 0. Boss Mode Check (Only if Morning/Daily context)
         if time_context in ["Daily", "Morning"]:
@@ -211,7 +210,11 @@ class QuestService:
             rival = await rival_service.get_rival(session, user_id)
     
             # Hollowed State: force emergency recovery quest
-            if user and (user.is_hollowed or (user.hp or 0) <= 0 or getattr(user, "hp_status", "") == "HOLLOWED"):
+            if user and (
+                user.is_hollowed
+                or getattr(user, "hp_status", "") == "HOLLOWED"
+                or (user.hp is not None and user.hp <= 0)
+            ):
                 emergency = Quest(
                     user_id=user_id,
                     title="緊急修復任務",

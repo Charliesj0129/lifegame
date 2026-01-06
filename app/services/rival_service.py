@@ -34,7 +34,6 @@ class RivalService:
         
         # 1. Inactivity Check
         now = datetime.now(timezone.utc)
-        last_active = user.last_active_date or now
         # Simplify: If last_active was yesterday or today, no penalty.
         # If last_active was < T-1 day, we have missed days.
         

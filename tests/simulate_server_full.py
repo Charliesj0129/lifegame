@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, patch
 import sys
 import os
 
@@ -13,9 +13,7 @@ from linebot.v3.messaging import TextMessage, FlexMessage
 from app.core.database import engine
 from app.models.base import Base
 # Import all models for registry
-from app.models.user import User
-from app.models.quest import Quest, Goal
-from app.models.action_log import ActionLog
+from app.models.quest import Quest
 
 # Setup Logger
 logging.basicConfig(level=logging.ERROR) # Quiet execution

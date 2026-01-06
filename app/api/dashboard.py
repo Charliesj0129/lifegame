@@ -1,13 +1,11 @@
-from fastapi import APIRouter, Request, Depends, HTTPException
+from fastapi import APIRouter, Request, Depends
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.services.user_service import user_service
 from app.services.rival_service import rival_service
-from app.services.inventory_service import inventory_service
-from app.services.quest_service import quest_service
-from app.models.quest import QuestStatus, QuestType, GoalStatus
+from app.models.quest import QuestStatus, GoalStatus
 import logging
 
 router = APIRouter()

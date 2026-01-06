@@ -34,3 +34,7 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+ignore = ["E402", "F401", "E701", "F403"]

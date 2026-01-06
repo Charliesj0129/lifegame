@@ -2,9 +2,9 @@ import asyncio
 import unittest
 from unittest.mock import MagicMock, patch, AsyncMock
 from app.api.webhook import handle_message
-from app.services.daily_briefing_service import daily_briefing, DailyBriefingService
+from app.services.daily_briefing_service import daily_briefing
 from linebot.v3.webhooks import MessageEvent, TextMessageContent, UserSource
-from linebot.v3.messaging import PushMessageRequest, TextMessage, FlexMessage
+from linebot.v3.messaging import TextMessage
 
 class TestM8Immersive(unittest.TestCase):
     def test_loading_animation_trigger(self):

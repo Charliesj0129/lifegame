@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 from pathlib import Path
 from linebot.v3.messaging import (
     Configuration,
@@ -12,8 +11,7 @@ from linebot.v3.messaging import (
     RichMenuBounds,
     RichMenuSize,
     PostbackAction,
-    MessageAction,
-    URIAction
+    MessageAction
 )
 from app.core.config import settings
 

@@ -1,7 +1,7 @@
 from linebot.v3.messaging import AsyncMessagingApi, AsyncApiClient, Configuration
 from linebot.v3.webhook import WebhookHandler, WebhookParser
 from linebot.v3.exceptions import InvalidSignatureError
-from typing import Optional, List, Any
+from typing import Any
 from app.core.config import settings
 import logging
 import inspect

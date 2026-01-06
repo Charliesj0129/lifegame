@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
-from app.models.gamification import Item, UserItem, Recipe, RecipeIngredient
+from app.models.gamification import UserItem, Recipe, RecipeIngredient
 import random
 
 class CraftingService:

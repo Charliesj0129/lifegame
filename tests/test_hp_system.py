@@ -10,7 +10,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.models.base import Base
 from app.models.user import User
-from app.services.hp_service import hp_service, HPStatus
+from app.services.hp_service import hp_service
 
 
 @pytest_asyncio.fixture
@@ -37,7 +37,7 @@ async def test_new_user_starts_healthy(db_session):
     assert user.hp == 100
     assert user.max_hp == 100
     assert user.hp_status == "HEALTHY"
-    assert user.is_hollowed == False
+    assert not user.is_hollowed
 
 
 @pytest.mark.asyncio
@@ -90,7 +90,7 @@ async def test_hp_zero_triggers_hollowed(db_session):
     
     assert user.hp == 0
     assert user.hp_status == "HOLLOWED"
-    assert user.is_hollowed == True
+    assert user.is_hollowed
     assert user.hollowed_at is not None
 
 
@@ -136,7 +136,7 @@ async def test_recovering_status_after_heal(db_session):
     
     assert user.hp == 30
     assert user.hp_status == "RECOVERING"
-    assert user.is_hollowed == False
+    assert not user.is_hollowed
 
 
 @pytest.mark.asyncio

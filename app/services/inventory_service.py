@@ -1,6 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import delete
 from app.models.gamification import Item, UserItem, UserBuff
 from app.models.user import User
 from datetime import datetime, timedelta, timezone

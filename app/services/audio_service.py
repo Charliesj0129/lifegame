@@ -1,6 +1,5 @@
 from linebot.v3.messaging import AudioMessage
 from app.core.config import settings
-from dataclasses import dataclass
 
 class AudioService:
     def get_level_up_audio(self, duration_ms=5000) -> AudioMessage:

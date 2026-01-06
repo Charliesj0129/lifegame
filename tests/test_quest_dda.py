@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from app.services.quest_service import quest_service
 from app.models.dda import DailyOutcome
 from app.models.user import User
-from app.models.quest import Quest, Rival
+from app.models.quest import Rival
 import datetime
 
 @pytest.mark.asyncio
@@ -62,7 +62,7 @@ async def test_serendipity_trigger():
         
         try:
             await quest_service._generate_daily_batch(mock_session, "u1")
-        except:
+        except Exception:
             pass # Ignore fallback error
             
         # Verify Prompt contained Serendipity

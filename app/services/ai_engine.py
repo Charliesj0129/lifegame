@@ -207,7 +207,8 @@ Output Schema:
                 content = content.replace("```json", "").replace("```", "")
             elif "```" in content:
                 content = content.replace("```", "")
-                
+            
+            import json
             return json.loads(content)
             
         except Exception as e:
@@ -219,7 +220,6 @@ Output Schema:
         Generic method to generate JSON from AI.
         Supports both OpenRouter (Native JSON) and Google (Markdown parsing).
         """
-        import json
         import time
         start = time.time() if settings.ENABLE_LATENCY_LOGS else None
         
@@ -362,13 +362,6 @@ Output Schema:
             "detected_labels": [],
         }
 
-    async def analyze_image(self, image_data: bytes, mime_type: str, quest_title: str) -> dict:
-        return await self.verify_multimodal(
-            mode="IMAGE",
-            quest_title=quest_title,
-            image_bytes=image_data,
-            mime_type=mime_type,
-        )
 
 # Global instance
 ai_engine = AIEngine()

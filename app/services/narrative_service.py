@@ -1,8 +1,5 @@
 from app.services.ai_engine import ai_engine
 from app.models.lore import LoreEntry
-from app.models.user import User
-from app.models.quest import Rival
-from sqlalchemy import select, func
 import logging
 
 logger = logging.getLogger(__name__)

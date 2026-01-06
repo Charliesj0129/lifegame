@@ -1,9 +1,8 @@
 from fastapi.testclient import TestClient
 import pytest
-from unittest.mock import AsyncMock, patch
 from app.main import app
 from app.models.user import User
-from app.models.quest import Rival, Quest, Goal
+from app.models.quest import Rival, Quest
 
 client = TestClient(app)
 

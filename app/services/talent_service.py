@@ -16,7 +16,7 @@ class TalentService:
 
     async def get_user_talents(self, session: AsyncSession, user_id: str):
         """Fetches all talents unlocked by the user."""
-        stmt = select(UserTalent).where(UserTalent.user_id == user_id, UserTalent.is_active == True)
+        stmt = select(UserTalent).where(UserTalent.user_id == user_id, UserTalent.is_active)
         result = await session.execute(stmt)
         return result.scalars().all()
 

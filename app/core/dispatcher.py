@@ -1,4 +1,4 @@
-from typing import Callable, Any, Optional, Awaitable
+from typing import Callable, Any, Awaitable
 import logging
 from linebot.v3.messaging import TextMessage
 
@@ -25,7 +25,7 @@ class CommandDispatcher:
         self._default_strategies.append(handler)
 
     async def dispatch(self, session, user_id: str, text: str):
-        normalized_text = text.strip().lower()
+        text.strip().lower()
         
         # 1. High Priority Strategies (Fast Exact Matches)
         for matcher, handler in self._strategies:

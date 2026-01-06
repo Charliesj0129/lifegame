@@ -1,7 +1,6 @@
 import pytest
 from unittest.mock import AsyncMock, patch
 from app.services.ai_service import AIService
-from app.models.conversation_log import ConversationLog
 from app.models.user import User
 from app.models.quest import Rival
 

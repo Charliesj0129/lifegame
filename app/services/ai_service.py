@@ -4,7 +4,6 @@ from app.services.user_service import user_service
 from app.services.rival_service import rival_service
 from linebot.v3.messaging import TextMessage
 import logging
-import json
 
 logger = logging.getLogger(__name__)
 

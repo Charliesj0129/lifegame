@@ -53,8 +53,7 @@ from app.services.boss_service import boss_service
 from app.services.shop_service import shop_service
 from app.services.crafting_service import crafting_service
 from app.services.rival_service import rival_service
-from app.services.tool_registry import tool_registry
-from app.services.verification_service import verification_service, Verdict
+from app.services.verification_service import verification_service
 from app.services.lore_service import lore_service
 from app.api.handlers import setup_dispatcher
 
@@ -67,7 +66,7 @@ setup_dispatcher()
 async def handle_message(event: MessageEvent):
     user_text = event.message.text
     raw_text = user_text.strip()
-    normalized_text = raw_text.lower()
+    raw_text.lower()
     user_id = event.source.user_id
     reply_token = event.reply_token
 

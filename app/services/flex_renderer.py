@@ -633,7 +633,6 @@ class FlexRenderer:
         COLOR_ACCENT = "#00F5FF"
         COLOR_TEXT = "#F8FAFC"
         COLOR_MUTED = "#94A3B8"
-        COLOR_LINE = "#1F2937"
         COLOR_REWARD = "#FACC15"
 
         COLOR_TIER_MAP = {

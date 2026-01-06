@@ -7,11 +7,10 @@ import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
-from unittest.mock import AsyncMock, patch
 
 from app.models.base import Base
 from app.models.user import User
-from app.models.talent import TalentTree, UserTalent, ClassType, EffectType, INITIAL_TALENTS
+from app.models.talent import TalentTree, ClassType, EffectType, INITIAL_TALENTS
 from app.services.talent_service import talent_service
 
 

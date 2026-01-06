@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import MagicMock, AsyncMock, patch
-from linebot.v3.messaging import AudioMessage, TextMessage, FlexMessage
+from linebot.v3.messaging import AudioMessage, TextMessage
 
 class TestM8Audio(unittest.IsolatedAsyncioTestCase):
     async def test_webhook_levelup_audio(self):

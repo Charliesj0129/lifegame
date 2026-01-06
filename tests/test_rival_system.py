@@ -1,13 +1,12 @@
 import pytest
 import pytest_asyncio
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, patch
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from app.models.base import Base
 from app.models.user import User
 from app.models.quest import Rival
 from app.services.rival_service import rival_service
-from app.services.ai_engine import ai_engine
 import datetime
 
 DATABASE_URL = "sqlite+aiosqlite:///:memory:"

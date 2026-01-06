@@ -12,7 +12,7 @@ import uuid
 
 from app.models.base import Base
 from app.models.user import User
-from app.models.dungeon import Dungeon, DungeonStage, DungeonStatus, DungeonType, DUNGEON_TEMPLATES
+from app.models.dungeon import DungeonStatus, DUNGEON_TEMPLATES
 from app.services.dungeon_service import dungeon_service
 
 

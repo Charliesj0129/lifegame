@@ -1,6 +1,5 @@
 from pydantic import BaseModel
 from typing import Optional, Any
-from app.models.gamification import Item
 
 class ProcessResult(BaseModel):
     text: str # Fallback text

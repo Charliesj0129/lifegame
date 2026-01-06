@@ -77,7 +77,6 @@ async def test_webhook_creates_user(db_session):
     # So we patch `app.api.webhook.AsyncSessionLocal`.
     
     # Create session factory mock
-    TestSession = lambda: db_session # This isn't quite right for context manager mock
     
     # Properly mock AsyncSessionLocal to return an async context manager that yields our db_session
     class MockSessionContext:

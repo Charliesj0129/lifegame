@@ -1,9 +1,8 @@
 import pytest
 from unittest.mock import MagicMock, AsyncMock, patch
-from datetime import datetime
 from app.services.quest_service import quest_service
 from app.models.user import User
-from app.models.quest import Rival, Quest
+from app.models.quest import Rival
 
 @pytest.mark.asyncio
 async def test_boss_battle_trigger():
@@ -47,7 +46,7 @@ async def test_boss_battle_trigger():
         assert len(quests) == 1
         q = quests[0]
         assert q.difficulty_tier == "S"
-        assert q.is_redemption == True
+        assert q.is_redemption
         assert q.xp_reward == 500
         assert "系統清理" in q.title
 

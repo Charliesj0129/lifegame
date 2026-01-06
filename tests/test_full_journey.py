@@ -1,12 +1,11 @@
 import pytest
 from unittest.mock import MagicMock, AsyncMock, patch
 from datetime import datetime, timedelta
-from app.services.user_service import user_service
 from app.services.quest_service import quest_service
 from app.services.rival_service import rival_service
 from app.services.rich_menu_service import rich_menu_service
 from app.models.user import User
-from app.models.quest import Quest, Rival
+from app.models.quest import Rival
 
 @pytest.mark.asyncio
 async def test_full_user_journey():

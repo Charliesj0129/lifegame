@@ -3,10 +3,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from app.services.verification_service import verification_service, Verdict
 from app.services.user_service import user_service
 from app.services.quest_service import quest_service
-from app.models.quest import Quest, QuestStatus
+from app.models.quest import Quest
 from app.models.user import User
 from app.models.dda import HabitState
-from app.models.lore import LoreProgress
 
 @pytest.mark.asyncio
 async def test_verification_service_standardization():
@@ -46,7 +45,7 @@ async def test_user_service_habit_update():
     # Mock Session and AI
     mock_session = AsyncMock()
     with patch("app.services.user_service.ai_engine") as mock_ai, \
-         patch("app.services.user_service.accountant") as mock_acc, \
+         patch("app.services.user_service.accountant"), \
          patch("app.services.user_service.inventory_service") as mock_inv, \
          patch("app.services.user_service.loot_service") as mock_loot:
          

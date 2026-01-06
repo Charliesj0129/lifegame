@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock
 from app.core.dispatcher import CommandDispatcher
 from linebot.v3.messaging import TextMessage
 

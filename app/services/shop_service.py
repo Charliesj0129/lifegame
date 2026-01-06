@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 class ShopService:
     async def list_shop_items(self, session: AsyncSession):
-        stmt = select(Item).where(Item.is_purchasable == True)
+        stmt = select(Item).where(Item.is_purchasable)
         result = await session.execute(stmt)
         return result.scalars().all()
 
@@ -66,7 +66,7 @@ class ShopService:
 
         import random
         rare_pool = [i for i in items if i.rarity in {ItemRarity.RARE, ItemRarity.EPIC, ItemRarity.LEGENDARY}]
-        common_pool = [i for i in items if i not in rare_pool]
+        [i for i in items if i not in rare_pool]
 
         selected = []
         if rare_pool:

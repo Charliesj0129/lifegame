@@ -1,5 +1,4 @@
 import asyncio
-from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import AsyncSessionLocal
 from app.models.gamification import Item, ItemRarity, ItemType, Recipe, RecipeIngredient
 

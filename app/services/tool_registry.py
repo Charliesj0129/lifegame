@@ -1,7 +1,6 @@
 from app.services.user_service import user_service
 from app.services.inventory_service import inventory_service
 from app.services.quest_service import quest_service
-from app.services.rival_service import rival_service
 from app.services.lore_service import lore_service
 from app.services.flex_renderer import flex_renderer
 from linebot.v3.messaging import TextMessage

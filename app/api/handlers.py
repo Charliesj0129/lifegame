@@ -7,7 +7,6 @@ from app.services.lore_service import lore_service
 from app.services.quest_service import quest_service
 from app.services.user_service import user_service
 from linebot.v3.messaging import TextMessage, QuickReply, QuickReplyItem, PostbackAction as LinePostbackAction
-from app.services.persona_service import persona_service
 
 # --- Handler Functions (Return: response_message, intent_tool_name) ---
 

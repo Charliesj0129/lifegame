@@ -1,7 +1,7 @@
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 from app.services.quest_service import quest_service
-from app.models.quest import Quest, Goal, QuestType
+from app.models.quest import Quest
 from app.models.dda import HabitState
 
 @pytest.mark.asyncio
