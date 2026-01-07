@@ -24,10 +24,16 @@ class GraphPort(ABC):
         rel_type: str, 
         to_label: str, 
         to_key: str,
-        properties: Dict[str, Any] = None
+        properties: Dict[str, Any] = None,
+        from_key_field: str = "name",
+        to_key_field: str = "name"
     ) -> bool:
         """
         Create a relationship between two nodes.
+        
+        Args:
+            from_key_field: Field to match for source node ('name' or 'id')
+            to_key_field: Field to match for target node ('name' or 'id')
         """
         pass
     

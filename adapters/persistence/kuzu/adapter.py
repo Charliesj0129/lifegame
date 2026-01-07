@@ -138,17 +138,31 @@ class KuzuAdapter(GraphPort):
         rel_type: str, 
         to_label: str, 
         to_key: str,
-        properties: Dict[str, Any] = None
+        properties: Dict[str, Any] = None,
+        from_key_field: str = "name",
+        to_key_field: str = "name"
     ) -> bool:
-        """Create a relationship between two nodes"""
+        """
+        Create a relationship between two nodes.
+        
+        Args:
+            from_label: Label of the source node (e.g., 'User', 'Event')
+            from_key: Value of the key field for the source node
+            rel_type: Type of relationship (e.g., 'COMPLETED', 'TRIGGERED_BY')
+            to_label: Label of the target node
+            to_key: Value of the key field for the target node
+            properties: Optional relationship properties
+            from_key_field: Field to match for source node ('name' or 'id'), defaults to 'name'
+            to_key_field: Field to match for target node ('name' or 'id'), defaults to 'name'
+        """
         try:
             props_str = ""
             if properties:
                 props_str = " {" + ", ".join([f"{k}: '{v}'" for k, v in properties.items()]) + "}"
             
             cypher = (
-                f"MATCH (a:{from_label} {{name: '{from_key}'}}), "
-                f"(b:{to_label} {{name: '{to_key}'}}) "
+                f"MATCH (a:{from_label} {{{from_key_field}: '{from_key}'}}), "
+                f"(b:{to_label} {{{to_key_field}: '{to_key}'}}) "
                 f"CREATE (a)-[:{rel_type}{props_str}]->(b)"
             )
             self.conn.execute(cypher)
