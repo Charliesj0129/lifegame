@@ -86,26 +86,37 @@ if webhook_handler:
         """Handle image messages (verification photos)"""
         user_id = event.source.user_id
         reply_token = event.reply_token
-        message_id = event.message.id
         
         try:
-            from legacy.services.verification_service import verification_service, Verdict
+            from legacy.services.verification_service import verification_service
             from adapters.perception.line_client import line_client
             from domain.models.game_result import GameResult
             
+            # Get image content
+            api = get_messaging_api()
+            image_bytes = None
+            if api:
+                content = await api.get_message_content(event.message.id)
+                if hasattr(content, "read"):
+                    image_bytes = await content.read()
+                elif hasattr(content, "data"):
+                    image_bytes = content.data
+                elif hasattr(content, "body"):
+                    image_bytes = content.body
+            
             async with app.core.database.AsyncSessionLocal() as session:
-                verdict: Verdict = await verification_service.verify_completion(
-                    session, user_id, message_id
-                )
-                
-                result = GameResult(
-                    text=verdict.narrative,
-                    metadata={
-                        "verified": verdict.verified,
-                        "quest_id": verdict.quest_id
-                    }
-                )
-                await line_client.send_reply(reply_token, result)
+                if image_bytes:
+                    result = await verification_service.process_verification(
+                        session, user_id, image_bytes, "IMAGE"
+                    )
+                    message = result.get("message", "驗證完成")
+                    if result.get("hint"):
+                        message = f"{message}\n{result['hint']}"
+                    game_result = GameResult(text=message)
+                else:
+                    game_result = GameResult(text="⚠️ 無法讀取圖片內容，請再試一次。")
+                    
+                await line_client.send_reply(reply_token, game_result)
                 
         except Exception as e:
             logger.error(f"Image handling failed: {e}", exc_info=True)
@@ -117,25 +128,70 @@ if webhook_handler:
         """Handle postback actions from Flex Messages"""
         user_id = event.source.user_id
         reply_token = event.reply_token
-        data = event.postback.data
+        data = event.postback.data or ""
+        
+        logger.info(f"Received Postback from {user_id}: {data}")
+        
+        # Parse Query String style data (e.g. action=equip&item_id=123)
+        params = {}
+        if not isinstance(data, str):
+            data = str(data)
+        for part in data.split("&"):
+            if "=" not in part:
+                continue
+            key, value = part.split("=", 1)
+            if key:
+                params[key] = value
+        
+        action = params.get("action")
         
         try:
-            from legacy.handlers import handle_postback_data
             from adapters.perception.line_client import line_client
             from domain.models.game_result import GameResult
+            from legacy.services.quest_service import quest_service
+            from legacy.services.shop_service import shop_service
+            from legacy.services.inventory_service import inventory_service
+            from legacy.services.flex_renderer import flex_renderer
             
             async with app.core.database.AsyncSessionLocal() as session:
-                result = await handle_postback_data(session, user_id, data)
+                response_text = "已收到操作。"
                 
-                if isinstance(result, GameResult):
-                    await line_client.send_reply(reply_token, result)
-                elif result:
-                    # Legacy tuple format (msg, tool, data)
-                    game_result = GameResult(
-                        text=str(result[0]) if result else "OK",
-                        metadata=result[2] if len(result) > 2 else {}
+                if action == "reroll_quests":
+                    reroll_result = await quest_service.reroll_quests(session, user_id)
+                    if isinstance(reroll_result, tuple) and len(reroll_result) == 2:
+                        quests, viper_taunt = reroll_result
+                    else:
+                        quests, viper_taunt = reroll_result, None
+                    flex_msg = flex_renderer.render_quest_list(quests)
+                    result = GameResult(
+                        text=viper_taunt or "任務已重新生成！",
+                        metadata={"flex_message": flex_msg}
                     )
-                    await line_client.send_reply(reply_token, game_result)
+                    
+                elif action == "accept_all_quests":
+                    await quest_service.accept_all_pending(session, user_id)
+                    result = GameResult(text="✅ 已接受所有任務！")
+                    
+                elif action == "buy_item":
+                    item_id = params.get("item_id")
+                    if item_id:
+                        buy_result = await shop_service.buy_item(session, user_id, int(item_id))
+                        result = GameResult(text=buy_result)
+                    else:
+                        result = GameResult(text="⚠️ 缺少物品ID")
+                        
+                elif action == "equip":
+                    item_id = params.get("item_id")
+                    if item_id:
+                        equip_result = await inventory_service.equip_item(session, user_id, int(item_id))
+                        result = GameResult(text=equip_result)
+                    else:
+                        result = GameResult(text="⚠️ 缺少物品ID")
+                        
+                else:
+                    result = GameResult(text=response_text)
+                
+                await line_client.send_reply(reply_token, result)
                     
         except Exception as e:
             logger.error(f"Postback handling failed: {e}", exc_info=True)
@@ -150,18 +206,22 @@ if webhook_handler:
         
         try:
             from legacy.services.rich_menu_service import rich_menu_service
+            from legacy.services.user_service import user_service
             from adapters.perception.line_client import line_client
             from domain.models.game_result import GameResult
             
             async with app.core.database.AsyncSessionLocal() as session:
-                # Setup rich menu for new user
-                await rich_menu_service.setup_rich_menu()
-                
-                # Welcome message
-                result = GameResult(
-                    text="🎮 歡迎來到 LifeOS！\n\n點擊下方選單開始你的冒險。"
-                )
-                await line_client.send_reply(reply_token, result)
+                # Create user if not exists
+                await user_service.get_or_create_user(session, user_id)
+            
+            # Link user to main rich menu (sync call)
+            rich_menu_service.link_user(user_id, "MAIN")
+            
+            # Welcome message
+            result = GameResult(
+                text="🎮 歡迎來到 LifeOS！\n\n點擊下方選單開始你的冒險。"
+            )
+            await line_client.send_reply(reply_token, result)
                 
         except Exception as e:
             logger.error(f"Follow handling failed: {e}", exc_info=True)
