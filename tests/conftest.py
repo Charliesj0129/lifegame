@@ -1,3 +1,10 @@
+import os
+
+# Set test environment variables BEFORE any app imports
+os.environ.setdefault("SQLALCHEMY_DATABASE_URI", "sqlite+aiosqlite:///:memory:")
+os.environ.setdefault("TESTING", "1")
+os.environ.setdefault("KUZU_DATABASE_PATH", "/tmp/test_kuzu_db")
+
 import pytest
 
 try:
@@ -10,6 +17,12 @@ from sqlalchemy.orm import sessionmaker
 from app.models.base import Base
 
 # Import all models to ensure metadata is populated
+from app.models.user import User
+from legacy.models.quest import Quest, Goal, Rival
+from legacy.models.dda import DailyOutcome
+from legacy.models.gamification import Item, UserItem
+from legacy.models.action_log import ActionLog
+from legacy.models.conversation_log import ConversationLog
 
 DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
