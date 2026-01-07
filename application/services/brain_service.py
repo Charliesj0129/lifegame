@@ -4,8 +4,8 @@ from typing import Dict, Any, List, Optional
 from pydantic import BaseModel, Field
 
 from legacy.services.ai_engine import ai_engine
-from app.services.context_service import context_service
-from app.services.brain.flow_controller import flow_controller, FlowState
+from application.services.context_service import context_service
+from application.services.brain.flow_controller import flow_controller, FlowState
 
 logger = logging.getLogger(__name__)
 

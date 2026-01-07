@@ -8,8 +8,8 @@ os.environ["SQLALCHEMY_DATABASE_URI"] = "sqlite+aiosqlite:///./test_e2e.db"
 os.environ["TESTING"] = "1"
 
 from app.main import app
-from app.services.graph_service import graph_service
-from app.services.vector_service import vector_service
+from application.services.graph_service import graph_service
+from application.services.vector_service import vector_service
 
 # Setup Test Client
 client = TestClient(app)
@@ -56,7 +56,7 @@ def test_full_pipeline_ha_event(setup_databases):
     # Mock the Brain properly
     # Note: mocking an async method on a sync call path (via TestClient) works if the app awaits it.
     
-    with patch("app.services.brain_service.brain_service.think", new_callable=AsyncMock) as mock_think:
+    with patch("application.services.brain_service.brain_service.think", new_callable=AsyncMock) as mock_think:
         mock_think.return_value = '''
         {
             "narrative": "Viper notices you.",

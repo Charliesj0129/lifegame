@@ -24,7 +24,7 @@ async def test_ha_webhook_success():
     from domain.models.game_result import GameResult
     
     # Mock PerceptionService
-    with patch("app.services.perception_service.perception_service.process_event", new_callable=AsyncMock) as mock_process:
+    with patch("application.services.perception_service.perception_service.process_event", new_callable=AsyncMock) as mock_process:
         # Setup Mock
         mock_result = GameResult(
             text="Mock Narrative",

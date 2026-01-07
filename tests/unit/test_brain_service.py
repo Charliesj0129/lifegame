@@ -1,8 +1,8 @@
 import pytest
 import pytest_asyncio
 from unittest.mock import AsyncMock, MagicMock
-from app.services.brain_service import BrainService, AgentPlan
-from app.services.context_service import ContextService
+from application.services.brain_service import BrainService, AgentPlan
+from application.services.context_service import ContextService
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 
 @pytest_asyncio.fixture
@@ -10,8 +10,8 @@ async def mock_dependencies():
     from unittest.mock import patch
     
     # Mock AI Engine
-    with patch("app.services.brain_service.ai_engine") as mock_ai, \
-         patch("app.services.brain_service.context_service") as mock_ctx:
+    with patch("application.services.brain_service.ai_engine") as mock_ai, \
+         patch("application.services.brain_service.context_service") as mock_ctx:
         
         mock_ai.generate_json = AsyncMock(return_value={
             "narrative": "Test Narrative",
