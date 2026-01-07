@@ -20,18 +20,20 @@ async def test_ha_webhook_auth_failure():
 
 @pytest.mark.asyncio
 async def test_ha_webhook_success():
-    from unittest.mock import patch, MagicMock
+    from unittest.mock import patch, MagicMock, AsyncMock
+    from domain.models.game_result import GameResult
     
-    # Mock GameLoop
-    with patch("application.services.game_loop.game_loop.process_message") as mock_process:
+    # Mock PerceptionService
+    with patch("app.services.perception_service.perception_service.process_event", new_callable=AsyncMock) as mock_process:
         # Setup Mock
-        mock_result = MagicMock()
-        mock_result.text = "Mock Narrative"
-        mock_result.metadata = {"actions": ["mock_action"]}
+        mock_result = GameResult(
+            text="Mock Narrative",
+            metadata={"actions_taken": ["mock_action"]}
+        )
         mock_process.return_value = mock_result
 
         payload = {
-            "trigger": "screen_on",
+            "event_type": "screen_on",
             "entity_id": "phone_1",
             "user_id": "test_user"
         }
@@ -46,9 +48,8 @@ async def test_ha_webhook_success():
         data = response.json()
         assert data["status"] == "processed"
         assert data["narrative"] == "Mock Narrative"
+        assert data["impact"] == "neutral"  # screen_on has neutral impact
         
-        # Verify GameLoop call
-        args, _ = mock_process.call_args
-        # args[0] is session (Depends), args[1] is user_id, args[2] is text
-        assert args[1] == "test_user"
-        assert "Home Assistant Event: screen_on" in args[2]
+        # Verify PerceptionService was called
+        mock_process.assert_called_once()
+
