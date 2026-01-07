@@ -28,3 +28,14 @@ logs/
 .idea/
 acr_password.txt
 acr_password_new.txt
+
+# Database files (should not be committed)
+data/chroma_db/
+data/lifegame_graph
+data/lifegame_graph.old
+test_kuzu_db
+test_kuzu_debug
+test_kuzu_debug_dir/
+test_e2e.db
+*.sqlite3
+/tmp/test_kuzu_db
