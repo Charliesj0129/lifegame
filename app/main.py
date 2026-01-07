@@ -51,7 +51,7 @@ app.add_middleware(LoggingMiddleware)
 from app.api import line_webhook
 app.include_router(line_webhook.router, prefix="", tags=["line"])
 
-# Legacy webhook kept as backup (can be removed after verification)
+# Legacy webhook removed
 # from legacy.webhook import router as legacy_webhook_router
 # app.include_router(legacy_webhook_router, prefix="/legacy", tags=["line-legacy"])
 

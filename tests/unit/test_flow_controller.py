@@ -1,5 +1,5 @@
 import pytest
-from app.services.brain.flow_controller import FlowController
+from application.services.brain.flow_controller import FlowController
 
 def test_pid_frustration():
     fc = FlowController()

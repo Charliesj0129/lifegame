@@ -2,7 +2,7 @@ import pytest
 import shutil
 import os
 from adapters.persistence.kuzu.adapter import KuzuAdapter
-from app.services.graph_service import GraphService, KuzuCursorWrapper
+from application.services.graph_service import GraphService, KuzuCursorWrapper
 
 @pytest.fixture
 def kuzu_adapter(tmp_path):

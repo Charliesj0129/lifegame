@@ -3,8 +3,8 @@ from typing import Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api import deps
 from adapters.perception.ha_adapter import ha_adapter
-from app.services.graph_service import graph_service
-from app.services.perception_service import perception_service
+from application.services.graph_service import graph_service
+from application.services.perception_service import perception_service
 from logging import getLogger
 
 logger = getLogger(__name__)

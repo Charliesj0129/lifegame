@@ -2,16 +2,16 @@ import pytest
 import pytest_asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 from domain.events.game_event import GameEvent
-from app.services.perception_service import PerceptionService
+from application.services.perception_service import PerceptionService
 from app.schemas.webhook import HAEventPayload
 from adapters.perception.ha_adapter import HomeAssistantAdapter
 
 @pytest.fixture
 def mock_dependencies():
-    with patch("app.services.perception_service.graph_service") as mock_graph, \
-         patch("app.services.perception_service.vector_service") as mock_vector, \
-         patch("app.services.perception_service.brain_service") as mock_brain, \
-         patch("app.services.perception_service.action_service") as mock_actions:
+    with patch("application.services.perception_service.graph_service") as mock_graph, \
+         patch("application.services.perception_service.vector_service") as mock_vector, \
+         patch("application.services.perception_service.brain_service") as mock_brain, \
+         patch("application.services.perception_service.action_service") as mock_actions:
         
         # Mock Graph
         mock_cursor = MagicMock()

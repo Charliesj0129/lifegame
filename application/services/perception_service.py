@@ -6,10 +6,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from domain.ports.perception_port import PerceptionPort
 from domain.events.game_event import GameEvent
 from domain.models.game_result import GameResult
-from app.services.graph_service import graph_service
-from app.services.vector_service import vector_service
-from app.services.brain_service import brain_service
-from app.services.action_service import action_service
+from application.services.graph_service import graph_service
+from application.services.vector_service import vector_service
+from application.services.brain_service import brain_service
+from application.services.action_service import action_service
 
 logger = logging.getLogger(__name__)
 

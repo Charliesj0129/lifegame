@@ -99,7 +99,7 @@ class UserService:
              raw_xp = accountant.calculate_xp(attribute, difficulty)
         else:
             # Phase 4: Brain Service (System 2)
-            from app.services.brain_service import brain_service
+            from application.services.brain_service import brain_service
             
             plan = await brain_service.think_with_session(session, user.id, text)
             

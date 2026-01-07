@@ -32,6 +32,14 @@
 ### ✅ 驗證機制
 - **文字 / 圖片 / GPS 驗證**：任務完成可多模態驗證。
 
+### 🏠 Cyborg Nerves (Home Assistant)
+- **IoT 事件感知**：整合 Home Assistant Webhooks，感知手機開關螢幕、運動、睡眠等真實生活事件。
+- **語意理解**：自動將 IoT 訊號轉換為對應的遊戲概念（如：Screen Off -> 自律）。
+
+### 🕸️ Graph Memory (KuzuDB)
+- **社交圖譜**：紀錄玩家與 NPC 的互動歷史。
+- **事件關聯**：追蹤行為模式與偏好，讓 NPC 反應更具個性化 (Viper, Sage, Ember, Shadow)。
+
 ---
 
 ## 🚀 快速開始

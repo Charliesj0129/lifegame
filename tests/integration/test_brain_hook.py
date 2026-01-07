@@ -2,7 +2,7 @@ import pytest
 import pytest_asyncio
 from unittest.mock import patch, AsyncMock
 from legacy.services.user_service import UserService
-from app.services.brain_service import AgentPlan, AgentStatUpdate, FlowState
+from application.services.brain_service import AgentPlan, AgentStatUpdate, FlowState
 from app.models.user import User
 from app.models.base import Base
 from legacy.models.action_log import ActionLog
@@ -23,7 +23,7 @@ async def db_session():
 @pytest.mark.asyncio
 async def test_hook_loop_frustration(db_session):
     # Mock Brain Service to simulate "Frustration logic" without real AI
-    with patch("app.services.brain_service.brain_service.think_with_session") as mock_think:
+    with patch("application.services.brain_service.brain_service.think_with_session") as mock_think:
         
         # Setup Plan: Brain detects failure -> Easy Mode
         mock_think.return_value = AgentPlan(
