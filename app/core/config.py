@@ -1,4 +1,4 @@
-from pydantic import Field, AliasChoices, PostgresDsn, validator
+from pydantic import Field, AliasChoices, PostgresDsn, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Any, Dict, List, Optional, Union
 
@@ -16,16 +16,18 @@ class Settings(BaseSettings):
     POSTGRES_PORT: int = 5432
     SQLALCHEMY_DATABASE_URI: Optional[Union[PostgresDsn, str]] = None
 
-    @validator("SQLALCHEMY_DATABASE_URI", pre=True)
-    def assemble_db_connection(cls, v: Optional[str], values: Dict[str, Any]) -> Any:
+    @field_validator("SQLALCHEMY_DATABASE_URI", mode="before")
+    @classmethod
+    def assemble_db_connection(cls, v: Optional[str], info) -> Any:
         if isinstance(v, str):
             return v
         # If any Postgres vars are missing, we might default to SQLite if intended, 
         # but for now let's just avoid crashing if they are missing and URI is not set.
-        if not values.get("POSTGRES_SERVER"):
+        data = info.data if hasattr(info, 'data') else {}
+        if not data.get("POSTGRES_SERVER"):
             return "sqlite+aiosqlite:///./data/game.db"
             
-        return f"postgresql+asyncpg://{values.get('POSTGRES_USER')}:{values.get('POSTGRES_PASSWORD')}@{values.get('POSTGRES_SERVER')}:{values.get('POSTGRES_PORT')}/{values.get('POSTGRES_DB') or ''}"
+        return f"postgresql+asyncpg://{data.get('POSTGRES_USER')}:{data.get('POSTGRES_PASSWORD')}@{data.get('POSTGRES_SERVER')}:{data.get('POSTGRES_PORT')}/{data.get('POSTGRES_DB') or ''}"
     
     # Kuzu Graph DB
     KUZU_DATABASE_PATH: str = "./data/lifegame_graph"
