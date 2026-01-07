@@ -80,8 +80,8 @@ class GameLoop:
             if intent == "hollowed_rescue":
                 sender = persona_service.SYSTEM
             elif intent == "get_status":
-                from app.services.lore_service import lore_service
-                from app.services.flex_renderer import flex_renderer
+                from legacy.services.lore_service import lore_service
+                from legacy.services.flex_renderer import flex_renderer
                 
                 lore_prog = await lore_service.get_user_progress(session, user_id)
                 flex_msg = flex_renderer.render_status(user, lore_prog)
@@ -91,8 +91,8 @@ class GameLoop:
                 sender = persona_service.SYSTEM
 
             elif intent == "get_quests":
-                from app.services.quest_service import quest_service
-                from app.services.flex_renderer import flex_renderer
+                from legacy.services.quest_service import quest_service
+                from legacy.services.flex_renderer import flex_renderer
                 
                 quests = await quest_service.get_daily_quests(session, user_id)
                 habits = await quest_service.get_daily_habits(session, user_id)

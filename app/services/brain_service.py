@@ -27,27 +27,34 @@ class BrainService:
     Orchestrates Context -> Flow -> AI -> Plan.
     """
 
-    async def think(self, 
-                    user_id: str, 
-                    user_text: str, 
-                    recent_performance: List[bool] = None) -> AgentPlan:
-        
-        # 0. Defaults
-        if recent_performance is None:
-            recent_performance = [] # Need to fetch from context or passed in
+    async def think(self, context: str = None, prompt: str = None, **kwargs) -> str:
+        """
+        Simple think method for PerceptionService.
+        Returns raw LLM response as string.
+        """
+        if context is None:
+            context = ""
+        if prompt is None:
+            prompt = "Respond to the event."
+            
+        system_prompt = f"""
+你是 LifeOS 的遊戲敘事者。根據以下情境產生 JSON 回應。
 
-        # 1. Gather Context (Hippocampus)
-        # We need session? For now ContextService assumes session dependency or manage it?
-        # ContextService.get_working_memory needs SESSION.
-        # So think() must likely accept session.
-        # I will update signature to optionally take memory dict OR I refactor integration.
-        # For now, let's assume caller (GameLoop) passes session.
-        # Wait, the signature in GameLoop...
-        # Let's keep `think` high level. `GameLoop` should call `context_service` first?
-        # Or `think` accepts session.
-        # Let's make `think` accept `context_data` (Dict) to remain pure, 
-        # OR accept `session`. Accepting `session` is easier for orchestration.
-        pass 
+情境:
+{context}
+
+回應格式 (JSON):
+{{
+  "narrative": "簡短的遊戲敘事 (繁體中文)",
+  "actions": ["action1", "action2"]
+}}
+"""
+        try:
+            result = await ai_engine.generate_json(system_prompt, prompt)
+            return json.dumps(result, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"Brain think failed: {e}")
+            return json.dumps({"narrative": "系統思維中...", "actions": []}, ensure_ascii=False)
 
     async def think_with_session(self, session, user_id: str, user_text: str) -> AgentPlan:
         
