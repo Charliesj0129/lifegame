@@ -5,11 +5,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from app.models.base import Base
-from app.models.quest import Quest, QuestStatus, Goal, GoalStatus, QuestType
+from legacy.models.quest import Quest, QuestStatus, Goal, GoalStatus, QuestType
 from app.models.user import User
-from app.services.quest_service import quest_service
-from app.services.flex_renderer import flex_renderer
-from app.services.ai_engine import ai_engine
+from legacy.services.quest_service import quest_service
+from legacy.services.flex_renderer import flex_renderer
+from legacy.services.ai_engine import ai_engine
 import datetime
 
 DATABASE_URL = "sqlite+aiosqlite:///:memory:"
@@ -39,13 +39,13 @@ async def test_quest_generation(db_session):
 
     with (
         patch(
-            "app.services.ai_engine.ai_engine.generate_json", new_callable=AsyncMock
+            "legacy.services.ai_engine.ai_engine.generate_json", new_callable=AsyncMock
         ) as mock_ai,
         patch(
-            "app.services.rival_service.RivalService.get_rival", new_callable=AsyncMock
+            "legacy.services.rival_service.RivalService.get_rival", new_callable=AsyncMock
         ) as mock_get_rival,
         patch(
-            "app.services.user_service.UserService.get_user", new_callable=AsyncMock
+            "legacy.services.user_service.UserService.get_user", new_callable=AsyncMock
         ) as mock_get_user,
     ):
 
@@ -154,13 +154,13 @@ async def test_reroll_logic(db_session):
 
     with (
         patch(
-            "app.services.ai_engine.ai_engine.generate_json", new_callable=AsyncMock
+            "legacy.services.ai_engine.ai_engine.generate_json", new_callable=AsyncMock
         ) as mock_ai,
         patch(
-            "app.services.rival_service.RivalService.get_rival", new_callable=AsyncMock
+            "legacy.services.rival_service.RivalService.get_rival", new_callable=AsyncMock
         ) as mock_get_rival,
         patch(
-            "app.services.user_service.UserService.get_user", new_callable=AsyncMock
+            "legacy.services.user_service.UserService.get_user", new_callable=AsyncMock
         ) as mock_get_user,
     ):
 
@@ -224,7 +224,7 @@ async def test_create_new_goal_with_ai(db_session):
     }
 
     with patch(
-        "app.services.ai_engine.ai_engine.generate_json", new_callable=AsyncMock
+        "legacy.services.ai_engine.ai_engine.generate_json", new_callable=AsyncMock
     ) as mock_ai:
         mock_ai.return_value = mock_plan
 
@@ -262,13 +262,13 @@ async def test_generate_daily_quests_with_active_goal(db_session):
 
     with (
         patch(
-            "app.services.ai_engine.ai_engine.generate_json", new_callable=AsyncMock
+            "legacy.services.ai_engine.ai_engine.generate_json", new_callable=AsyncMock
         ) as mock_ai,
         patch(
-            "app.services.rival_service.RivalService.get_rival", new_callable=AsyncMock
+            "legacy.services.rival_service.RivalService.get_rival", new_callable=AsyncMock
         ) as mock_get_rival,
         patch(
-            "app.services.user_service.UserService.get_user", new_callable=AsyncMock
+            "legacy.services.user_service.UserService.get_user", new_callable=AsyncMock
         ) as mock_get_user,
     ):
 
@@ -335,11 +335,11 @@ async def test_ai_timeout_fallback(db_session):
         # Mock dependencies
         with (
             patch(
-                "app.services.rival_service.RivalService.get_rival",
+                "legacy.services.rival_service.RivalService.get_rival",
                 new_callable=AsyncMock,
             ) as m1,
             patch(
-                "app.services.user_service.UserService.get_user", new_callable=AsyncMock
+                "legacy.services.user_service.UserService.get_user", new_callable=AsyncMock
             ) as m2,
         ):
 

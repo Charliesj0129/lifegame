@@ -3,8 +3,8 @@ from fastapi import FastAPI
 from app.core.config import settings
 from app.core.migrations import run_migrations
 from app.core.logging_middleware import LoggingMiddleware
-from app.api import webhook
-from app.services.scheduler import dda_scheduler
+# from app.api import webhook
+# from app.services.scheduler import dda_scheduler
 import asyncio
 import logging
 import os
@@ -16,7 +16,7 @@ logging.basicConfig(level=logging.INFO)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler for startup/shutdown events."""
-    # Startup
+    # Database Migration
     if settings.AUTO_MIGRATE:
         try:
             logging.info("AUTO_MIGRATE enabled; running migrations.")
@@ -26,14 +26,15 @@ async def lifespan(app: FastAPI):
             raise
 
     # Start scheduler (only if enabled and not in testing mode)
-    if settings.ENABLE_SCHEDULER and os.environ.get("TESTING") != "1":
-        dda_scheduler.start()
+    # Scheduler moved to legacy
+    # if settings.ENABLE_SCHEDULER and os.environ.get("TESTING") != "1":
+    #     dda_scheduler.start()
 
     yield
 
     # Shutdown
-    if settings.ENABLE_SCHEDULER and os.environ.get("TESTING") != "1":
-        dda_scheduler.shutdown()
+    # if settings.ENABLE_SCHEDULER and os.environ.get("TESTING") != "1":
+    #     dda_scheduler.shutdown()
 
 
 app = FastAPI(
@@ -46,18 +47,17 @@ app = FastAPI(
 app.add_middleware(LoggingMiddleware)
 
 # Include Router
-app.include_router(webhook.router, prefix="", tags=["line"])
-from app.api import users
+from legacy.webhook import router as legacy_webhook_router
+app.include_router(legacy_webhook_router, prefix="", tags=["line"])
 
-app.include_router(users.router, prefix="/users", tags=["users"])
+from app.api import nerves
+app.include_router(nerves.router, prefix="/api", tags=["nerves"])
+# Legacy routers moved to legacy/api
+# from app.api import users
+# app.include_router(users.router, prefix="/users", tags=["users"])
 
-from app.api import health
-
-app.include_router(health.router, tags=["ops"])
-
-from app.api import dashboard
-
-app.include_router(dashboard.router, tags=["dashboard"])
+# from app.api import dashboard
+# app.include_router(dashboard.router, tags=["dashboard"])
 
 # Removed simple health check
 

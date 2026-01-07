@@ -5,8 +5,8 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy import select
 from app.models.base import Base
 from app.models.user import User
-from app.models.gamification import Item, UserItem
-from app.services.shop_service import shop_service
+from legacy.models.gamification import Item, UserItem
+from legacy.services.shop_service import shop_service
 
 DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 

@@ -1,6 +1,6 @@
-from pydantic import Field, AliasChoices
+from pydantic import Field, AliasChoices, PostgresDsn, validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import Optional
+from typing import Any, Dict, List, Optional, Union
 
 
 class Settings(BaseSettings):
@@ -14,16 +14,24 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str = "changethis"
     POSTGRES_DB: str = "lifgame"
     POSTGRES_PORT: int = 5432
-    DATABASE_URL: Optional[str] = Field(
-        default=None,
-        validation_alias=AliasChoices("DATABASE_URL", "SQLALCHEMY_DATABASE_URI"),
-    )
+    SQLALCHEMY_DATABASE_URI: Optional[Union[PostgresDsn, str]] = None
 
-    @property
-    def SQLALCHEMY_DATABASE_URI(self) -> str:
-        if self.DATABASE_URL:
-            return self.DATABASE_URL
-        return f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+    @validator("SQLALCHEMY_DATABASE_URI", pre=True)
+    def assemble_db_connection(cls, v: Optional[str], values: Dict[str, Any]) -> Any:
+        if isinstance(v, str):
+            return v
+        # If any Postgres vars are missing, we might default to SQLite if intended, 
+        # but for now let's just avoid crashing if they are missing and URI is not set.
+        if not values.get("POSTGRES_SERVER"):
+            return "sqlite+aiosqlite:///./data/game.db"
+            
+        return f"postgresql+asyncpg://{values.get('POSTGRES_USER')}:{values.get('POSTGRES_PASSWORD')}@{values.get('POSTGRES_SERVER')}:{values.get('POSTGRES_PORT')}/{values.get('POSTGRES_DB') or ''}"
+    
+    # Kuzu Graph DB
+    KUZU_DATABASE_PATH: str = "./data/lifegame_graph"
+
+    # Home Assistant
+    HA_WEBHOOK_SECRET: Optional[str] = None
 
     # Line Bot
     LINE_CHANNEL_ACCESS_TOKEN: Optional[str] = None

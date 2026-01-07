@@ -20,7 +20,7 @@ from app.core.database import engine
 from app.models.base import Base
 
 # Import all models for registry
-from app.models.quest import Quest
+from legacy.models.quest import Quest
 
 # Setup Logger
 logging.basicConfig(level=logging.ERROR)  # Quiet execution
@@ -44,7 +44,7 @@ async def simulate_flow():
     with (
         patch("app.api.webhook.get_messaging_api") as mock_get_api,
         patch(
-            "app.services.ai_engine.ai_engine.generate_json", new_callable=AsyncMock
+            "legacy.services.ai_engine.ai_engine.generate_json", new_callable=AsyncMock
         ) as mock_ai,
     ):
 

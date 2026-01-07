@@ -6,23 +6,10 @@ services:
     env_file:
       - .env
     environment:
-      - POSTGRES_SERVER=db
-    depends_on:
-      - db
+      # Use SQLite in Docker. Ensure game.db is mounted or created in volume.
+      - SQLALCHEMY_DATABASE_URI=sqlite+aiosqlite:///./data/game.db
     volumes:
       - .:/app
-
-  db:
-    image: postgres:15-alpine
-    restart: always
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=changethis
-      - POSTGRES_DB=lifgame
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-volumes:
-  postgres_data:
+      # If you want persistence for DB inside container without mounting root:
+      # - lifgame_data:/app/data 
+    command: uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload

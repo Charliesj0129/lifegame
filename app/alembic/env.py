@@ -9,7 +9,9 @@ from app.core.config import settings
 from app.models.base import Base
 
 # Import models to ensure they are registered
-from app.models import *
+# Import models to ensure they are registered
+from app.models.user import User
+# from app.models import * # Avoid wildcard imports of legacy models
 
 config = context.config
 
@@ -49,7 +51,11 @@ async def run_migrations_online() -> None:
 
 
 def do_run_migrations(connection):
-    context.configure(connection=connection, target_metadata=target_metadata)
+    context.configure(
+        connection=connection, 
+        target_metadata=target_metadata,
+        render_as_batch=True  # Required for SQLite ALTER
+    )
 
     with context.begin_transaction():
         context.run_migrations()

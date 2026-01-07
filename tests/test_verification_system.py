@@ -11,8 +11,8 @@ from unittest.mock import AsyncMock, patch
 
 from app.models.base import Base
 from app.models.user import User
-from app.models.quest import Quest, QuestStatus
-from app.services.verification_service import verification_service, Verdict
+from legacy.models.quest import Quest, QuestStatus
+from legacy.services.verification_service import verification_service, Verdict
 
 
 @pytest_asyncio.fixture
@@ -161,7 +161,7 @@ async def test_verify_text_with_mock_ai(db_session):
     }
 
     with patch(
-        "app.services.ai_engine.ai_engine.verify_multimodal", new_callable=AsyncMock
+        "legacy.services.ai_engine.ai_engine.verify_multimodal", new_callable=AsyncMock
     ) as mock_verify:
         mock_verify.return_value = mock_response
 
@@ -189,7 +189,7 @@ async def test_verify_image_with_mock_ai(db_session):
     }
 
     with patch(
-        "app.services.ai_engine.ai_engine.verify_multimodal", new_callable=AsyncMock
+        "legacy.services.ai_engine.ai_engine.verify_multimodal", new_callable=AsyncMock
     ) as mock_verify:
         mock_verify.return_value = mock_response
 

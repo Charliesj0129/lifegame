@@ -44,8 +44,8 @@ class CommandDispatcher:
             res = await handler(session, user_id, text)
             if res:  # If handler returns something legitimate (not None)
                 return res
-
-        return TextMessage(text="⚠️ 無法處理此請求。"), "unknown"
+        
+        return TextMessage(text="⚠️ 無法處理此請求。"), "unknown", {}
 
 
 # Singleton Instance

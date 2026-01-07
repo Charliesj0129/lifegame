@@ -33,3 +33,6 @@ class ProcessResult(BaseModel):
             rarity = self.loot_rarity or ""
             msg += f"\n🎁 掉落：獲得 {self.loot_name}（{rarity}）"
         return msg
+
+# Compatibility Alias
+GameResult = ProcessResult
