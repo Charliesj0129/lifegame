@@ -47,8 +47,13 @@ app = FastAPI(
 app.add_middleware(LoggingMiddleware)
 
 # Include Router
-from legacy.webhook import router as legacy_webhook_router
-app.include_router(legacy_webhook_router, prefix="", tags=["line"])
+# New LINE webhook (clean architecture)
+from app.api import line_webhook
+app.include_router(line_webhook.router, prefix="", tags=["line"])
+
+# Legacy webhook kept as backup (can be removed after verification)
+# from legacy.webhook import router as legacy_webhook_router
+# app.include_router(legacy_webhook_router, prefix="/legacy", tags=["line-legacy"])
 
 from app.api import nerves
 app.include_router(nerves.router, prefix="/api", tags=["nerves"])
