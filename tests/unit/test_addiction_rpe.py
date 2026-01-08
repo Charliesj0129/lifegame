@@ -50,7 +50,9 @@ async def test_quest_service_complete_integration():
     
     # Mock User
     mock_user = MagicMock()
-    mock_user.exp = 0
+    mock_user.exp = 0  
+    mock_user.xp = 0   # Fixed: Ensure xp exists
+    mock_user.gold = 0 # Fixed: Ensure gold exists
     mock_user.level = 1
     mock_user.hp = 80
     mock_user.max_hp = 100
@@ -74,7 +76,8 @@ async def test_quest_service_complete_integration():
             assert loot.xp > 0
             
             # Check User XP updated
-            assert mock_user.exp == loot.xp
+            assert mock_user.xp == loot.xp
+            assert mock_user.gold == loot.gold
             
             # Check Quest DONE
             assert mock_quest.status == QuestStatus.DONE.value

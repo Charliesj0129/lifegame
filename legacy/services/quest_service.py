@@ -532,15 +532,13 @@ class QuestService:
             # Calculate Reward
             loot = loot_service.calculate_reward(quest.difficulty_tier, "C") # Default tier C for now
             
-            # Apply XP to user (simplistic for now, ideally needs UserService.add_xp)
-            # We will just return the loot data, caller (GameLoop) or a dedicated handler should apply it?
-            # Or we apply it here if we access user.
+            # Apply XP & Gold to user
             from legacy.services.user_service import user_service
             user = await user_service.get_user(session, user_id)
             if user:
-                user.exp = (user.exp or 0) + loot.xp
-                # Gold? We don't have Gold column in User model yet?
-                # Assuming simple XP for now.
+                user.xp = (user.xp or 0) + loot.xp
+                user.gold = (user.gold or 0) + loot.gold
+                # TODO: Trigger Level Up Check here or via event
             
             await session.commit()
             
