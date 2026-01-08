@@ -51,6 +51,7 @@ from domain.models.game_result import GameResult
 from app.core.dispatcher import dispatcher
 from application.services.game_loop import game_loop
 from app.core.database import AsyncSessionLocal
+from sqlalchemy.ext.asyncio import AsyncSession
 
 # 1. Define Independent Handlers
 async def handle_attack(session, user_id: str, text: str) -> GameResult:
@@ -110,11 +111,16 @@ dispatcher.register(lambda t: t.lower().strip() == "defend", handle_defend)
 dispatcher.register_default(handle_ai_analysis)
 
 # 3. Expose Core Logic Wrapper
-async def process_game_logic(user_id: str, text: str) -> GameResult:
+# 3. Expose Core Logic Wrapper
+async def process_game_logic(user_id: str, text: str, session: AsyncSession = None) -> GameResult:
     """
     Core Game Logic Entry Point (Decoupled from HTTP)
     Refactored to allow direct unit testing without Webhook signature.
+    Dependency Injection: pass 'session' for testing, or it defaults to AsyncSessionLocal.
     """
+    if session:
+        return await game_loop.process_message(session, user_id, text)
+    
     async with AsyncSessionLocal() as session:
         return await game_loop.process_message(session, user_id, text)
 
