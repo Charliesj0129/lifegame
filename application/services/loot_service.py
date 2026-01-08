@@ -22,7 +22,7 @@ class LootService:
     # Baseline expected rewards by difficulty (User's internal model)
     BASE_XP = {"E": 10, "D": 20, "C": 50, "B": 100, "A": 200, "S": 500}
     
-    def calculate_reward(self, difficulty: str, current_tier: str) -> LootResult:
+    def calculate_reward(self, difficulty: str, current_tier: str, churn_risk: str = "LOW") -> LootResult:
         """
         Calculates reward with RPE logic.
         
@@ -36,13 +36,20 @@ class LootService:
         base_xp = self.BASE_XP.get(difficulty, 20)
         
         # 1. Get Flow Context (Are we boosting loot?)
-        # We need flow state. For now, we presume FlowController has some state or defaults.
-        # Ideally we pass user context, but let's assume standard 'current_tier' lookup or defaults.
-        # Since FlowController is stateless-ish in this version, we might assume standard multiplier unless passed.
-        # Let's simplify: We assume standard 1.0 unless caller overrides? 
-        # Actually, let's use a safe default 1.0. 
-        # In a real scenario, we'd look up User's FlowState from DB.
-        loot_multiplier = 1.0 
+        # Use FlowController to determine multiplier (e.g. EOMM triggers)
+        state = flow_controller.calculate_next_state(
+            current_tier=current_tier, 
+            recent_performance=[], # No perf history passed yet
+            churn_risk=churn_risk
+        )
+        loot_multiplier = state.loot_multiplier
+        
+        if loot_multiplier > 1.0:
+            logger.info(f"Loot Boost Active: {loot_multiplier}x (Risk: {churn_risk})") 
+        
+        # Anti-Exploit Cap
+        MAX_MULTIPLIER = 5.0
+        loot_multiplier = min(loot_multiplier, MAX_MULTIPLIER) 
         
         # Check for Jackpot (5% chance)
         is_jackpot = random.random() < 0.05

@@ -57,3 +57,17 @@ class GraphPort(ABC):
         Get recent user events/interactions from graph.
         """
         pass
+
+    @abstractmethod
+    def add_quest_dependency(self, child_quest_id: str, parent_quest_id: str) -> bool:
+        """
+        Add a dependency between two quests, where the child quest requires the parent quest to be completed.
+        """
+        pass
+
+    @abstractmethod
+    def get_unlockable_templates(self, user_id: str) -> List[Dict[str, Any]]:
+        """
+        Get a list of unlockable templates for a given user.
+        """
+        pass

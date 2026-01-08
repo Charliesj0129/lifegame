@@ -31,6 +31,12 @@ class Settings(BaseSettings):
     
     # Kuzu Graph DB
     KUZU_DATABASE_PATH: str = "./data/lifegame_graph"
+    
+    # Vector Memory (Chroma)
+    CHROMA_DB_PATH: str = "./data/chroma_db"
+
+    # Security
+    SECRET_KEY: str = "default-insecure-key"
 
     # Home Assistant
     HA_WEBHOOK_SECRET: Optional[str] = None

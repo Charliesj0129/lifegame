@@ -76,6 +76,8 @@ class Quest(Base):
     location_target = Column(
         JSON, nullable=True
     )  # {"lat": float, "lng": float, "radius_m": int}
+    
+    meta = Column(JSON, nullable=True)  # Generic metadata (e.g. graph_node_id)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
