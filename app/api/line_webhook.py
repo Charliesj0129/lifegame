@@ -31,9 +31,10 @@ async def line_callback(request: Request, x_line_signature: str = Header(None)):
         raise HTTPException(status_code=500, detail="Webhook handler not initialized")
     
     # Handle missing signature (e.g. from tests or misconfigured proxy)
+    # Handle missing signature (e.g. from tests or misconfigured proxy)
     if x_line_signature is None:
         logger.warning("Missing X-Line-Signature header")
-        return {"status": "error", "message": "Missing signature"}
+        raise HTTPException(status_code=400, detail="Missing X-Line-Signature header")
     
     try:
         await handler.handle(body_str, x_line_signature)
