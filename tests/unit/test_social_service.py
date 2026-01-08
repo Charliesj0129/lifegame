@@ -50,4 +50,22 @@ async def test_interact_flow(social_service, mock_kuzu, mock_ai_engine):
     mock_kuzu.conn.execute.assert_called()
     # Check if cypher query contains MERGE (u)-[r:KNOWS]->(n)
     cypher_call = mock_kuzu.conn.execute.call_args[0][0]
+    assert "MERGE (u:User {id: $uid})" in cypher_call
+    assert "MERGE (n:NPC {id: $nid})" in cypher_call
     assert "MERGE (u)-[r:KNOWS]->(n)" in cypher_call
+
+@pytest.mark.asyncio
+async def test_interact_neutral(social_service, mock_kuzu, mock_ai_engine):
+    # Test that delta=0 still updates graph
+    mock_ai_engine.generate_npc_response.return_value = {
+        "text": "Neutral response.",
+        "intimacy_change": 0,
+        "can_visualize": False
+    }
+    
+    await social_service.interact("u1", "viper", "Hello")
+    
+    # Assert execute called even with delta 0
+    mock_kuzu.conn.execute.assert_called()
+    call_args = mock_kuzu.conn.execute.call_args
+    assert call_args[0][1]["delta"] == 0

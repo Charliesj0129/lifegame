@@ -78,17 +78,17 @@ class SocialService:
         return []
 
     def _update_relationship(self, user_id: str, npc_id: str, delta: int):
-        if delta == 0:
-            return
-        
-        # Merge relationship and update intimacy
-        # This requires Reading current, then Updating.
-        # Cypher: MERGE ... ON MATCH SET r.intimacy = r.intimacy + $delta
+        # Always update last_interaction, even if delta is 0
         try:
+           # Ensure User and NPC nodes exist, then link them
+           # MERGE (u:User {id: $uid})
+           # MERGE (n:NPC {id: $nid})
+           # MERGE (u)-[r:KNOWS]->(n)
            query = """
-           MATCH (u:User {id: $uid}), (n:NPC {id: $nid})
+           MERGE (u:User {id: $uid})
+           MERGE (n:NPC {id: $nid})
            MERGE (u)-[r:KNOWS]->(n)
-           ON CREATE SET r.intimacy = 0, r.last_interaction = $ts
+           ON CREATE SET u.name = 'Unknown', n.name = $nid, r.intimacy = 0, r.last_interaction = $ts
            ON MATCH SET r.intimacy = r.intimacy + $delta, r.last_interaction = $ts
            """
            self.kuzu.conn.execute(query, {
