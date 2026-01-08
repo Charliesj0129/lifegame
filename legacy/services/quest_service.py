@@ -366,8 +366,38 @@ class QuestService:
                 "其中 1 個任務標記為「稀有」，標題加上「稀有」並提高 XP 至 50。"
             )
 
-        # 2. Generate with AI
+        # 2. Generate with AI & Graph
         count = self.DAILY_QUEST_COUNT if time_context in ["Daily", "Morning"] else 1
+        new_quests = []
+        
+        # --- Graph Quest Injection ---
+        from application.services.graph_service import graph_service
+        try:
+            # Only inject if generating a full batch to avoid cluttering single refreshes
+            if count >= 2:
+                unlockables = graph_service.get_unlockable_templates(user_id)
+                if unlockables:
+                    # Pick 1 unlockable
+                    template = random.choice(unlockables) # Simple random pick
+                    
+                    # Create Graph Quest
+                    g_quest = Quest(
+                        user_id=user_id,
+                        title=f"【{template['title']}】", # Highlight it
+                        description=f"解鎖進階任務：{template['title']}",
+                        difficulty_tier="C", # Default
+                        xp_reward=50, # Bonus for progression
+                        quest_type=QuestType.MAIN.value,
+                        status=QuestStatus.ACTIVE.value,
+                        scheduled_date=datetime.date.today(),
+                        meta={"graph_node_id": template["id"]}
+                    )
+                    session.add(g_quest)
+                    new_quests.append(g_quest)
+                    count -= 1 # Reduce AI count
+        except Exception as e:
+            logger.error(f"Graph Quest Injection Failed: {e}")
+
         system_prompt = (
             f"Generate EXACTLY {count} Daily Tactical Side-Quests. {dda_modifier} "
             f"Time Context: {time_context} (Customize tasks for this time). "
@@ -377,8 +407,6 @@ class QuestService:
             f"{serendipity_prompt}"
         )
         user_prompt = f"Context: {topic}. Generate tasks."
-
-        new_quests = []
 
         try:
             # Enforce 3s timeout for responsiveness
@@ -528,19 +556,55 @@ class QuestService:
             
             # --- Loot & RPE Logic ---
             from application.services.loot_service import loot_service
+            from legacy.services.user_service import user_service
             
-            # Calculate Reward
-            loot = loot_service.calculate_reward(quest.difficulty_tier, "C") # Default tier C for now
+            # Fetch User First to measure Churn Risk
+            user = await user_service.get_user(session, user_id)
+            
+            # Calculate Churn Risk (Simple Heuristic for EOMM)
+            churn_risk = "LOW"
+            if user and user.last_active_date:
+                 # Ensure timezone aware comparison if needed, or naive. 
+                 # Assuming UTC in DB.
+                 now = datetime.datetime.now(datetime.timezone.utc)
+                 if user.last_active_date.tzinfo is None:
+                     # Fallback if DB is naive
+                     diff = datetime.datetime.now() - user.last_active_date
+                 else:
+                     diff = now - user.last_active_date
+                     
+                 if diff.days > 2:
+                     churn_risk = "HIGH"
+            
+            # Calculate Reward (Pass Churn Risk for Addiction Boost)
+            loot = loot_service.calculate_reward(quest.difficulty_tier, "C", churn_risk=churn_risk) 
             
             # Apply XP & Gold to user
-            from legacy.services.user_service import user_service
-            user = await user_service.get_user(session, user_id)
             if user:
                 user.xp = (user.xp or 0) + loot.xp
                 user.gold = (user.gold or 0) + loot.gold
+                # Update Activity (reset churn risk for next time)
+                user.last_active_date = datetime.datetime.now(datetime.timezone.utc)
                 # TODO: Trigger Level Up Check here or via event
             
             await session.commit()
+            
+            # --- Graph Sync ---
+            if quest.meta and "graph_node_id" in quest.meta:
+                try:
+                    from application.services.graph_service import graph_service
+                    graph_node_id = quest.meta["graph_node_id"]
+                    # Record COMPLETED relationship
+                    success = graph_service.adapter.add_relationship(
+                        "User", user_id, "COMPLETED", "Quest", graph_node_id,
+                        {"timestamp": datetime.datetime.now().isoformat()},
+                        from_key_field="name", # User.name = user_id
+                        to_key_field="id"      # Quest.id = graph_node_id
+                    )
+                    if success:
+                        logger.info(f"Synced Quest {quest.title} completion to Graph Node {graph_node_id}")
+                except Exception as e:
+                    logger.error(f"Graph Sync Failed: {e}")
             
             # Passive Boss Damage
             from legacy.services.boss_service import boss_service

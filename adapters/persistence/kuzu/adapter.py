@@ -23,42 +23,158 @@ class KuzuAdapter(GraphPort):
             os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
 
     def _initialize_schema(self):
-        """Idempotent schema initialization with expanded schema"""
+        """Idempotent schema initialization"""
         try:
-            # Check if User table exists
-            self.conn.execute("MATCH (u:User) RETURN count(u) LIMIT 1")
-        except RuntimeError:
-            logger.info("Initializing KuzuDB Schema...")
+            # 1. Verify Schema Integrity (Self-Healing)
+            # Check if User table exists and has correct PK
+            user_valid = False
             try:
-                # Core Node Tables
-                self.conn.execute("CREATE NODE TABLE User(name STRING, PRIMARY KEY (name))")
-                self.conn.execute("CREATE NODE TABLE NPC(name STRING, role STRING, mood STRING, PRIMARY KEY (name))")
-                self.conn.execute("CREATE NODE TABLE Concept(name STRING, description STRING, PRIMARY KEY (name))")
-                self.conn.execute("CREATE NODE TABLE Quest(id STRING, title STRING, status STRING, PRIMARY KEY (id))")
-                self.conn.execute("CREATE NODE TABLE Location(name STRING, description STRING, PRIMARY KEY (name))")
-                self.conn.execute("CREATE NODE TABLE Event(id STRING, type STRING, timestamp STRING, metadata STRING, PRIMARY KEY (id))")
+                # Check for table existence
+                self.conn.execute("MATCH (u:User) RETURN count(u) LIMIT 1")
                 
-                # NPC Relationships
-                self.conn.execute("CREATE REL TABLE HATES(FROM NPC TO Concept)")
-                self.conn.execute("CREATE REL TABLE LIKES(FROM NPC TO Concept)")
-                self.conn.execute("CREATE REL TABLE CARES_ABOUT(FROM NPC TO Concept)")
-                self.conn.execute("CREATE REL TABLE LOCATED_AT(FROM NPC TO Location)")
-                
-                # User Relationships
-                self.conn.execute("CREATE REL TABLE INTERACTED_WITH(FROM User TO NPC, timestamp STRING)")
-                self.conn.execute("CREATE REL TABLE COMPLETED(FROM User TO Quest, timestamp STRING)")
-                self.conn.execute("CREATE REL TABLE FAILED(FROM User TO Quest, timestamp STRING)")
-                self.conn.execute("CREATE REL TABLE VISITED(FROM User TO Location, count INT)")
-                
-                # Event Relationships
-                self.conn.execute("CREATE REL TABLE TRIGGERED_BY(FROM Event TO User)")
-                self.conn.execute("CREATE REL TABLE WITNESSED(FROM NPC TO Event)")
+                # Check PK (simplistic check: try MERGE with name)
+                # If PK is wrong (id), his will fail, confirming corruption
+                self.conn.execute("MERGE (u:User {name: 'SchemaCheck'})")
+                user_valid = True
+            except Exception:
+                logger.warning("User table corrupted or missing (Wrong PK?). Recreating...")
+                try:
+                    self.conn.execute("DROP TABLE User")
+                except:
+                    pass
 
-                # Seed NPCs
-                self._seed_initial_data()
-                logger.info("Schema Initialized.")
-            except Exception as e:
-                logger.error(f"Schema Init Failed: {e}")
+            # 2. Schema Creation / Repair
+            def safe_create(query):
+                try:
+                    self.conn.execute(query)
+                except RuntimeError as re:
+                     if "already exists" in str(re):
+                         pass
+                     else:
+                         logger.warning(f"Failed to exec {query}: {re}")
+
+            # Re-create User if needed
+            safe_create("CREATE NODE TABLE User(name STRING, PRIMARY KEY (name))")
+            
+            # Create other tables (Safe if exist)
+            safe_create("CREATE NODE TABLE NPC(name STRING, role STRING, mood STRING, PRIMARY KEY (name))")
+            safe_create("CREATE NODE TABLE Concept(name STRING, description STRING, PRIMARY KEY (name))")
+            safe_create("CREATE NODE TABLE Quest(id STRING, title STRING, status STRING, PRIMARY KEY (id))")
+            safe_create("CREATE NODE TABLE Location(name STRING, description STRING, PRIMARY KEY (name))")
+            safe_create("CREATE NODE TABLE Event(id STRING, type STRING, timestamp STRING, metadata STRING, PRIMARY KEY (id))")
+            
+            # Relationships
+            safe_create("CREATE REL TABLE HATES(FROM NPC TO Concept)")
+            safe_create("CREATE REL TABLE LIKES(FROM NPC TO Concept)")
+            safe_create("CREATE REL TABLE CARES_ABOUT(FROM NPC TO Concept)")
+            safe_create("CREATE REL TABLE LOCATED_AT(FROM NPC TO Location)")
+            
+            safe_create("CREATE REL TABLE INTERACTED_WITH(FROM User TO NPC, timestamp STRING)")
+            safe_create("CREATE REL TABLE COMPLETED(FROM User TO Quest, timestamp STRING)")
+            safe_create("CREATE REL TABLE FAILED(FROM User TO Quest, timestamp STRING)")
+            safe_create("CREATE REL TABLE VISITED(FROM User TO Location, count INT)")
+            
+            safe_create("CREATE REL TABLE TRIGGERED_BY(FROM Event TO User)")
+            safe_create("CREATE REL TABLE WITNESSED(FROM NPC TO Event)")
+            safe_create("CREATE REL TABLE INVOLVED(FROM Event TO NPC)")
+
+            safe_create("CREATE REL TABLE REQUIRES(FROM Quest TO Quest)")
+
+            # Seed Data (Idempotent MERGE)
+            self._seed_initial_data()
+            logger.info("Schema Initialized (Integrity Checked).")
+            
+        except Exception as e:
+            logger.error(f"Schema Init Failed: {e}")
+
+    def add_quest_dependency(self, child_quest_id: str, parent_quest_id: str) -> bool:
+        """
+        Add a dependency: Child REQUIRES Parent.
+        (Child)-[:REQUIRES]->(Parent)
+        """
+        try:
+            # Ensure nodes exist (assuming IDs are pre-seeded or we merge them)
+            # Creating dummy nodes if they don't exist to allow relationship
+            self.conn.execute(f"MERGE (c:Quest {{id: '{child_quest_id}'}})")
+            self.conn.execute(f"MERGE (p:Quest {{id: '{parent_quest_id}'}})")
+            
+            self.conn.execute(
+                f"MATCH (c:Quest {{id: '{child_quest_id}'}}), (p:Quest {{id: '{parent_quest_id}'}}) "
+                f"CREATE (c)-[:REQUIRES]->(p)"
+            )
+            return True
+        except Exception as e:
+            logger.error(f"Failed to add quest dependency: {e}")
+            return False
+
+    def get_unlockable_templates(self, user_id: str) -> List[Dict[str, Any]]:
+        """
+        Find Quests where:
+        1. User has NOT completed them.
+        2. User HAS completed ALL prerequisites.
+        """
+        try:
+            # Cypher Logic:
+            # Find candidate Quest `t`
+            # WHERE NOT (User)-[:COMPLETED]->(t)
+            # AND ALL `req` in (t)-[:REQUIRES]->(req) HAVE (User)-[:COMPLETED]->(req)
+            
+            # Kuzu Support Check:
+            # Does Kuzu support EXISTS pattern in WHERE? Yes.
+            # Does Kuzu support ALL list comprehension? Partial.
+            # Alternative: Return candidates and filter in python if query is too complex,
+            # but let's try a robust query.
+            
+            # Simple approach:
+            # 1. Get ALL quests `q`
+            # 2. Filter `q` not completed by user.
+            # 3. For each `q`, check if it has prereqs. 
+            # 4. If prereqs exist, check if ALL are completed.
+            
+            # Optimised Query:
+            query = (
+                f"MATCH (q:Quest) "
+                f"WHERE NOT EXISTS {{ MATCH (u:User {{name: '{user_id}'}})-[:COMPLETED]->(q) }} "
+                f"RETURN q.id, q.title"
+            )
+            candidates = self.query(query)
+            
+            unlockables = []
+            for row in candidates:
+                q_id, q_title = row[0], row[1]
+                
+                # Check prerequisites
+                prereqs_query = (
+                    f"MATCH (q:Quest {{id: '{q_id}'}})-[:REQUIRES]->(req:Quest) "
+                    f"RETURN req.id"
+                )
+                prereqs = [r[0] for r in self.query(prereqs_query)]
+                
+                if not prereqs:
+                    # No prereqs = Base quest, always unlocked?
+                    # Or maybe base quests are unlocked by default. 
+                    # Let's include them.
+                    unlockables.append({"id": q_id, "title": q_title, "type": "BASE"})
+                    continue
+                
+                # Check if all prereqs are completed
+                completed_count = 0
+                for pid in prereqs:
+                    check_done = (
+                        f"MATCH (u:User {{name: '{user_id}'}})-[:COMPLETED]->(q:Quest {{id: '{pid}'}}) "
+                        f"RETURN count(q)"
+                    )
+                    if self.query(check_done)[0][0] > 0:
+                        completed_count += 1
+                
+                if completed_count == len(prereqs):
+                    unlockables.append({"id": q_id, "title": q_title, "type": "CHAIN_UNLOCK"})
+            
+            return unlockables
+
+        except Exception as e:
+            logger.error(f"Failed to get unlockables: {e}")
+            return []
 
     def _seed_initial_data(self):
         """Seed NPCs and initial concepts"""
@@ -74,7 +190,7 @@ class KuzuAdapter(GraphPort):
             ("Strategy", "策略思考"),
         ]
         for name, desc in concepts:
-            self.conn.execute(f"CREATE (c:Concept {{name: '{name}', description: '{desc}'}})")
+            self.conn.execute(f"MERGE (c:Concept {{name: '{name}'}}) ON CREATE SET c.description = '{desc}'")
         
         # NPCs with personalities
         npcs = [
@@ -84,7 +200,7 @@ class KuzuAdapter(GraphPort):
             ("Shadow", "Mysterious Guide", "Neutral"),
         ]
         for name, role, mood in npcs:
-            self.conn.execute(f"CREATE (n:NPC {{name: '{name}', role: '{role}', mood: '{mood}'}})")
+            self.conn.execute(f"MERGE (n:NPC {{name: '{name}'}}) ON CREATE SET n.role = '{role}', n.mood = '{mood}'")
         
         # NPC Preferences
         preferences = [
@@ -101,13 +217,14 @@ class KuzuAdapter(GraphPort):
             ("Shadow", "CARES_ABOUT", "Learning"),
         ]
         for npc, rel, concept in preferences:
+            # MERGE relationship (prevent duplicates)
             self.conn.execute(
                 f"MATCH (n:NPC {{name: '{npc}'}}), (c:Concept {{name: '{concept}'}}) "
-                f"CREATE (n)-[:{rel}]->(c)"
+                f"MERGE (n)-[:{rel}]->(c)"
             )
         
         # Default User
-        self.conn.execute("CREATE (u:User {name: 'Player'})")
+        self.conn.execute("MERGE (u:User {name: 'Player'})")
         
         logger.info("Seeded initial graph data")
 

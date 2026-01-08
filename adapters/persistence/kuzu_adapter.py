@@ -7,7 +7,9 @@ from typing import List, Dict, Any, Optional
 logger = logging.getLogger(__name__)
 
 class KuzuAdapter:
-    def __init__(self, db_path: str = "./data/lifegame_graph"):
+    def __init__(self, db_path: Optional[str] = None):
+        if db_path is None:
+            db_path = os.getenv("KUZU_DATABASE_PATH", "./data/lifegame_graph")
         self.db_path = db_path
         self.db = None
         self.conn = None

@@ -11,21 +11,32 @@ logger = getLogger(__name__)
 router = APIRouter()
 
 
+from typing import List
+from pydantic import BaseModel, Field
+
+# --- Response Models ---
+class NPCPublicResponse(BaseModel):
+    name: str
+    role: str
+    mood: str
+    # Exclude internal_id, memory_pointers, etc.
+
+async def verify_token(x_lifegame_token: str = Header(...)):
+    if not ha_adapter.validate_token(x_lifegame_token):
+        logger.warning(f"Invalid Token Attempt: {x_lifegame_token}")
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    return True
+
 @router.post("/nerves/perceive")
 async def perceive_event(
     request: Request,
-    x_lifegame_token: str = Header(None),
+    auth: bool = Depends(verify_token),
     db: AsyncSession = Depends(deps.get_db)
 ):
     """
     Home Assistant Webhook Ingress.
     Receives HA events, converts to GameEvents, and processes through perception layer.
     """
-    # 1. Auth
-    if not ha_adapter.validate_token(x_lifegame_token):
-        logger.warning(f"Invalid Token: {x_lifegame_token}")
-        raise HTTPException(status_code=401, detail="Unauthorized")
-
     try:
         # 2. Parse Payload
         payload = await request.json()
@@ -80,18 +91,19 @@ async def perceive_event(
         return {"status": "error", "message": str(e)}
 
 
-@router.get("/nerves/npcs")
+@router.get("/nerves/npcs", response_model=List[NPCPublicResponse], dependencies=[Depends(verify_token)])
 async def list_npcs():
-    """List all available NPCs and their personalities"""
+    """List all available NPCs (Public Safe Data)"""
     try:
         npcs = graph_service.get_all_npcs()
-        return {"npcs": npcs}
+        # Filter fields manually or let Pydantic do it
+        return npcs
     except Exception as e:
         logger.error(f"Failed to list NPCs: {e}")
-        return {"npcs": [], "error": str(e)}
+        return []
 
 
-@router.get("/nerves/history/{user_id}")
+@router.get("/nerves/history/{user_id}", dependencies=[Depends(verify_token)])
 async def get_user_history(user_id: str, limit: int = 10):
     """Get recent event history for a user from graph memory"""
     try:

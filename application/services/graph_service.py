@@ -45,6 +45,18 @@ class GraphService:
             "User", user_id, "INTERACTED_WITH", "NPC", npc_name,
             {"timestamp": datetime.now().isoformat()}
         )
+    
+    def add_quest_dependency(self, child_quest_id: str, parent_quest_id: str) -> bool:
+        """
+        Add a dependency between two quests: Child REQUIRES Parent.
+        """
+        return self.adapter.add_quest_dependency(child_quest_id, parent_quest_id)
+    
+    def get_unlockable_templates(self, user_id: str) -> List[Dict[str, Any]]:
+        """
+        Get quest templates that are unlockable for the user (prerequisites met but not completed).
+        """
+        return self.adapter.get_unlockable_templates(user_id)
 
 
 class KuzuCursorWrapper:

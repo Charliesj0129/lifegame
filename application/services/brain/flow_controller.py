@@ -32,10 +32,18 @@ class FlowController:
                              current_tier: str, 
                              recent_performance: List[bool], # True=Success, False=Fail
                              churn_risk: str = "LOW",
-                             stress_score: float = 0.0) -> FlowState:
+                             stress_score: float = 0.0,
+                             last_pity_at: Optional[float] = None) -> FlowState:
         
         # 1. EOMM Safety Net (Immediate Override)
         if churn_risk == "HIGH":
+            # Rate Limit Check
+            import time
+            now = time.time()
+            if last_pity_at and (now - last_pity_at) < 86400: # 24 Hours
+                 logger.info("EOMM Blocked (Rate Limit)")
+                 return FlowState(difficulty_tier="E", loot_multiplier=1.0, narrative_tone="Encourage")
+                 
             logger.info("EOMM Triggered: Forcing Easy Win due to Churn Risk")
             return FlowState(difficulty_tier="E", loot_multiplier=2.0, narrative_tone="Encourage")
 

@@ -45,7 +45,8 @@ class CommandDispatcher:
             if res:  # If handler returns something legitimate (not None)
                 return res
         
-        return TextMessage(text="⚠️ 無法處理此請求。"), "unknown", {}
+        from domain.models.game_result import GameResult
+        return GameResult(text="⚠️ 無法處理此請求。", intent="unknown", metadata={})
 
 
 # Singleton Instance
