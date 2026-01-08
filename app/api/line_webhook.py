@@ -167,6 +167,22 @@ if webhook_handler:
                         text=viper_taunt or "任務已重新生成！",
                         metadata={"flex_message": flex_msg}
                     )
+
+                elif action == "complete_quest":
+                    quest_id = params.get("quest_id")
+                    if quest_id:
+                        complete_res = await quest_service.complete_quest(session, user_id, quest_id)
+                        if complete_res:
+                            # Use new LootService feedback
+                            loot = complete_res["loot"]
+                            flavor = loot.narrative_flavor
+                            xp = loot.xp
+                            msg = f"✅ 任務完成！\n獲得 {xp} XP ({flavor})"
+                            result = GameResult(text=msg)
+                        else:
+                            result = GameResult(text="⚠️ 任務已完成或無法找到。")
+                    else:
+                        result = GameResult(text="⚠️ 缺少任務ID")
                     
                 elif action == "accept_all_quests":
                     await quest_service.accept_all_pending(session, user_id)
