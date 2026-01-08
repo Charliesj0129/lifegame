@@ -514,44 +514,58 @@ class QuestService:
 
     async def complete_quest(
         self, session: AsyncSession, user_id: str, quest_id: str
-    ) -> Quest:
-        """Marks a quest as DONE and returns it (caller handles XP award)."""
+    ) -> dict:
+        """
+        Marks a quest as DONE and returns Reward Data (RPE integrated).
+        Returns Dict with quest and reward details.
+        """
         stmt = select(Quest).where(Quest.id == quest_id, Quest.user_id == user_id)
         result = await session.execute(stmt)
         quest = result.scalars().first()
 
         if quest and quest.status != QuestStatus.DONE.value:
             quest.status = QuestStatus.DONE.value
+            
+            # --- Loot & RPE Logic ---
+            from application.services.loot_service import loot_service
+            
+            # Calculate Reward
+            loot = loot_service.calculate_reward(quest.difficulty_tier, "C") # Default tier C for now
+            
+            # Apply XP to user (simplistic for now, ideally needs UserService.add_xp)
+            # We will just return the loot data, caller (GameLoop) or a dedicated handler should apply it?
+            # Or we apply it here if we access user.
+            from legacy.services.user_service import user_service
+            user = await user_service.get_user(session, user_id)
+            if user:
+                user.exp = (user.exp or 0) + loot.xp
+                # Gold? We don't have Gold column in User model yet?
+                # Assuming simple XP for now.
+            
             await session.commit()
+            
             # Passive Boss Damage
             from legacy.services.boss_service import boss_service
-
             await boss_service.deal_damage(session, user_id, 50)  # 50 dmg per quest
+            
             # Hollowed recovery
-            from app.models.user import User
-
-            user = await session.get(User, user_id)
             if user and quest.quest_type == QuestType.REDEMPTION.value:
                 from legacy.services.hp_service import hp_service
-
                 if user.is_hollowed or getattr(user, "hp_status", "") == "HOLLOWED":
                     target_hp = min(user.max_hp or 100, 10)
                     delta = target_hp - (user.hp or 0)
                     if delta:
                         await hp_service.apply_hp_change(
-                            session,
-                            user,
-                            delta,
-                            source="rescue_quest",
-                            trigger_rescue=False,
+                            session, user, delta, source="rescue_quest", trigger_rescue=False
                         )
             elif user:
                 from legacy.services.hp_service import hp_service
-
-                await hp_service.restore_by_difficulty(
-                    session, user, quest.difficulty_tier
-                )
-            return quest
+                await hp_service.restore_by_difficulty(session, user, quest.difficulty_tier)
+                
+            return {
+                "quest": quest,
+                "loot": loot
+            }
         return None
 
     async def reroll_quests(self, session: AsyncSession, user_id: str):

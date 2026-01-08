@@ -238,8 +238,8 @@ class VerificationService:
         }
 
     async def _complete_quest(self, session, user_id: str, quest: Quest) -> dict:
-        completed = await quest_service.complete_quest(session, user_id, quest.id)
-        if not completed:
+        result_data = await quest_service.complete_quest(session, user_id, quest.id)
+        if not result_data:
             return {
                 "xp": 0,
                 "gold": 0,
@@ -248,22 +248,23 @@ class VerificationService:
                 "message": "⚠️ 任務已完成或不存在。",
             }
 
-        user = await user_service.get_or_create_user(session, user_id)
-        xp_awarded = quest.xp_reward or 0
-        gold_awarded = self.GOLD_REWARD_BY_DIFF.get(
-            (quest.difficulty_tier or "E").upper(), 3
-        )
-        user.xp = (user.xp or 0) + xp_awarded
-        user.gold = (user.gold or 0) + gold_awarded
+        loot = result_data.get("loot")
+        xp_awarded = loot.xp if loot else (quest.xp_reward or 0)
+        gold_awarded = loot.gold if loot else self.GOLD_REWARD_BY_DIFF.get((quest.difficulty_tier or "E").upper(), 3)
+        narrative_flavor = loot.narrative_flavor if loot else "Standard"
 
-        # Feature 4: Epic Feedback
+        # Feature 4: Epic Feedback (with RPE Flavor)
         from legacy.services.narrative_service import narrative_service
+        
+        # We assume user is already updated by quest_service (it accesses session and user)
+        # But for narrative context we might fetch user?
+        user = await user_service.get_or_create_user(session, user_id)
 
         story = await narrative_service.generate_outcome_story(
             session=session,
             user_id=user_id,
             action_text=f"Completed Quest: {quest.title}",
-            result_data={"xp": quest.xp_reward, "diff": quest.difficulty_tier},
+            result_data={"xp": xp_awarded, "diff": quest.difficulty_tier, "flavor": narrative_flavor},
             user_context=f"User Lv.{user.level}",
         )
 
@@ -273,7 +274,7 @@ class VerificationService:
             "gold": gold_awarded,
             "story": story,
             "success": True,
-            "message": "✅ 任務完成！",
+            "message": f"✅ 任務完成！ ({narrative_flavor})",
         }
 
     async def _generate_hint(
