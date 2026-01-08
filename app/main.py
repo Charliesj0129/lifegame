@@ -129,10 +129,12 @@ async def process_game_logic(user_id: str, text: str, session: AsyncSession = No
 # Include Router
 # New LINE webhook (clean architecture)
 from app.api import line_webhook
-app.include_router(line_webhook.router, prefix="", tags=["line"])
-
 from app.api import nerves
+from app.api import chat # [NEW] Phase 5: NPC Chat
+
+app.include_router(line_webhook.router, prefix="", tags=["line"])
 app.include_router(nerves.router, prefix="/api", tags=["nerves"])
+app.include_router(chat.router, prefix="/api", tags=["chat"]) # [NEW] Phase 5: NPC Chat
 
 # Legacy routers moved to legacy/api
 # from app.api import users

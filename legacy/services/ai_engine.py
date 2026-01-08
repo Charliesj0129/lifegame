@@ -415,5 +415,56 @@ Output Schema:
         }
 
 
+    async def generate_npc_response(
+        self, 
+        persona: dict, 
+        context: list, 
+        user_input: str
+    ) -> dict:
+        """
+        Generates a role-played response from an NPC.
+        Persona: {name, role, personality}
+        Context: List of strings (previous chat or memories)
+        Returns: { 'text': str, 'intimacy_change': int, 'can_visualize': bool }
+        """
+        import time
+        start = time.time() if settings.ENABLE_LATENCY_LOGS else None
+        
+        # Build Context String
+        context_str = "\n".join([f"- {c}" for c in context]) if context else "None"
+        
+        system_prompt = (
+            f"Role: You are {persona.get('name', 'NPC')}, a {persona.get('role', 'Character')}. "
+            f"Personality: {persona.get('personality', 'neutral')}. "
+            "Task: Reply to the user. Be concise, immersive, and stay in character. "
+            "Language: ALWAYS use Traditional Chinese (繁體中文). "
+            "Mechanic: Determine if this interaction changes your intimacy with the user (-10 to +10). "
+            "Output JSON: { 'text': 'str', 'intimacy_change': int, 'can_visualize': bool }"
+        )
+        
+        user_prompt = (
+            f"Context (Memories):\n{context_str}\n\n"
+            f"User Says: {user_input}"
+        )
+        
+        try:
+            result = await self.generate_json(system_prompt, user_prompt)
+            if "text" not in result:
+                result["text"] = "..."
+            
+            if start is not None:
+                elapsed = (time.time() - start) * 1000
+                self._log_latency("ai_npc_chat_latency", elapsed)
+                
+            return result
+        except Exception as e:
+            logger.error(f"NPC Chat Failed: {e}", exc_info=True)
+            return {
+                "text": "（對方似乎陷入了沉思...）",
+                "intimacy_change": 0,
+                "can_visualize": False
+            }
+
+
 # Global instance
 ai_engine = AIEngine()
