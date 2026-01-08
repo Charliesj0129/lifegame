@@ -67,12 +67,20 @@ class KuzuAdapter:
         except RuntimeError:
             pass
 
+        # 5. NPC Node (New in Phase 5)
+        try:
+            self.conn.execute("CREATE NODE TABLE NPC(id STRING, name STRING, role STRING, personality STRING, PRIMARY KEY (id))")
+        except RuntimeError:
+            pass
+
         # Relationships
         rels = [
             "CREATE REL TABLE PERFORMED(FROM User TO Event)",
             "CREATE REL TABLE GENERATED(FROM Event TO Fact)",
             "CREATE REL TABLE RELATED_TO(FROM Fact TO Fact)",
-            "CREATE REL TABLE HAS_QUEST(FROM User TO Quest)"
+            "CREATE REL TABLE HAS_QUEST(FROM User TO Quest)",
+            "CREATE REL TABLE KNOWS(FROM User TO NPC, intimacy INT64, last_interaction INT64)",
+            "CREATE REL TABLE REMEMBERED(FROM NPC TO Event)"
         ]
         
         for rel_cypher in rels:
