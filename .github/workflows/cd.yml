@@ -46,5 +46,5 @@ jobs:
       - name: Verify Deployment (Health Check)
         run: |
           echo "Waiting for service to restart..."
-          sleep 60
-          curl -v https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/health
+          sleep 120
+          curl -v --fail https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/health
