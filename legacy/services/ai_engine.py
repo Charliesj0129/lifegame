@@ -111,14 +111,27 @@ class AIEngine:
 
         # Optimized "One-Shot" Prompt
         system_prompt = f"""Role: Cyberpunk LifeOS (Beta v.2077) - 繁體中文版.
-Task: Analyze User Action -> Calculate Stats -> Feedback.
+Task: Analyze User Action -> Identify Intent -> Calculate Stats -> Feedback.
 Rules: {self.rules_context}
 Constraint: OUTPUT TRADITIONAL CHINESE ONLY. JSON ONLY.
+
+# Intent Recognition Rules:
+- "view_quests": "任務", "目標", "Quests", "To-Do"
+- "view_status": "狀態", "我", "Status", "Profile"
+- "view_shop": "商店", "買", "Shop", "Buy"
+- "view_inventory": "背包", "道具", "Inventory", "Items"
+- "view_skills": "技能", "天賦", "Skills", "Talents"
+- "view_lore": "劇情", "故事", "Lore", "Archive"
+- "view_boss": "BOSS", "宿敵", "Rival", "Viper"
+- "update_stat": Any other action implying self-improvement or activity (e.g., "做了伏地挺身", "喝水").
+- "chat": Pure conversation without game intent.
+
 Output Schema:
 {{
+  "intent": "view_quests"|"view_status"|"view_shop"|"view_inventory"|"view_skills"|"view_lore"|"view_boss"|"update_stat"|"chat",
   "narrative": "Story output < 50 chars",
-  "difficulty_tier": "E"|"D"|"C"|"B"|"A",
-  "stat_type": "STR"|"INT"|"VIT"|"WIS"|"CHA",
+  "difficulty_tier": "E"|"D"|"C"|"B"|"A" (Only for update_stat),
+  "stat_type": "STR"|"INT"|"VIT"|"WIS"|"CHA" (Only for update_stat),
   "loot_drop": {{ "has_loot": bool, "item_name": "str", "description": "str" }},
   "feedback_tone": "ENCOURAGING"|"SARCASTIC"|"WARNING"
 }}"""

@@ -104,26 +104,122 @@ async def handle_ai_analysis(session, user_id: str, text: str) -> GameResult:
     
     # 2. Update User Stats (SQLite)
     user = await user_service.get_or_create_user(session, user_id)
-    stat = analysis.get("stat_type", "").lower() # str, int, vit...
+    stat = (analysis.get("stat_type") or "").lower() # str, int, vit...
     if hasattr(user, stat):
         current_val = getattr(user, stat)
         setattr(user, stat, current_val + 1)
         await session.commit()
     
-    # 3. Log to Graph (Kuzu)
     kuzu_adapter = get_kuzu_adapter()
-    # Ensure User exists in Graph
-    kuzu_adapter.add_user_if_not_exists(user_id, user.name or "User")
-    # Add Event
-    event_id = f"evt_{int(time.time())}"
-    kuzu_adapter.add_event(
+    # Use record_user_event which handles User creation + Event linking safely
+    
+    # SAFEGUARD: handle None for stat_type if not present in AI response
+    stat_safe = (stat or "").lower()
+    
+    kuzu_adapter.record_user_event(
         user_id, 
-        event_id, 
         "ACTION", 
-        analysis.get("narrative", text), 
-        int(time.time())
+        {
+            "content": analysis.get("narrative", text),
+            "stat_type": stat_safe,
+            "raw_text": text
+        }
     )
     
+    # ---------------------------------------------------------
+    # Intent Dispatcher (New Functional Logic)
+    # ---------------------------------------------------------
+    intent = analysis.get("intent", "").lower()
+    
+    if intent == "view_quests":
+        from legacy.services.quest_service import quest_service
+        from legacy.services.flex_renderer import flex_renderer
+        # Fetch Quests (and Habits)
+        quests = await quest_service.get_daily_quests(session, user_id)
+        habits = await quest_service.get_daily_habits(session, user_id)
+        # Render Flex Message
+        flex_msg = flex_renderer.render_quest_list(quests, habits)
+        return GameResult(
+            text="[指令] 開啟任務面板",
+            intent=intent,
+            metadata={"flex_message": flex_msg}
+        )
+        
+    elif intent == "view_status":
+        from legacy.services.user_service import user_service
+        from legacy.services.flex_renderer import flex_renderer
+        # from legacy.services.lore_service import lore_service
+        
+        user_obj = await user_service.get_user(session, user_id)
+        flex_msg = flex_renderer.render_status(user_obj, lore_progress=[]) 
+        return GameResult(
+            text="[指令] 開啟狀態面板",
+            intent=intent,
+            metadata={"flex_message": flex_msg}
+        )
+
+    elif intent == "view_shop":
+        from legacy.services.shop_service import shop_service
+        from legacy.services.flex_renderer import flex_renderer
+        
+        items = await shop_service.list_shop_items(session)
+        user_obj = await user_service.get_user(session, user_id)
+        flex_msg = flex_renderer.render_shop_list(items, user_obj.gold or 0)
+        return GameResult(
+            text="[指令] 開啟黑市交易所",
+            intent=intent,
+            metadata={"flex_message": flex_msg}
+        )
+
+    elif intent == "view_boss":
+        from legacy.services.boss_service import boss_service
+        from legacy.services.flex_renderer import flex_renderer
+        
+        boss = await boss_service.get_active_boss(session, user_id)
+        flex_msg = flex_renderer.render_boss_status(boss)
+        # Helper to convert message to dict safely
+        # msg_dict = flex_msg.to_dict() if hasattr(flex_msg, "to_dict") else {"type": "text", "text": getattr(flex_msg, "text", "Error")}
+        return GameResult(
+            text="[指令] 遭遇強敵",
+            intent=intent,
+            metadata={"flex_message": flex_msg}
+        )
+
+    elif intent == "view_inventory":
+        from legacy.services.inventory_service import inventory_service
+        
+        inv_items = await inventory_service.get_user_inventory(session, user_id)
+        if not inv_items:
+            list_text = "🎒 背包內容：\n(空)"
+        else:
+            lines = ["🎒 背包內容："]
+            for row in inv_items:
+                i_name = getattr(row, "name", "未知物品")
+                qty = getattr(row, "quantity", 1)
+                lines.append(f"- {i_name} x{qty}")
+            list_text = "\n".join(lines)
+            
+        return GameResult(text=list_text, intent=intent)
+
+    elif intent == "view_skills":
+         return GameResult(text="⚡ 天賦樹系統：\n目前尚未開放視覺化面板。\n(如需檢視請使用 /talent 指令)", intent=intent)
+
+    elif intent == "view_lore":
+         from legacy.services.lore_service import lore_service
+         shards = await lore_service.get_unlocked_lore(session, user_id)
+         if not shards:
+             return GameResult(text="📂 檔案資料庫：\n(無資料)", intent=intent)
+         
+         lines = ["📂 已解鎖檔案："]
+         for s in shards[:5]:
+             lines.append(f"- {s.title} ({s.series})")
+         if len(shards) > 5:
+             lines.append(f"...以及其他 {len(shards)-5} 筆")
+             
+         return GameResult(text="\n".join(lines), intent=intent)
+
+    # ---------------------------------------------------------
+
     # Convert AI JSON to GameResult
     narrative = analysis.get("narrative", "...")
     return GameResult(
@@ -200,7 +296,9 @@ async def health_check():
         # Log the full error but don't crash the probe (return 200 with degraded status)
         logging.error(f"Health Check Failed: {e}", exc_info=True)
         
-    return health_status
+
+
+
 
 
 # --- Logic Refactoring for Testability ---

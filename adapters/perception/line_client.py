@@ -3,6 +3,7 @@ from typing import Union, List, Optional, Any
 from linebot.v3.messaging import (
     MessagingApi,
     ReplyMessageRequest,
+    PushMessageRequest,
     TextMessage, 
     ImageMessage, 
     QuickReply, 
@@ -43,7 +44,27 @@ class LineClient:
             )
             return True
         except Exception as e:
-            logger.error(f"Failed to send LINE reply: {e}", exc_info=True)
+            # Let the caller handle the fallback (e.g. invalid token)
+            # logger.error(f"Failed to send LINE reply: {e}", exc_info=True)
+            raise e
+
+    async def send_push(self, user_id: str, result: GameResult) -> bool:
+        """
+        Sends a GameResult as a LINE Push Message (Fallback).
+        """
+        try:
+            api = get_messaging_api()
+            if not api:
+                return False
+
+            messages = self._to_line_messages(result)
+            
+            await api.push_message(
+                PushMessageRequest(to=user_id, messages=messages)
+            )
+            return True
+        except Exception as e:
+            logger.error(f"Failed to send LINE push: {e}", exc_info=True)
             return False
 
     def _to_line_messages(self, result: GameResult) -> List[Any]:

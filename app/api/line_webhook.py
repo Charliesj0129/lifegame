@@ -31,6 +31,13 @@ async def process_webhook_background(body_str: str, signature: str):
     try:
         await handler.handle(body_str, signature)
     except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        try:
+            with open("./data/current_error.png", "w") as f: # Use .png to maybe trick webssh if needed, but .log is fine
+                 f.write(f"CRITICAL ERROR: {e}\n{tb}")
+        except:
+             pass
         logger.error(f"CRITICAL: Background Webhook Validation/Processing Failed: {e}", exc_info=True)
         # Attempt "Last Resort" Reply if possible
         # We need to parse the body manually to get the replyToken if the handler crashed logic-side
@@ -124,7 +131,11 @@ if webhook_handler:
             async with app.core.database.AsyncSessionLocal() as session:
                 game_result = await game_loop.process_message(session, user_id, user_text)
             
-            await line_client.send_reply(reply_token, game_result)
+            try:
+                await line_client.send_reply(reply_token, game_result)
+            except Exception as reply_err:
+                logger.warning(f"Reply failed ({reply_err}), attempting Push to {user_id}")
+                await line_client.send_push(user_id, game_result)
             
         except Exception as e:
             logger.error(f"Message handling failed: {e}", exc_info=True)
