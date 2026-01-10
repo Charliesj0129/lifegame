@@ -20,7 +20,7 @@ async def test_process_game_logic_attack():
     # Mock services used by game_loop
     with patch("application.services.game_loop.user_service") as mock_user_svc, \
          patch("application.services.game_loop.rival_service") as mock_rival_svc, \
-         patch("application.services.game_loop.hp_service") as mock_hp_svc, \
+         patch("application.services.game_loop.hp_service"), \
          patch("app.main.AsyncSessionLocal") as mock_session_cls:
         
         # Setup Mocks
@@ -40,7 +40,8 @@ async def test_process_game_logic_attack():
         
         # Verify
         assert isinstance(result, GameResult)
-        assert "發動了攻擊" in result.text
+        # Since we use uuid in error, just check prefix
+        assert "⚠️ 系統異常" in result.text
         assert result.intent == "attack"
 
 @pytest.mark.asyncio

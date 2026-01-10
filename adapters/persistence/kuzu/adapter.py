@@ -27,7 +27,7 @@ class KuzuAdapter(GraphPort):
         try:
             # 1. Verify Schema Integrity (Self-Healing)
             # Check if User table exists and has correct PK
-            user_valid = False
+            # user_valid = False  <-- Removed unused variable
             try:
                 # Check for table existence
                 self.conn.execute("MATCH (u:User) RETURN count(u) LIMIT 1")
@@ -35,12 +35,12 @@ class KuzuAdapter(GraphPort):
                 # Check PK (simplistic check: try MERGE with name)
                 # If PK is wrong (id), his will fail, confirming corruption
                 self.conn.execute("MERGE (u:User {name: 'SchemaCheck'})")
-                user_valid = True
+                # user_valid = True  <-- Removed unused variable
             except Exception:
                 logger.warning("User table corrupted or missing (Wrong PK?). Recreating...")
                 try:
                     self.conn.execute("DROP TABLE User")
-                except:
+                except Exception:
                     pass
 
             # 2. Schema Creation / Repair
@@ -54,14 +54,14 @@ class KuzuAdapter(GraphPort):
                          logger.warning(f"Failed to exec {query}: {re}")
 
             # Re-create User if needed
-            safe_create("CREATE NODE TABLE User(name STRING, PRIMARY KEY (name))")
+            safe_create("CREATE NODE TABLE User(id STRING, name STRING, PRIMARY KEY (id))")
             
             # Create other tables (Safe if exist)
-            safe_create("CREATE NODE TABLE NPC(name STRING, role STRING, mood STRING, PRIMARY KEY (name))")
+            safe_create("CREATE NODE TABLE NPC(id STRING, name STRING, role STRING, personality STRING, mood STRING, PRIMARY KEY (id))")
             safe_create("CREATE NODE TABLE Concept(name STRING, description STRING, PRIMARY KEY (name))")
             safe_create("CREATE NODE TABLE Quest(id STRING, title STRING, status STRING, PRIMARY KEY (id))")
             safe_create("CREATE NODE TABLE Location(name STRING, description STRING, PRIMARY KEY (name))")
-            safe_create("CREATE NODE TABLE Event(id STRING, type STRING, timestamp STRING, metadata STRING, PRIMARY KEY (id))")
+            safe_create("CREATE NODE TABLE Event(id STRING, type STRING, content STRING, timestamp INT64, metadata STRING, PRIMARY KEY (id))")
             
             # Relationships
             safe_create("CREATE REL TABLE HATES(FROM NPC TO Concept)")
@@ -75,10 +75,19 @@ class KuzuAdapter(GraphPort):
             safe_create("CREATE REL TABLE VISITED(FROM User TO Location, count INT)")
             
             safe_create("CREATE REL TABLE TRIGGERED_BY(FROM Event TO User)")
+            safe_create("CREATE REL TABLE PERFOMRED(FROM User TO Event)") # Alias for TRIGGERED_BY or specific action?
             safe_create("CREATE REL TABLE WITNESSED(FROM NPC TO Event)")
             safe_create("CREATE REL TABLE INVOLVED(FROM Event TO NPC)")
 
             safe_create("CREATE REL TABLE REQUIRES(FROM Quest TO Quest)")
+            
+            # Phase 5 Social Engine
+            safe_create("CREATE REL TABLE KNOWS(FROM User TO NPC, intimacy INT64, last_interaction INT64)")
+            safe_create("CREATE REL TABLE REMEMBERED(FROM NPC TO Event)")
+            safe_create("CREATE REL TABLE PERFORMED(FROM User TO Event)") # Replaces/Aligns with TRIGGERED_BY? keeping both for safety or aligning.
+            # safe_create("CREATE REL TABLE GENERATED(FROM Event TO Fact)") # If Facts are used
+            # safe_create("CREATE REL TABLE RELATED_TO(FROM Fact TO Fact)")
+
 
             # Seed Data (Idempotent MERGE)
             self._seed_initial_data()
@@ -193,38 +202,46 @@ class KuzuAdapter(GraphPort):
             self.conn.execute(f"MERGE (c:Concept {{name: '{name}'}}) ON CREATE SET c.description = '{desc}'")
         
         # NPCs with personalities
+        # ID can be name in lowercase or specific UUID. Let's use name.lower() as ID.
         npcs = [
-            ("Viper", "Strict Mentor", "Stern"),
-            ("Sage", "Wise Elder", "Calm"),
-            ("Ember", "Energetic Coach", "Excited"),
-            ("Shadow", "Mysterious Guide", "Neutral"),
+            ("Viper", "Strict Mentor", "Stern", "Competitor"),
+            ("Sage", "Wise Elder", "Calm", "Guide"),
+            ("Ember", "Energetic Coach", "Excited", "Support"),
+            ("Shadow", "Mysterious Guide", "Neutral", "Observer"),
         ]
-        for name, role, mood in npcs:
-            self.conn.execute(f"MERGE (n:NPC {{name: '{name}'}}) ON CREATE SET n.role = '{role}', n.mood = '{mood}'")
-        
-        # NPC Preferences
-        preferences = [
-            ("Viper", "HATES", "Procrastination"),
-            ("Viper", "LIKES", "Discipline"),
-            ("Viper", "LIKES", "Exercise"),
-            ("Sage", "LIKES", "Learning"),
-            ("Sage", "LIKES", "Meditation"),
-            ("Sage", "HATES", "Laziness"),
-            ("Ember", "LIKES", "Action"),
-            ("Ember", "LIKES", "Exercise"),
-            ("Ember", "HATES", "Laziness"),
-            ("Shadow", "LIKES", "Strategy"),
-            ("Shadow", "CARES_ABOUT", "Learning"),
-        ]
-        for npc, rel, concept in preferences:
-            # MERGE relationship (prevent duplicates)
+        for name, role, mood, personality in npcs:
+            nid = name.lower()
             self.conn.execute(
-                f"MATCH (n:NPC {{name: '{npc}'}}), (c:Concept {{name: '{concept}'}}) "
+                f"MERGE (n:NPC {{id: '{nid}'}}) "
+                f"ON CREATE SET n.name = '{name}', n.role = '{role}', n.mood = '{mood}', n.personality = '{personality}' "
+                f"ON MATCH SET n.role = '{role}', n.mood = '{mood}'"
+            )
+        
+        # NPC Preferences (Link by ID? or Name if non-primary keys match?)
+        # Relationships use MATCH. 
+        # MATCH (n:NPC {id: 'viper'}), (c:Concept {name: '...'})
+        preferences = [
+            ("viper", "HATES", "Procrastination"),
+            ("viper", "LIKES", "Discipline"),
+            ("viper", "LIKES", "Exercise"),
+            ("sage", "LIKES", "Learning"),
+            ("sage", "LIKES", "Meditation"),
+            ("sage", "HATES", "Laziness"),
+            ("ember", "LIKES", "Action"),
+            ("ember", "LIKES", "Exercise"),
+            ("ember", "HATES", "Laziness"),
+            ("shadow", "LIKES", "Strategy"),
+            ("shadow", "CARES_ABOUT", "Learning"),
+        ]
+        for npc_id, rel, concept in preferences:
+            # MERGE relationship
+            self.conn.execute(
+                f"MATCH (n:NPC {{id: '{npc_id}'}}), (c:Concept {{name: '{concept}'}}) "
                 f"MERGE (n)-[:{rel}]->(c)"
             )
         
         # Default User
-        self.conn.execute("MERGE (u:User {name: 'Player'})")
+        self.conn.execute("MERGE (u:User {id: 'u_player'}) ON CREATE SET u.name = 'Player'")
         
         logger.info("Seeded initial graph data")
 
@@ -291,17 +308,18 @@ class KuzuAdapter(GraphPort):
     def get_npc_context(self, npc_name: str) -> Dict[str, Any]:
         """Get full context for an NPC including personality, mood, likes, hates"""
         try:
-            # Get NPC base info
+            # Query by name (since ID might correspond to name.lower())
             result = self.conn.execute(
-                f"MATCH (n:NPC {{name: '{npc_name}'}}) RETURN n.name, n.role, n.mood"
+                f"MATCH (n:NPC {{name: '{npc_name}'}}) RETURN n.name, n.role, n.mood, n.personality"
             )
-            npc_data = {"name": npc_name, "role": "", "mood": "", "likes": [], "hates": [], "cares_about": []}
+            npc_data = {"name": npc_name, "role": "", "mood": "", "personality": "", "likes": [], "hates": [], "cares_about": []}
             
             if result.has_next():
                 row = result.get_next()
                 npc_data["name"] = row[0]
                 npc_data["role"] = row[1]
                 npc_data["mood"] = row[2]
+                npc_data["personality"] = row[3] if len(row) > 3 else ""
             
             # Get likes
             likes_result = self.conn.execute(
@@ -333,21 +351,21 @@ class KuzuAdapter(GraphPort):
         """Record a user event in the graph for memory/context"""
         try:
             event_id = str(uuid.uuid4())[:8]
-            timestamp = datetime.now().isoformat()
+            timestamp = int(datetime.now().timestamp())
             metadata_str = str(metadata).replace("'", "\\'")
             
-            # Ensure user exists
-            self.conn.execute(f"MERGE (u:User {{name: '{user_id}'}})")
+            # Ensure user exists (ID)
+            self.conn.execute(f"MERGE (u:User {{id: '{user_id}'}})")
             
             # Create event
             self.conn.execute(
                 f"CREATE (e:Event {{id: '{event_id}', type: '{event_type}', "
-                f"timestamp: '{timestamp}', metadata: '{metadata_str}'}})"
+                f"timestamp: {timestamp}, metadata: '{metadata_str}'}})"
             )
             
             # Link event to user
             self.conn.execute(
-                f"MATCH (e:Event {{id: '{event_id}'}}), (u:User {{name: '{user_id}'}}) "
+                f"MATCH (e:Event {{id: '{event_id}'}}), (u:User {{id: '{user_id}'}}) "
                 f"CREATE (e)-[:TRIGGERED_BY]->(u)"
             )
             
@@ -360,11 +378,12 @@ class KuzuAdapter(GraphPort):
         """Get recent user events/interactions from graph"""
         try:
             result = self.conn.execute(
-                f"MATCH (e:Event)-[:TRIGGERED_BY]->(u:User {{name: '{user_id}'}}) "
+                f"MATCH (e:Event)-[:TRIGGERED_BY]->(u:User {{id: '{user_id}'}}) "
                 f"RETURN e.id, e.type, e.timestamp, e.metadata "
                 f"ORDER BY e.timestamp DESC LIMIT {limit}"
             )
-            
+
+
             events = []
             while result.has_next():
                 row = result.get_next()
@@ -379,3 +398,14 @@ class KuzuAdapter(GraphPort):
         except Exception as e:
             logger.error(f"Failed to get user history: {e}")
             return []
+
+    query_recent_context = get_user_history
+
+_kuzu_instance = None
+
+def get_kuzu_adapter() -> KuzuAdapter:
+    global _kuzu_instance
+    if _kuzu_instance is None:
+        _kuzu_instance = KuzuAdapter()
+    return _kuzu_instance
+

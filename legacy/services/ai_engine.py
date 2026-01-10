@@ -3,6 +3,10 @@ from openai import AsyncOpenAI
 from app.core.config import settings
 import logging
 
+import logging
+# Resilience: Rate Limit Retry
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+
 logger = logging.getLogger(__name__)
 
 
@@ -84,6 +88,12 @@ class AIEngine:
             "event=%s duration_ms=%.2f model=%s", event, elapsed_ms, self.model_name
         )
 
+    @retry(
+        stop=stop_after_attempt(3), 
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type(Exception), # Catch generic for now, ideally specific network errors
+        reraise=True # Let the outer try/except handle the final fallback
+    )
     async def analyze_action(self, user_text: str) -> dict:
         import time
 
@@ -254,6 +264,11 @@ Output Schema:
                 "tags": [],
             }
 
+    @retry(
+        stop=stop_after_attempt(3), 
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        reraise=True
+    )
     async def generate_json(self, system_prompt: str, user_prompt: str) -> dict:
         """
         Generic method to generate JSON from AI.

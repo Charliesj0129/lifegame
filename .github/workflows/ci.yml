@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  test:
+    name: Run Unit Tests
+    runs-on: ubuntu-latest
+    
+    services:
+      # If we needed a real DB service for integration tests, define it here.
+      # currently running unit tests only.
+      pass: 
+        image: alpine 
+        # Placeholder
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: "pyproject.toml"
+
+      - name: Install dependencies
+        run: uv sync --all-extras --dev
+
+      - name: Run Unit Tests
+        run: uv run pytest tests/unit
+        env:
+          # Use mock creds for unit tests
+          LINE_CHANNEL_SECRET: "test_secret"
+          LINE_CHANNEL_ACCESS_TOKEN: "test_token"
+          OPENROUTER_API_KEY: "test_key"
+          # Use in-memory DB for unit tests context
+          SQLALCHEMY_DATABASE_URI: "sqlite+aiosqlite:///:memory:"
+          KUZU_DATABASE_PATH: ":memory:" # Or temp path

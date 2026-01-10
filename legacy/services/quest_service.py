@@ -598,7 +598,7 @@ class QuestService:
                     success = graph_service.adapter.add_relationship(
                         "User", user_id, "COMPLETED", "Quest", graph_node_id,
                         {"timestamp": datetime.datetime.now().isoformat()},
-                        from_key_field="name", # User.name = user_id
+                        from_key_field="id",   # User.id = user_id
                         to_key_field="id"      # Quest.id = graph_node_id
                     )
                     if success:

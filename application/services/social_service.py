@@ -1,7 +1,7 @@
 import logging
 import time
 from typing import Dict, Any, List, Optional
-from adapters.persistence.kuzu_adapter import get_kuzu_adapter
+from adapters.persistence.kuzu.adapter import get_kuzu_adapter
 from legacy.services.ai_engine import ai_engine
 from app.core.database import AsyncSessionLocal
 

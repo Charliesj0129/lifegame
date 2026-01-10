@@ -24,8 +24,8 @@ async def real_env():
     os.environ["TESTING"] = "1"
     
     # --- CRITICAL: Reset Kuzu Singleton to ensure it picks up new Env Vars ---
-    import adapters.persistence.kuzu_adapter
-    adapters.persistence.kuzu_adapter._kuzu_instance = None
+    import adapters.persistence.kuzu.adapter
+    adapters.persistence.kuzu.adapter._kuzu_instance = None
     
     yield {"db": db_path, "kuzu": kuzu_path}
     
@@ -71,7 +71,7 @@ async def test_real_ai_quest_flow(real_db_session):
     assert user.name is not None
     
     # 4. Verify Kuzu Graph Update
-    from adapters.persistence.kuzu_adapter import get_kuzu_adapter
+    from adapters.persistence.kuzu.adapter import get_kuzu_adapter
     adapter = get_kuzu_adapter() # Now uses test_kuzu
     
     events = adapter.query_recent_context(user_id, 1) # Correct Method Name

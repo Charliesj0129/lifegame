@@ -2,12 +2,13 @@
 LINE Webhook Router - New Architecture
 Handles LINE events and routes them through GameLoop
 """
-from fastapi import APIRouter, Request, Header, HTTPException
+from fastapi import APIRouter, Request, Header, HTTPException, BackgroundTasks
 from linebot.v3.exceptions import InvalidSignatureError
 from linebot.v3.messaging import ShowLoadingAnimationRequest
 from linebot.v3.webhooks import MessageEvent, PostbackEvent, FollowEvent, TextMessageContent, ImageMessageContent, LocationMessageContent
 import logging
 import uuid
+import json
 
 from app.core.config import settings
 from legacy.services.line_bot import get_messaging_api, get_line_handler
@@ -17,35 +18,78 @@ router = APIRouter(prefix="/line", tags=["LINE Webhook"])
 logger = logging.getLogger("lifgame.line")
 
 
-@router.post("/callback")
-async def line_callback(request: Request, x_line_signature: str = Header(None)):
+async def process_webhook_background(body_str: str, signature: str):
     """
-    LINE Webhook Endpoint.
-    Validates signature and dispatches events to handlers.
+    Background Task: Process webhook logic safely.
+    Catches all errors to ensure 'Silent Failure' does not happen.
+    """
+    handler = get_line_handler()
+    if not handler:
+        logger.error("Handler not initialized in background task")
+        return
+
+    try:
+        await handler.handle(body_str, signature)
+    except Exception as e:
+        logger.error(f"CRITICAL: Background Webhook Validation/Processing Failed: {e}", exc_info=True)
+        # Attempt "Last Resort" Reply if possible
+        # We need to parse the body manually to get the replyToken if the handler crashed logic-side
+        # but handled the parsing?
+        # If handler.handle() raises, it means parsing failed OR event handler raised.
+        # Let's try to verify if we can recover a token.
+        try:
+            data = json.loads(body_str)
+            events = data.get("events", [])
+            for event in events:
+                reply_token = event.get("replyToken")
+                if reply_token:
+                    await _send_system_error_reply(reply_token, "CRITICAL_BG_FAIL")
+        except Exception as parse_err:
+             logger.error(f"Double Fault: Could not parse body for error reply: {parse_err}")
+
+
+@router.post("/callback")
+async def line_callback(
+    request: Request, 
+    background_tasks: BackgroundTasks,
+    x_line_signature: str = Header(None)
+):
+    """
+    LINE Webhook Endpoint (Async + Resilient).
+    1. Validate Signature (Fast).
+    2. Return 200 OK (Instant).
+    3. Process Logic in Background (No Timeout).
     """
     body = await request.body()
     body_str = body.decode("utf-8")
     
-    handler = get_line_handler()
-    if not handler:
-        raise HTTPException(status_code=500, detail="Webhook handler not initialized")
-    
-    # Handle missing signature (e.g. from tests or misconfigured proxy)
-    # Handle missing signature (e.g. from tests or misconfigured proxy)
+    # 1. Validation (Fail Fast)
     if x_line_signature is None:
         logger.warning("Missing X-Line-Signature header")
         raise HTTPException(status_code=400, detail="Missing X-Line-Signature header")
     
+    handler = get_line_handler()
+    if not handler:
+         raise HTTPException(status_code=500, detail="Handler not init")
+
+    # Use parser to validate signature ONLY, without processing events yet?
+    # handler.parser.signature_validator.validate(body_str, x_line_signature)
+    # But AsyncWebhookHandler doesn't expose validator easily without parsing.
+    # However, handler.handle() does validation.
+    # We can trust handler.handle() in background, OR double check signature here.
+    # Ideally check signature here to reject bad requests immediately.
     try:
-        await handler.handle(body_str, x_line_signature)
+        if not handler.parser.signature_validator.validate(body_str, x_line_signature):
+             raise InvalidSignatureError
     except InvalidSignatureError:
-        logger.warning("Invalid LINE signature received")
+        logger.warning("Invalid LINE signature")
         raise HTTPException(status_code=400, detail="Invalid signature")
-    except Exception as e:
-        logger.error(f"Webhook handling failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal error")
+
+    # 2. Enqueue Background Task
+    background_tasks.add_task(process_webhook_background, body_str, x_line_signature)
     
-    return {"status": "ok"}
+    # 3. ACK Immediately
+    return {"status": "accepted", "mode": "async_processing"}
 
 
 # Event Handlers
@@ -197,7 +241,7 @@ if webhook_handler:
                 elif action == "buy_item":
                     item_id = params.get("item_id")
                     if item_id:
-                        buy_result = await shop_service.buy_item(session, user_id, int(item_id))
+                        buy_result = await shop_service.buy_item(session, user_id, item_id)
                         result = GameResult(text=buy_result)
                     else:
                         result = GameResult(text="⚠️ 缺少物品ID")
@@ -249,7 +293,18 @@ if webhook_handler:
             logger.error(f"Follow handling failed: {e}", exc_info=True)
 
 
-async def _send_error_reply(reply_token: str):
+async def _send_system_error_reply(reply_token: str, error_code: str = "UNKNOWN"):
+    """Send error message to user (Safety Net)"""
+    try:
+        from adapters.perception.line_client import line_client
+        from domain.models.game_result import GameResult
+        
+        error_hash = uuid.uuid4().hex[:8]
+        msg = f"🔧 系統維護中 ({error_code}-{error_hash})\n\n守護精靈正在修復連結..."
+        result = GameResult(text=msg)
+        await line_client.send_reply(reply_token, result)
+    except Exception:
+        logger.error("Critical: Failed to send error reply")
     """Send error message to user"""
     try:
         from adapters.perception.line_client import line_client

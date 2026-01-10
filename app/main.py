@@ -9,10 +9,13 @@ import asyncio
 import logging
 import os
 
+
 # Setup logging
 logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
+# --- Resilience: Global Exception Handler ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler for startup/shutdown events."""
@@ -20,15 +23,40 @@ async def lifespan(app: FastAPI):
     if settings.AUTO_MIGRATE:
         try:
             logging.info("AUTO_MIGRATE enabled; running migrations.")
+            
+            # Critical: Ensure data directory exists for Ephemeral DB
+            os.makedirs("./data", exist_ok=True)
+            
+            # Critical: For Ephemeral SQLite/Kuzu, force clean slate to avoid Lock/Schema errors
+            
+            # Critical: For Ephemeral SQLite/Kuzu, force clean slate to avoid Lock/Schema errors
+            # 1. Clean SQLite
+            if "sqlite" in str(settings.SQLALCHEMY_DATABASE_URI):
+                # Extract path. typically "sqlite+aiosqlite:///./data/game.db"
+                # Simple heuristic:
+                if "game.db" in str(settings.SQLALCHEMY_DATABASE_URI):
+                    db_path = "./data/game.db" # Hardcoded based on our known config
+                    if os.path.exists(db_path):
+                        logging.warning(f"Removing stale DB at {db_path} for clean migration.")
+                        try:
+                            os.remove(db_path)
+                        except OSError:
+                            pass
+
+            # 2. Clean KuzuDB (Graph)
+            if settings.KUZU_DATABASE_PATH and os.path.exists(settings.KUZU_DATABASE_PATH):
+                 import shutil
+                 try:
+                     shutil.rmtree(settings.KUZU_DATABASE_PATH, ignore_errors=True)
+                     logging.warning(f"Removed stale KuzuDB at {settings.KUZU_DATABASE_PATH}")
+                 except Exception:
+                     pass
+
             await asyncio.to_thread(run_migrations)
         except Exception:
             logging.exception("Auto migration failed.")
-            raise
-
-    # Start scheduler (only if enabled and not in testing mode)
-    # Scheduler moved to legacy
-    # if settings.ENABLE_SCHEDULER and os.environ.get("TESTING") != "1":
-    #     dda_scheduler.start()
+            # Don't raise, try to start anyway to allow /health
+            pass
 
     yield
 
@@ -52,6 +80,7 @@ from app.core.dispatcher import dispatcher
 from application.services.game_loop import game_loop
 from app.core.database import AsyncSessionLocal
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text
 
 # 1. Define Independent Handlers
 async def handle_attack(session, user_id: str, text: str) -> GameResult:
@@ -67,7 +96,7 @@ async def handle_ai_analysis(session, user_id: str, text: str) -> GameResult:
     """Handle natural language via AI Engine and Persist Changes."""
     from legacy.services.ai_engine import ai_engine
     from legacy.services.user_service import user_service
-    from adapters.persistence.kuzu_adapter import get_kuzu_adapter
+    from adapters.persistence.kuzu.adapter import get_kuzu_adapter
     import time
     
     # 1. Analyze action
@@ -146,16 +175,37 @@ app.include_router(chat.router, prefix="/api", tags=["chat"]) # [NEW] Phase 5: N
 # Removed simple health check
 
 
-@app.get("/")
-async def root():
-    return {"message": "Welcome to Life Gamification Agent System"}
+# --- Resilience: Health Check ---
+@app.get("/health")
+async def health_check():
+    """
+    Liveness Probe.
+    Checks DB connection and returns version.
+    """
+    health_status = {
+        "status": "ok",
+        "version": settings.VERSION,
+        "database": "unknown",
+        "timestamp": os.getenv("WEBSITE_HOSTNAME", "local")
+    }
+    
+    try:
+        # Simple DB Check
+        async with AsyncSessionLocal() as session:
+            await session.execute(text("SELECT 1"))
+        health_status["database"] = "connected"
+    except Exception as e:
+        health_status["database"] = f"error: {str(e)}"
+        health_status["status"] = "degraded"
+        # Log the full error but don't crash the probe (return 200 with degraded status)
+        logging.error(f"Health Check Failed: {e}", exc_info=True)
+        
+    return health_status
 
 
-from fastapi.staticfiles import StaticFiles
-
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
+# --- Logic Refactoring for Testability ---
+# (Keep existing game logic intact below if needed, or import it)
 
 if __name__ == "__main__":
     import uvicorn
-
     uvicorn.run(app, host="0.0.0.0", port=8000)

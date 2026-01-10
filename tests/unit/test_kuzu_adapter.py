@@ -1,7 +1,7 @@
 import pytest
 import shutil
 import time
-from adapters.persistence.kuzu_adapter import KuzuAdapter
+from adapters.persistence.kuzu.adapter import KuzuAdapter
 
 QUERY_PATH = "./test_kuzu_db"
 
@@ -35,12 +35,14 @@ def test_initialization(adapter):
     assert adapter.conn is not None
 
 def test_add_and_query_flow(adapter):
-    adapter.add_user_if_not_exists("user_1", "Test User")
+    # adapter.add_user_if_not_exists("user_1", "Test User") -> Removed
+    adapter.conn.execute("MERGE (u:User {id: 'user_1'}) ON CREATE SET u.name = 'Test User'")
     
     ts = int(time.time())
-    adapter.add_event("user_1", "evt_1", "TEST_MSG", "Hello Graph", ts)
+    # adapter.add_event(...) -> record_user_event
+    adapter.record_user_event("user_1", "TEST_MSG", {"content": "Hello Graph"})
     
     results = adapter.query_recent_context("user_1")
     assert len(results) == 1
-    assert results[0]["content"] == "Hello Graph"
+    assert "Hello Graph" in results[0]["metadata"]
     assert results[0]["type"] == "TEST_MSG"

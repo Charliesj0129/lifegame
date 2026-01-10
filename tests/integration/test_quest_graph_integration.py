@@ -48,7 +48,7 @@ async def test_quest_graph_cycle(db_session, test_graph_adapter):
     graph_service._adapter = test_graph_adapter
     
     # Create User in Graph
-    test_graph_adapter.add_node("User", {"name": user_id})
+    test_graph_adapter.add_node("User", {"id": user_id, "name": user_id})
     
     # Create Chain: Q_A -> Q_B
     test_graph_adapter.add_node("Quest", {"id": "Q_A", "title": "Quest A"})

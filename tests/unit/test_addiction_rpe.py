@@ -62,8 +62,14 @@ async def test_quest_service_complete_integration():
     with patch("legacy.services.user_service.user_service.get_user", new_callable=AsyncMock) as mock_get_user:
         mock_get_user.return_value = mock_user
         
+        # Fix: Real datetime for days logic
+        import datetime
+        mock_user.last_active_date = datetime.datetime.now(datetime.timezone.utc)
+        
         # Mock Boss Service (ignore)
-        with patch("legacy.services.boss_service.boss_service.deal_damage", new_callable=AsyncMock):
+        # Mock Boss Service (ignore)
+        with patch("legacy.services.boss_service.boss_service.deal_damage", new_callable=AsyncMock), \
+             patch("legacy.services.hp_service.hp_service.restore_by_difficulty", new_callable=AsyncMock):
             
             result = await quest_service.complete_quest(mock_session, "u1", "q1")
             

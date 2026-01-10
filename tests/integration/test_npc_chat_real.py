@@ -4,7 +4,7 @@ import tempfile
 import os
 import pytest_asyncio
 from application.services.social_service import social_service
-from adapters.persistence.kuzu_adapter import get_kuzu_adapter
+from adapters.persistence.kuzu.adapter import get_kuzu_adapter
 
 # Reuse setup logic from test_integration_real_ai.py for isolation
 @pytest_asyncio.fixture(scope="module")
@@ -18,8 +18,8 @@ async def real_env_npc():
     os.environ["KUZU_DATABASE_PATH"] = kuzu_path
     
     # --- CRITICAL: Reset Kuzu Singleton ---
-    import adapters.persistence.kuzu_adapter
-    adapters.persistence.kuzu_adapter._kuzu_instance = None
+    import adapters.persistence.kuzu.adapter
+    adapters.persistence.kuzu.adapter._kuzu_instance = None
     
     # Initialize Schema (handled by Adapter init)
     adapter = get_kuzu_adapter()

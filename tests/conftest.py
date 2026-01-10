@@ -4,6 +4,20 @@ import os
 os.environ.setdefault("SQLALCHEMY_DATABASE_URI", "sqlite+aiosqlite:///:memory:")
 os.environ.setdefault("TESTING", "1")
 os.environ.setdefault("KUZU_DATABASE_PATH", "/tmp/test_kuzu_db")
+os.environ.setdefault("KUZU_DATABASE_PATH", "/tmp/test_kuzu_db")
+
+# Prevent KuzuDB Lock during collection by mocking singleton early
+import sys
+from unittest.mock import MagicMock
+# We can't easily mock the module before import if it's already imported, 
+# but we can set the singleton if we import it.
+try:
+    import adapters.persistence.kuzu.adapter
+    # If we are in testing mode, default the singleton to a Mock to avoid Side Effect on Import
+    if os.environ.get("TESTING"):
+        adapters.persistence.kuzu.adapter._kuzu_instance = MagicMock()
+except ImportError:
+    pass
 
 import pytest
 

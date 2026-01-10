@@ -52,6 +52,15 @@ class Settings(BaseSettings):
     # OpenRouter
     OPENROUTER_API_KEY: Optional[str] = None
     OPENROUTER_MODEL: str = "google/gemini-3-flash-preview"
+    
+    @field_validator("OPENROUTER_API_KEY")
+    @classmethod
+    def validate_openrouter_key(cls, v: Optional[str]) -> Optional[str]:
+        # Warn if missing in Production (but allow for build process)
+        if v is None:
+             import logging
+             logging.warning("⚠️ OPENROUTER_API_KEY is missing! AI features will crash or return fallback.")
+        return v
 
     # App Settings
     APP_BASE_URL: str = (

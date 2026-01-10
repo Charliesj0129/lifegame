@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from datetime import datetime, timezone, timedelta
 
-from adapters.persistence.kuzu_adapter import get_kuzu_adapter
+from adapters.persistence.kuzu.adapter import get_kuzu_adapter
 from legacy.models.action_log import ActionLog
 from app.models.user import User
 

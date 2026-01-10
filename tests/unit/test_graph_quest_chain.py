@@ -69,7 +69,7 @@ def test_get_unlockable_templates(graph_adapter):
     
     # 4. User Complete Q1
     # Mock completion relationship
-    graph_adapter.conn.execute(f"CREATE (u:User {{name: '{user_id}'}})")
+    graph_adapter.conn.execute(f"CREATE (u:User {{id: '{user_id}', name: '{user_id}'}})")
     graph_adapter.conn.execute(
         f"MATCH (u:User {{name: '{user_id}'}}), (q:Quest {{id: 'Q1'}}) "
         f"CREATE (u)-[:COMPLETED]->(q)"

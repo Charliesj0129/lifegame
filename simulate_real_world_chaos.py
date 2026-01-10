@@ -44,7 +44,7 @@ async def test_addiction_eomm():
         
         # Determine multiplier via LootService (Internal check or Quest flow)
         # We simulate the logic inside QuestService manually or call LootService with risk
-        churn_risk = "HIGH" # Derived from logic
+        # churn_risk = "HIGH" # Derived from logic -> Unused
         
         # Call calculate_reward
         loot = loot_service.calculate_reward("C", "C", churn_risk="HIGH")
@@ -91,7 +91,7 @@ async def test_economy_race_condition():
     # If we launch 5 async tasks simultaneously, they might all fetch user with 100 Gold before any commits?
     
     async def attempt_buy():
-        async with AsyncSessionLocal() as session:
+        async with AsyncSessionLocal(): # Unused session removed
              # Mock Item cost = 100
              # We need a real item in DB or mock shop service?
              # ShopService usually needs Item DB.
