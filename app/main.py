@@ -53,6 +53,13 @@ async def lifespan(app: FastAPI):
                      pass
 
             await asyncio.to_thread(run_migrations)
+
+            # Seed Data (Shop Items)
+            from app.core.seeding import seed_shop_items
+            from app.core.database import AsyncSessionLocal
+            async with AsyncSessionLocal() as session:
+                await seed_shop_items(session)
+
         except Exception:
             logging.exception("Auto migration failed.")
             # Don't raise, try to start anyway to allow /health

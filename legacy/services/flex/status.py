@@ -3,11 +3,19 @@ from app.models.user import User
 
 class FlexStatusRenderer:
     def render_status(self, user: User, lore_progress: list = None) -> FlexMessage:
-        # Calculate derived stats
-        xp_next = user.level * 100
-        int((user.xp / xp_next) * 100) if xp_next > 0 else 0
+        # Robust attribute retrieval with defaults
+        lvl = getattr(user, "level", 1) or 1
+        xp = getattr(user, "xp", 0) or 0
+        current_hp = getattr(user, "hp", 100)
+        if current_hp is None: current_hp = 100
+        max_hp = getattr(user, "max_hp", 100)
+        if max_hp is None: max_hp = 100
         
-        hp_pct = int((user.hp / user.max_hp) * 100) if user.max_hp > 0 else 0
+        # Calculate derived stats
+        xp_next = lvl * 100
+        xp_pct = int((xp / xp_next) * 100) if xp_next > 0 else 0
+        
+        hp_pct = int((current_hp / max_hp) * 100) if max_hp > 0 else 0
         hp_color = "#32CD32"  # Lime Green
         if hp_pct < 30:
             hp_color = "#DC143C"  # Crimson
@@ -15,11 +23,11 @@ class FlexStatusRenderer:
             hp_color = "#FFA500"  # Orange
 
         # Rank logic (Legacy)
-        if user.level >= 10: pass
-        if user.level >= 20: pass
-        if user.level >= 30: pass
-        if user.level >= 50: pass
-        if user.level >= 80: pass
+        if lvl >= 10: pass
+        if lvl >= 20: pass
+        if lvl >= 30: pass
+        if lvl >= 50: pass
+        if lvl >= 80: pass
 
         # Construct JSON (Simplified for refactor - assuming original structure)
         # We will use a simplified structure here to save space, assuming the 
