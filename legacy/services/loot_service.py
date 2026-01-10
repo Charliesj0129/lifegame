@@ -9,11 +9,11 @@ class LootService:
     def __init__(self):
         self.base_drop_rate = 0.20
         self.rarity_weights = {
-            ItemRarity.COMMON: 60,
-            ItemRarity.UNCOMMON: 30,
-            ItemRarity.RARE: 8,
-            ItemRarity.EPIC: 1.9,
-            ItemRarity.LEGENDARY: 0.1,
+            ItemRarity.COMMON: 50.0,
+            ItemRarity.UNCOMMON: 35.0,
+            ItemRarity.RARE: 10.0,
+            ItemRarity.EPIC: 4.0,
+            ItemRarity.LEGENDARY: 1.0,  # The "Mythic" 1%
         }
 
         # Difficulty multipliers (from Rules)

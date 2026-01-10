@@ -35,6 +35,45 @@ class UserService:
         result = await session.execute(select(User).where(User.id == line_user_id))
         return result.scalars().first()
 
+    async def apply_penalty(self, session: AsyncSession, user: User, penalty_type: str = "SOFT_DEATH"):
+        """
+        The Abyss System: Enforces Loss Aversion.
+        """
+        if penalty_type == "SOFT_DEATH":
+            # Taking the concept of "Permadeath" but keeping items.
+            # Reset Level and Attributes, but keep Items/Lore.
+            user.level = 1
+            user.xp = 0
+            # user.str = 1 # Optional: Hardcore mode would reset stats too.
+            # user.int = 1
+            # user.vit = 1
+            # user.wis = 1
+            # user.cha = 1
+            # For "Soft" death, just major XP/Level loss is enough pain.
+            session.add(user)
+            await session.commit()
+            logger.warning(f"User {user.id} suffered SOFT_DEATH penalty.")
+
+    async def check_hollowing(self, session: AsyncSession, user: User) -> bool:
+        """
+        Checks if user has triggered the 'Hollowing' state (Inactivity).
+        """
+        from datetime import datetime, timedelta, timezone
+        if not user.last_active_date:
+            return False
+
+        now = datetime.now(timezone.utc)
+        # Threshold: 48 hours (Configurable)
+        threshold = timedelta(hours=48)
+        
+        if (now - user.last_active_date) > threshold and not user.is_hollowed:
+            user.is_hollowed = True
+            user.hp_status = "HOLLOWED"
+            session.add(user)
+            await session.commit()
+            return True
+        return False
+
     async def process_action(
         self, session: AsyncSession, line_user_id: str, text: str
     ) -> ProcessResult:

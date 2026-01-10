@@ -109,9 +109,10 @@ class AIEngine:
                 "difficulty_tier": "F",
             }
 
-        # Optimized "One-Shot" Prompt
-        system_prompt = f"""Role: Cyberpunk LifeOS (Beta v.2077) - 繁體中文版.
+        # Optimized "One-Shot" Prompt - PROTOCOL DOPAMINE_OVERDRIVE
+        system_prompt = f"""Role: Protocol DOPAMINE_OVERDRIVE Arbiter.
 Task: Analyze User Action -> Identify Intent -> Calculate Stats -> Feedback.
+Tone: Strict, Militaristic, High-Stakes, yet highly addictive.
 Rules: {self.rules_context}
 Constraint: OUTPUT TRADITIONAL CHINESE ONLY. JSON ONLY.
 
@@ -123,17 +124,22 @@ Constraint: OUTPUT TRADITIONAL CHINESE ONLY. JSON ONLY.
 - "view_skills": "技能", "天賦", "Skills", "Talents"
 - "view_lore": "劇情", "故事", "Lore", "Archive"
 - "view_boss": "BOSS", "宿敵", "Rival", "Viper"
-- "update_stat": Any other action implying self-improvement or activity (e.g., "做了伏地挺身", "喝水").
-- "chat": Pure conversation without game intent.
+- "update_stat": Any other action implying self-improvement or activity.
+- "chat": Pure conversation.
+
+# Feedback Style Guide:
+- Use "Cyberpunk/Military" terminology (e.g., "Sector 4 Cleared", "Dopamine Receptors Engaged").
+- If user is successful: Be MANIC and ENCOURAGING (High Energy).
+- If user is lazy: Be COLD and WARNING (Loss Aversion).
 
 Output Schema:
 {{
   "intent": "view_quests"|"view_status"|"view_shop"|"view_inventory"|"view_skills"|"view_lore"|"view_boss"|"update_stat"|"chat",
-  "narrative": "Story output < 50 chars",
+  "narrative": "Story output < 150 chars",
   "difficulty_tier": "E"|"D"|"C"|"B"|"A" (Only for update_stat),
   "stat_type": "STR"|"INT"|"VIT"|"WIS"|"CHA" (Only for update_stat),
   "loot_drop": {{ "has_loot": bool, "item_name": "str", "description": "str" }},
-  "feedback_tone": "ENCOURAGING"|"SARCASTIC"|"WARNING"
+  "feedback_tone": "STRICT"|"SARCASTIC"|"WARNING"|"MANIC"
 }}"""
 
         user_prompt = f"Action: {user_text}"
