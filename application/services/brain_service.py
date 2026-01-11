@@ -169,7 +169,7 @@ If they are bored/winning, challenge them (Higher Difficulty).
         Does NOT generate text. It generates RULES.
         """
         from legacy.services.quest_service import quest_service
-        from legacy.models.quest import Quest, QuestStatus
+        from legacy.models.quest import Quest, QuestStatus, Goal, GoalStatus
 
         # 1. Gather Metrics (Last 3 Days)
         # Using a simple heuristic for now: Active Quests Age
@@ -207,11 +207,41 @@ If they are bored/winning, challenge them (Higher Difficulty).
             )
         
         # 3. Momentum Check (Last Active)
-        # If user has NO active quests but hasn't logged in for > 24h, PUSH one.
         if not active_quests:
-             # Check last login... (omitted for brevity, assume "Push Needed" if empty)
-             # But limit push frequency
              pass
+
+        # 4. Goal Stagnation Check (The Bridge)
+        # Find Active Goals where no Quest was created in > 7 days
+        stmt = select(Goal).where(Goal.user_id == user_id, Goal.status == GoalStatus.ACTIVE.value)
+        active_goals = (await session.execute(stmt)).scalars().all()
+        
+        for goal in active_goals:
+            # Check most recent quest
+            q_stmt = select(Quest).where(
+                Quest.goal_id == goal.id
+            ).order_by(Quest.created_at.desc()).limit(1)
+            last_quest = (await session.execute(q_stmt)).scalars().first()
+            
+            days_since = 999
+            if last_quest and last_quest.created_at:
+                 created = last_quest.created_at
+                 if created.tzinfo: created = created.replace(tzinfo=None)
+                 days_since = (now - created).days
+            elif goal.created_at:
+                 created = goal.created_at
+                 if created.tzinfo: created = created.replace(tzinfo=None)
+                 days_since = (now - created).days
+            
+            if days_since > 7:
+                 # POLICY: STAGNATION DETECTED
+                 logger.info(f"Executive Judgment: Goal {goal.title} is stagnant ({days_since}d). Building Bridge.")
+                 bridge_quest = await quest_service.create_bridge_quest(session, user_id, goal.id)
+                 if bridge_quest:
+                     return AgentSystemAction(
+                        action_type="BRIDGE_GEN",
+                        details={"quest_title": bridge_quest.title, "goal": goal.title},
+                        reason=f"Goal Stagnation ({days_since} days)"
+                     )
 
         return None
 
