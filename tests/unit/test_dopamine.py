@@ -35,6 +35,7 @@ async def test_penalty_soft_death():
     """Verify 'The Abyss' level reset mechanism."""
     svc = UserService()
     mock_session = AsyncMock()
+    mock_session.add = MagicMock()
     
     user = User(id="test_sub", level=50, xp=9999)
     
@@ -50,6 +51,7 @@ async def test_check_hollowing_true():
     """Verify Hollowing triggers after 48h inactivity."""
     svc = UserService()
     mock_session = AsyncMock()
+    mock_session.add = MagicMock()
     
     now = datetime.now(timezone.utc)
     past = now - timedelta(hours=49) # 49 hours ago
@@ -68,6 +70,7 @@ async def test_check_hollowing_false():
     """Verify Hollowing does NOT trigger if active recently."""
     svc = UserService()
     mock_session = AsyncMock()
+    mock_session.add = MagicMock()
     
     now = datetime.now(timezone.utc)
     recent = now - timedelta(hours=10) # 10 hours ago

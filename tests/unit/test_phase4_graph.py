@@ -9,7 +9,10 @@ def db_path(tmp_path):
     yield db_path
     if db_path.exists():
         import shutil
-        shutil.rmtree(db_path)
+        if db_path.is_dir():
+            shutil.rmtree(db_path)
+        else:
+            os.remove(db_path)
 
 @pytest.fixture
 def kuzu_adapter(db_path):
