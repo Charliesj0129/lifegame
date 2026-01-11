@@ -100,139 +100,84 @@ async def handle_defend(session, user_id: str, text: str) -> GameResult:
     return GameResult(text="🛡️ 你擺出了防禦姿態，傷害減少 50%。", intent="defend")
 
 async def handle_ai_analysis(session, user_id: str, text: str) -> GameResult:
-    """Handle natural language via AI Engine and Persist Changes."""
-    from legacy.services.ai_engine import ai_engine
+    """Handle natural language via BrainService (The Cortex) - Cognitive Upgrade."""
+    from application.services.brain_service import brain_service
     from legacy.services.user_service import user_service
     from adapters.persistence.kuzu.adapter import get_kuzu_adapter
-    import time
+    from legacy.services.hp_service import hp_service
+    from legacy.services.quest_service import quest_service
     
-    # 1. Analyze action
-    analysis = await ai_engine.analyze_action(text)
-    
-    # 2. Update User Stats (SQLite)
+    # --- PHASE 4: THE PULSE (LAZY EVALUATION) ---
+    # Trigger "Wake Up" protocols based on user returning
     user = await user_service.get_or_create_user(session, user_id)
-    stat = (analysis.get("stat_type") or "").lower() # str, int, vit...
-    if hasattr(user, stat):
-        current_val = getattr(user, stat)
-        setattr(user, stat, current_val + 1)
+    
+    # 1. HP Drain
+    drain_amount = await hp_service.calculate_daily_drain(session, user)
+    
+    # 2. Viper/Quest Push
+    pushed_quests = await quest_service.trigger_push_quests(session, user_id)
+         
+    pulsed_events = {
+        "drain_amount": drain_amount,
+        "viper_taunt": f"System rebooted. {len(pushed_quests)} tasks pending." if pushed_quests else None
+    }
+    
+    # --- PHASE 5: BRAIN TRANSPLANT ---
+    # Use Cortex instead of Lizard Brain
+    plan = await brain_service.think_with_session(session, user_id, text, pulsed_events=pulsed_events)
+    
+    # Execute Plan
+    if plan.stat_update:
+        # Applying Brain's Stat Directives
+        update_data = plan.stat_update
+        if update_data.stat_type:
+            stat_key = update_data.stat_type.lower()
+            if hasattr(user, stat_key):
+                 curr = getattr(user, stat_key) or 0
+                 setattr(user, stat_key, curr + 1) # Simplified for now, mostly driven by Brain's specific logic later
+        
+        # Apply HP/Gold changes directly
+        if update_data.hp_change != 0:
+             await hp_service.apply_hp_change(session, user, update_data.hp_change, source="brain_reward")
+        
+        if update_data.gold_change != 0:
+             user.gold = (user.gold or 0) + update_data.gold_change
+             
+        # XP
+        if update_data.xp_amount > 0:
+             user.xp = (user.xp or 0) + update_data.xp_amount
+
         await session.commit()
-    
+
+    # Record Event to Graph
     kuzu_adapter = get_kuzu_adapter()
-    # Use record_user_event which handles User creation + Event linking safely
-    
-    # SAFEGUARD: handle None for stat_type if not present in AI response
-    stat_safe = (stat or "").lower()
-    
     kuzu_adapter.record_user_event(
         user_id, 
         "ACTION", 
         {
-            "content": analysis.get("narrative", text),
-            "stat_type": stat_safe,
-            "raw_text": text
+            "content": plan.narrative,
+            "stat_type": plan.stat_update.stat_type if plan.stat_update else "none",
+            "raw_text": text,
+            "flow_tone": plan.flow_state.get("tone", "neutral")
         }
     )
     
     # ---------------------------------------------------------
     # Intent Dispatcher (New Functional Logic)
     # ---------------------------------------------------------
-    intent = analysis.get("intent", "").lower()
+    # Check if Brain thinks this is a Tool Call?
+    # For now, we still rely on Regex Dispatcher for "view_quests" etc.
+    # But if Brain return "tool_calls", we can process them here.
     
-    if intent == "view_quests":
-        from legacy.services.quest_service import quest_service
-        from legacy.services.flex_renderer import flex_renderer
-        # Fetch Quests (and Habits)
-        quests = await quest_service.get_daily_quests(session, user_id)
-        habits = await quest_service.get_daily_habits(session, user_id)
-        # Render Flex Message
-        flex_msg = flex_renderer.render_quest_list(quests, habits)
-        return GameResult(
-            text="[指令] 開啟任務面板",
-            intent=intent,
-            metadata={"flex_message": flex_msg}
-        )
-        
-    elif intent == "view_status":
-        from legacy.services.user_service import user_service
-        from legacy.services.flex_renderer import flex_renderer
-        # from legacy.services.lore_service import lore_service
-        
-        user_obj = await user_service.get_user(session, user_id)
-        flex_msg = flex_renderer.render_status(user_obj, lore_progress=[]) 
-        return GameResult(
-            text="[指令] 開啟狀態面板",
-            intent=intent,
-            metadata={"flex_message": flex_msg}
-        )
-
-    elif intent == "view_shop":
-        from legacy.services.shop_service import shop_service
-        from legacy.services.flex_renderer import flex_renderer
-        
-        items = await shop_service.list_shop_items(session)
-        user_obj = await user_service.get_user(session, user_id)
-        flex_msg = flex_renderer.render_shop_list(items, user_obj.gold or 0)
-        return GameResult(
-            text="[指令] 開啟黑市交易所",
-            intent=intent,
-            metadata={"flex_message": flex_msg}
-        )
-
-    elif intent == "view_boss":
-        from legacy.services.boss_service import boss_service
-        from legacy.services.flex_renderer import flex_renderer
-        
-        boss = await boss_service.get_active_boss(session, user_id)
-        flex_msg = flex_renderer.render_boss_status(boss)
-        # Helper to convert message to dict safely
-        # msg_dict = flex_msg.to_dict() if hasattr(flex_msg, "to_dict") else {"type": "text", "text": getattr(flex_msg, "text", "Error")}
-        return GameResult(
-            text="[指令] 遭遇強敵",
-            intent=intent,
-            metadata={"flex_message": flex_msg}
-        )
-
-    elif intent == "view_inventory":
-        from legacy.services.inventory_service import inventory_service
-        
-        inv_items = await inventory_service.get_user_inventory(session, user_id)
-        if not inv_items:
-            list_text = "🎒 背包內容：\n(空)"
-        else:
-            lines = ["🎒 背包內容："]
-            for row in inv_items:
-                i_name = getattr(row, "name", "未知物品")
-                qty = getattr(row, "quantity", 1)
-                lines.append(f"- {i_name} x{qty}")
-            list_text = "\n".join(lines)
-            
-        return GameResult(text=list_text, intent=intent)
-
-    elif intent == "view_skills":
-         return GameResult(text="⚡ 天賦樹系統：\n目前尚未開放視覺化面板。\n(如需檢視請使用 /talent 指令)", intent=intent)
-
-    elif intent == "view_lore":
-         from legacy.services.lore_service import lore_service
-         shards = await lore_service.get_unlocked_lore(session, user_id)
-         if not shards:
-             return GameResult(text="📂 檔案資料庫：\n(無資料)", intent=intent)
-         
-         lines = ["📂 已解鎖檔案："]
-         for s in shards[:5]:
-             lines.append(f"- {s.title} ({s.series})")
-         if len(shards) > 5:
-             lines.append(f"...以及其他 {len(shards)-5} 筆")
-             
-         return GameResult(text="\n".join(lines), intent=intent)
-
-    # ---------------------------------------------------------
-
-    # Convert AI JSON to GameResult
-    narrative = analysis.get("narrative", "...")
+    # Fallback to Text Intent for legacy compatibility in this transition phase
+    # (We removed the 'intent' field from BrainSchema, relying on Tool Calls later)
+    # But for View commands, the Dispatcher handles them BEFORE calling this Default Handler.
+    # So we only handle "Chat/Action" here.
+    
     return GameResult(
-        text=narrative, 
-        intent="ai_response", 
-        metadata={"analysis": analysis}
+        text=plan.narrative,
+        intent="ai_response",
+        metadata={"plan": plan.dict()}
     )
 
 # 2. Register Strategies

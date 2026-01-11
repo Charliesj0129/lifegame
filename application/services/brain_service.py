@@ -56,31 +56,25 @@ class BrainService:
             logger.error(f"Brain think failed: {e}")
             return json.dumps({"narrative": "系統思維中...", "actions": []}, ensure_ascii=False)
 
-    async def think_with_session(self, session, user_id: str, user_text: str) -> AgentPlan:
+    async def think_with_session(self, session, user_id: str, user_text: str, pulsed_events: Dict = None) -> AgentPlan:
         
         # 1. Context
         memory = await context_service.get_working_memory(session, user_id)
         
         user_state = memory.get("user_state", {})
-        # Extract performance from ActionLogs in memory?
-        # Heuristic: "B" or higher in log = Success?
-        # For now, let's just assume empty performance history for PID if not readily available, 
-        # or parse `short_term_history`? 
-        # Let's use `user_state.get("streak")` as a proxy for success? No.
-        # Future: Store success/fail explicitly. For now empty list (neutral flow).
         
-        performance_proxy = [] # TODO: Extract from logs
+        # Inject Pulsed Events into memory/history context
+        if pulsed_events:
+             memory["pulsed_events"] = pulsed_events
+        
         churn_risk = user_state.get("churn_risk", "LOW")
         
         # 2. Flow Physics (The "Thermostat")
-        # Current tier?
-        # We don't track current tier in User model strictly, log has it.
-        # Assume "C" default.
         current_tier = "C" 
         
         flow_target: FlowState = flow_controller.calculate_next_state(
             current_tier, 
-            performance_proxy, 
+            [], 
             churn_risk=churn_risk
         )
         
@@ -92,8 +86,6 @@ class BrainService:
         
         # 5. Hydrate & Validate
         try:
-            # Handle nested logic if AI returns simplified structure
-            # Ensure stat_update is properly formatted
             if "stat_update" not in raw_plan:
                  raw_plan["stat_update"] = None
             
@@ -107,7 +99,6 @@ class BrainService:
             
         except Exception as e:
             logger.error(f"Brain Parsing Failed: {e}. Raw: {raw_plan}")
-            # Fallback plan
             return AgentPlan(
                 narrative="系統思維過載... (Fallback)",
                 stat_update=AgentStatUpdate(xp_amount=5),
@@ -115,6 +106,14 @@ class BrainService:
             )
 
     def _construct_system_prompt(self, memory: Dict, flow: FlowState) -> str:
+        # Construct Alert String
+        alerts = ""
+        pulsed = memory.get("pulsed_events", {})
+        if pulsed.get("drain_amount", 0) > 0:
+            alerts += f"\n⚠️ [SYSTEM ALERT] User was offline. HP Drained: {pulsed['drain_amount']}. Vitality Low."
+        if pulsed.get("viper_taunt"):
+            alerts += f"\n💀 [VIPER ALERT] Rival Taunt: '{pulsed['viper_taunt']}'."
+
         return f"""
 Role: LifeOS-RPG Game Master (Addiction Engineered).
 Language: Traditional Chinese (繁體中文).
@@ -128,6 +127,9 @@ Recent Log:
 # Graph Memory (Knowledge)
 {json.dumps(memory.get('long_term_context', []), ensure_ascii=False)}
 
+# Real-Time Alerts (MUST ACKNOWLEDGE)
+{alerts}
+
 # Operational Directive (Flow State)
 Target Difficulty: {flow.difficulty_tier}
 Narrative Tone: {flow.narrative_tone.upper()} (Strictly adhere to this!)
@@ -136,12 +138,13 @@ Churn Risk: {memory['user_state'].get('churn_risk')}
 
 # Goal
 Analyze the user's input. If it is a valid action, reward them based on Flow State.
+If alerts exist, scold/warn them about inactivity.
 If they are failing/tired, encourage them (Lower Difficulty).
 If they are bored/winning, challenge them (Higher Difficulty).
 
 # Output Schema (JSON)
 {{
-  "narrative": "Immersive response < 60 chars. Tone: {flow.narrative_tone}",
+  "narrative": "Immersive response < 100 chars. Tone: {flow.narrative_tone}",
   "stat_update": {{
       "stat_type": "STR|INT|VIT|WIS|CHA",
       "xp_amount": 10-100 (Scale with Difficulty {flow.difficulty_tier}),

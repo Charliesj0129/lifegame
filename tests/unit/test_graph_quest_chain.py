@@ -1,7 +1,7 @@
 import pytest
 import os
 from unittest.mock import MagicMock
-from adapters.persistence.kuzu.adapter import KuzuAdapter
+
 
 # Use a separate test db for graph tests
 TEST_DB_PATH = "./test_kuzu_graph_chain_db"

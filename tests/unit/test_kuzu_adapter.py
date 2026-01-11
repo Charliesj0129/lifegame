@@ -1,6 +1,6 @@
 import pytest
 import shutil
-from adapters.persistence.kuzu.adapter import KuzuAdapter
+
 
 QUERY_PATH = "./test_kuzu_db"
 
