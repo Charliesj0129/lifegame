@@ -17,7 +17,8 @@ def db_path(tmp_path):
 @pytest.fixture
 def kuzu_adapter(db_path):
     import importlib.util
-    spec = importlib.util.spec_from_file_location("adapters.persistence.kuzu.adapter", "/home/charlie/lifgame/adapters/persistence/kuzu/adapter.py")
+    adapter_path = os.path.join(os.getcwd(), "adapters/persistence/kuzu/adapter.py")
+    spec = importlib.util.spec_from_file_location("adapters.persistence.kuzu.adapter", adapter_path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     KuzuAdapter = module.KuzuAdapter
