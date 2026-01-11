@@ -3,7 +3,6 @@ from openai import AsyncOpenAI
 from app.core.config import settings
 import logging
 
-import logging
 # Resilience: Rate Limit Retry
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 

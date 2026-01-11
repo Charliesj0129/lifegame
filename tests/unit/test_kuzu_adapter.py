@@ -38,7 +38,6 @@ def test_add_and_query_flow(adapter):
     # adapter.add_user_if_not_exists("user_1", "Test User") -> Removed
     adapter.conn.execute("MERGE (u:User {id: 'user_1'}) ON CREATE SET u.name = 'Test User'")
     
-    ts = int(time.time())
     # adapter.add_event(...) -> record_user_event
     adapter.record_user_event("user_1", "TEST_MSG", {"content": "Hello Graph"})
     
