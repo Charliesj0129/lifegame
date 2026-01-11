@@ -2,20 +2,21 @@ name: CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["**"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["**"]
+  workflow_dispatch:
 
 jobs:
   test:
     name: Run Unit Tests
     runs-on: ubuntu-latest
-    
+
     services:
       # If we needed a real DB service for integration tests, define it here.
       # currently running unit tests only.
-      pass: 
-        image: alpine 
+      pass:
+        image: alpine
         # Placeholder
 
     steps:
