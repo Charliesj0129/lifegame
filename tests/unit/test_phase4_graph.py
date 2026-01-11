@@ -1,12 +1,24 @@
 import pytest
 import shutil
 import os
-from adapters.persistence.kuzu.adapter import KuzuAdapter
 from application.services.graph_service import GraphService, KuzuCursorWrapper
 
 @pytest.fixture
-def kuzu_adapter(tmp_path):
+def db_path(tmp_path):
     db_path = tmp_path / "kuzu_test"
+    yield db_path
+    if db_path.exists():
+        import shutil
+        shutil.rmtree(db_path)
+
+@pytest.fixture
+def kuzu_adapter(db_path):
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("adapters.persistence.kuzu.adapter", "/home/charlie/lifgame/adapters/persistence/kuzu/adapter.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    KuzuAdapter = module.KuzuAdapter
+    
     adapter = KuzuAdapter(db_path=str(db_path))
     yield adapter
 

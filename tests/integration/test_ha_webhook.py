@@ -10,9 +10,9 @@ settings.HA_WEBHOOK_SECRET = "test_secret"
 
 @pytest.mark.asyncio
 async def test_ha_webhook_auth_failure():
-    # No Token
+    # No Token - FastAPI raises 422 for missing required header
     response = client.post("/api/nerves/perceive", json={"trigger": "test"})
-    assert response.status_code == 401
+    assert response.status_code == 422
     
     # Wrong Token
     response = client.post("/api/nerves/perceive", json={"trigger": "test"}, headers={"X-LifeGame-Token": "wrong"})

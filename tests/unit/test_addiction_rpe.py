@@ -44,9 +44,14 @@ async def test_quest_service_complete_integration():
     mock_quest.quest_type = "SIDE"
     
     # Mock Select
+    # session.execute is awaitable
     mock_result = MagicMock()
     mock_result.scalars.return_value.first.return_value = mock_quest
     mock_session.execute.return_value = mock_result
+    mock_session.commit = AsyncMock()
+    mock_session.refresh = AsyncMock()
+    mock_session.add = MagicMock() # .add is synchronous
+    mock_session.delete = AsyncMock()
     
     # Mock User
     mock_user = MagicMock()

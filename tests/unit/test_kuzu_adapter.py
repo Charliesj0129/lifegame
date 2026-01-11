@@ -1,6 +1,5 @@
 import pytest
 import shutil
-import time
 from adapters.persistence.kuzu.adapter import KuzuAdapter
 
 QUERY_PATH = "./test_kuzu_db"
@@ -9,6 +8,12 @@ QUERY_PATH = "./test_kuzu_db"
 def adapter():
     # Setup
     import os
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("adapters.persistence.kuzu.adapter", "/home/charlie/lifgame/adapters/persistence/kuzu/adapter.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    KuzuAdapter = module.KuzuAdapter
+
     if os.path.exists(QUERY_PATH):
         if os.path.isdir(QUERY_PATH):
             shutil.rmtree(QUERY_PATH)
