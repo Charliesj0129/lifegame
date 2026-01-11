@@ -8,6 +8,13 @@ TEST_DB_PATH = "./test_kuzu_graph_chain_db"
 
 @pytest.fixture
 def graph_adapter():
+    # Nuclear Isolation: Load Class from Source directly
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("adapters.persistence.kuzu.adapter", "/home/charlie/lifgame/adapters/persistence/kuzu/adapter.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    KuzuAdapter = module.KuzuAdapter
+    
     def cleanup():
         if os.path.exists(TEST_DB_PATH):
             import shutil

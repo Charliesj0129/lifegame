@@ -29,7 +29,9 @@ Format: `<type>(<scope>): <subject>`
 
 ## 3. Pull Request (PR) Protocol
 1.  **Development**: Work on your feature branch.
-2.  **Verification**: Ensure tests pass locally (`uv run pytest` or script).
+2.  **Verification**:
+    - **Tests**: Ensure tests pass locally (`uv run pytest`).
+    - **Linting**: Run linter (`uv run ruff check .`) and formatter (`uv run ruff format . --check`).
 3.  **Description**: Generate a PR Description (Markdown) summarizing:
     - **Summary**: What changed?
     - **Type**: Bug/Feature/Docs?

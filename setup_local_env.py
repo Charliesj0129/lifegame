@@ -22,16 +22,7 @@ async def check_port(port: int = 8000):
             logger.info(f"✅ Port {port} is free.")
             return False
 
-def run_migrations():
-    """Run Alembic migrations to ensuring schema is up to date."""
-    logger.info("🚀 Running Alembic Migrations...")
-    try:
-        # Using uv run to ensure venv context
-        subprocess.run(["uv", "run", "alembic", "upgrade", "head"], check=True)
-        logger.info("✅ Migrations applied successfully.")
-    except subprocess.CalledProcessError as e:
-        logger.error(f"❌ Migration failed: {e}")
-        sys.exit(1)
+
 
 async def clean_and_seed_db():
     """Clean database and seed initial test data."""
@@ -95,8 +86,8 @@ def check_env():
         logger.info("✅ .env file found.")
         
     # Check keys
-    required = ["LINE_CHANNEL_SECRET", "SQLALCHEMY_DATABASE_URI"]
-    missing = [k for k in required if not getattr(settings, k, None) and k not in os.environ]
+    # required = ["LINE_CHANNEL_SECRET", "SQLALCHEMY_DATABASE_URI"]
+    # missing = [k for k in required if not getattr(settings, k, None) and k not in os.environ] (Unused)
     
     if settings.LINE_CHANNEL_SECRET is None:
          logger.warning("⚠️  LINE_CHANNEL_SECRET is missing. Webhook signature verification will fail.")

@@ -1,25 +1,27 @@
 import os
+import sys
+import pytest
+from unittest.mock import MagicMock, patch
 
 # Set test environment variables BEFORE any app imports
 os.environ.setdefault("SQLALCHEMY_DATABASE_URI", "sqlite+aiosqlite:///:memory:")
 os.environ.setdefault("TESTING", "1")
 os.environ.setdefault("KUZU_DATABASE_PATH", "/tmp/test_kuzu_db")
-os.environ.setdefault("KUZU_DATABASE_PATH", "/tmp/test_kuzu_db")
 
-# Prevent KuzuDB Lock during collection by mocking singleton early
-import sys
-from unittest.mock import MagicMock
-# We can't easily mock the module before import if it's already imported, 
-# but we can set the singleton if we import it.
+# Radical Global Mock (Top Level)
+# Patches get_kuzu_adapter immediately to protect Collection Phase imports
 try:
     import adapters.persistence.kuzu.adapter
-    # If we are in testing mode, default the singleton to a Mock to avoid Side Effect on Import
     if os.environ.get("TESTING"):
-        adapters.persistence.kuzu.adapter._kuzu_instance = MagicMock()
+        adapters.persistence.kuzu.adapter.get_kuzu_adapter = MagicMock(return_value=MagicMock())
 except ImportError:
     pass
 
-import pytest
+@pytest.fixture(scope="session", autouse=True)
+def mock_kuzu_global():
+    # Placeholder to satisfy pytest if needed, or remove completely.
+    # Logic moved to top level.
+    yield
 
 try:
     import pytest_asyncio

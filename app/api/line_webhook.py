@@ -36,7 +36,7 @@ async def process_webhook_background(body_str: str, signature: str):
         try:
             with open("./data/current_error.png", "w") as f: # Use .png to maybe trick webssh if needed, but .log is fine
                  f.write(f"CRITICAL ERROR: {e}\n{tb}")
-        except:
+        except Exception:
              pass
         logger.error(f"CRITICAL: Background Webhook Validation/Processing Failed: {e}", exc_info=True)
         # Attempt "Last Resort" Reply if possible
@@ -50,9 +50,25 @@ async def process_webhook_background(body_str: str, signature: str):
             for event in events:
                 reply_token = event.get("replyToken")
                 if reply_token:
-                    await _send_system_error_reply(reply_token, "CRITICAL_BG_FAIL")
+                    await _send_error_reply(reply_token, "CRITICAL_BG_FAIL")
         except Exception as parse_err:
              logger.error(f"Double Fault: Could not parse body for error reply: {parse_err}")
+
+
+# ... (Handlers remain the same, just showing the end of file fix) ...
+
+async def _send_error_reply(reply_token: str, error_code: str = "UNKNOWN"):
+    """Send error message to user (Safety Net)"""
+    try:
+        from adapters.perception.line_client import line_client
+        from domain.models.game_result import GameResult
+        
+        error_hash = uuid.uuid4().hex[:8]
+        msg = f"🔧 系統維護中 ({error_code}-{error_hash})\n\n守護精靈正在修復連結..."
+        result = GameResult(text=msg)
+        await line_client.send_reply(reply_token, result)
+    except Exception:
+        logger.error("Critical: Failed to send error reply")
 
 
 @router.post("/callback")
