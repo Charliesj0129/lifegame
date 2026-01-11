@@ -1,0 +1,56 @@
+# Home Assistant Configuration for LifeGame Cyborg Integration
+# Save this content to your HA config directory (e.g. /config/automations.yaml or packages/lifegame.yaml)
+
+# 1. secrets.yaml
+# Add your LifeGame server IP (Tailscale IP)
+# lifegame_api: "http://100.x.y.z:8000/api/nerves/perceive"
+
+# 2. configuration.yaml (or packages)
+rest_command:
+  lifegame_perceive:
+    url: "!secret lifegame_api"
+    method: POST
+    content_type: "application/json"
+    payload: >
+      {
+        "event_type": "{{ event_type }}",
+        "entity_id": "{{ entity_id }}",
+        "state": "{{ state }}",
+        "attributes": {{ attributes | tojson }},
+        "timestamp": "{{ now().isoformat() }}"
+      }
+
+# 3. automations.yaml
+
+- alias: "LifeGame: Screen On Event"
+  trigger:
+    - platform: state
+      entity_id: sensor.pixel_7_interactive
+      to: "date" # 'interactive' is usually boolean or state, assuming 'True' or 'Interactive'
+  action:
+    - service: rest_command.lifegame_perceive
+      data:
+        event_type: "screen_on"
+        entity_id: "{{ trigger.entity_id }}"
+        state: "{{ trigger.to_state.state }}"
+        attributes:
+          battery: "{{ states('sensor.pixel_7_battery_level') }}"
+          wifi: "{{ states('sensor.pixel_7_wifi_connection') }}"
+
+- alias: "LifeGame: Late Night Doomscrolling"
+  trigger:
+    - platform: state
+      entity_id: sensor.pixel_7_interactive
+      to: "True"
+  condition:
+    - condition: time
+      after: "01:00:00"
+      before: "05:00:00"
+  action:
+    - service: rest_command.lifegame_perceive
+      data:
+        event_type: "doomscrolling"
+        entity_id: "{{ trigger.entity_id }}"
+        state: "active"
+        attributes:
+          duration: "unknown"

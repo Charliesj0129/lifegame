@@ -1,0 +1,13 @@
+.git
+.venv
+__pycache__
+*.pyc
+*.pyo
+tests
+test_*.py
+scripts/test_*.py
+deploy_azure.sh
+backlog.json
+test.db
+test_result.log
+.env

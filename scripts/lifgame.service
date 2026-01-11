@@ -1,0 +1,23 @@
+[Unit]
+Description=LifeGame Cyborg Host
+After=network.target
+
+[Service]
+User=charlie
+Group=charlie
+WorkingDirectory=/home/charlie/lifgame
+Environment="PATH=/home/charlie/lifgame/.venv/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="PYTHONPATH=/home/charlie/lifgame"
+# If you want to force SQLite in production mode
+Environment="SQLALCHEMY_DATABASE_URI=sqlite+aiosqlite:///./data/game.db"
+Environment="AUTO_MIGRATE=true"
+
+# Using 'uv run' is robust as it ensures dependencies are satisfied
+ExecStart=/home/charlie/.local/bin/uv run uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+# Restart on crash
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

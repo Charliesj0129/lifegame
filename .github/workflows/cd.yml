@@ -1,0 +1,50 @@
+name: CD (Azure)
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  AZURE_WEBAPP_NAME: app-lifgame-bot
+  AZURE_RESOURCE_GROUP: rg-lifgame
+  ACR_NAME: acrlifgame1802
+  ACR_LOGIN_SERVER: acrlifgame1802.azurecr.io
+  IMAGE_NAME: lifgame
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: ACR Build & Push
+        # Use Azure ACR Build (Cloud Build) to offload processing and ensure proximity
+        # Note: We inject REBUILD_TRIGGER to ensure cache busting if needed,
+        # but usually git hash is enough uniqueness.
+        run: |
+          az acr build --registry ${{ env.ACR_NAME }} --image ${{ env.IMAGE_NAME }}:latest --image ${{ env.IMAGE_NAME }}:${{ github.sha }} .
+
+      - name: Deploy to Web App
+        # Since Web App is configured for Docker Hub/ACR, restarting it triggers a pull if "Continuous Deployment" is On.
+        # Use 'az webapp restart' to force the update check.
+        # Or specifically set the config to the new tag.
+        run: |
+          az webapp config container set --name ${{ env.AZURE_WEBAPP_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --docker-custom-image-name ${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:latest
+          az webapp restart --name ${{ env.AZURE_WEBAPP_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }}
+
+      - name: Verify Deployment (Health Check)
+        run: |
+          echo "Waiting for service to restart..."
+          sleep 120
+          curl -v --fail https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/health
