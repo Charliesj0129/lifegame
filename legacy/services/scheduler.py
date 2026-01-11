@@ -63,6 +63,15 @@ class DDAScheduler:
             misfire_grace_time=300,
         )
 
+        # Executive System Tick (Hourly)
+        self.scheduler.add_job(
+            self._executive_tick,
+            IntervalTrigger(minutes=60),
+            id="executive_tick",
+            replace_existing=True,
+            misfire_grace_time=300,
+        )
+
         self.scheduler.start()
         self._is_running = True
         logger.info("DDA Scheduler started with interval job (%ss)", interval)
@@ -98,6 +107,26 @@ class DDAScheduler:
                         await self._process_user(session, user)
                     except Exception as e:
                         logger.error("Push tick failed for %s: %s", user.id, e)
+
+    async def _executive_tick(self):
+        """
+        Runs the Executive System Logic for all users.
+        """
+        if self._lock.locked():
+            return
+        
+        from application.services.brain_service import brain_service
+
+        async with self._lock:
+            async with AsyncSessionLocal() as session:
+                users = await self._get_all_users(session)
+                for user in users:
+                    try:
+                        action = await brain_service.execute_system_judgment(session, user.id)
+                        if action:
+                            logger.info(f"EXECUTIVE ACTION for {user.id}: {action.action_type} - {action.reason}")
+                    except Exception as e:
+                        logger.error(f"Executive tick failed for {user.id}: {e}")
 
     async def _get_or_create_profile(self, session: AsyncSession, user_id: str) -> PushProfile:
         result = await session.execute(select(PushProfile).where(PushProfile.user_id == user_id))

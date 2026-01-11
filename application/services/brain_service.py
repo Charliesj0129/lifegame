@@ -1,7 +1,9 @@
 import logging
 import json
+import datetime
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel, Field
+from sqlalchemy import select
 
 from legacy.services.ai_engine import ai_engine
 from application.services.context_service import context_service
@@ -22,6 +24,13 @@ class AgentPlan(BaseModel):
     stat_update: Optional[AgentStatUpdate] = None
     tool_calls: List[str] = Field(default_factory=list)  # e.g. ["update_quest:123", "add_item:potion"]
     flow_state: Dict[str, Any] = Field(default_factory=dict)  # Debug info about flow
+
+
+
+class AgentSystemAction(BaseModel):
+    action_type: str  # "DIFFICULTY_CHANGE", "PUSH_QUEST", "BRIDGE_GEN"
+    details: Dict[str, Any]
+    reason: str
 
 
 class BrainService:
@@ -153,5 +162,59 @@ If they are bored/winning, challenge them (Higher Difficulty).
 }}
 """
 
+    async def execute_system_judgment(self, session, user_id: str) -> Optional[AgentSystemAction]:
+        """
+        The Autonomous Executive Loop.
+        Analyzes performance metrics and decides on system-level interventions.
+        Does NOT generate text. It generates RULES.
+        """
+        from legacy.services.quest_service import quest_service
+        from legacy.models.quest import Quest, QuestStatus
+
+        # 1. Gather Metrics (Last 3 Days)
+        # Using a simple heuristic for now: Active Quests Age
+        # In future, use CompletionRateService
+        stmt = select(Quest).where(
+            Quest.user_id == user_id, Quest.status == QuestStatus.ACTIVE.value
+        )
+        active_quests = (await session.execute(stmt)).scalars().all()
+
+        fail_streak = 0
+        oldest_active = 0
+        now = datetime.datetime.now()
+        
+        # Check staleness
+        for q in active_quests:
+            if q.created_at: 
+                # Handle naive vs aware datetime
+                created = q.created_at
+                if created.tzinfo:
+                   created = created.replace(tzinfo=None)
+                age = (now - created).days
+                if age > 2:
+                    fail_streak += 1
+                oldest_active = max(oldest_active, age)
+
+        # 2. Judge (The Algorithm)
+        if fail_streak >= 2:
+            # POLICY: OVERWHELM DETECTED
+            logger.info(f"Executive Judgment: User {user_id} is overwhelmed. Downgrading difficulty.")
+            count = await quest_service.bulk_adjust_difficulty(session, user_id, target_tier="E")
+            return AgentSystemAction(
+                action_type="DIFFICULTY_CHANGE", 
+                details={"tier": "E", "count": count},
+                reason="Overwhelm Detected (Stale Quests)"
+            )
+        
+        # 3. Momentum Check (Last Active)
+        # If user has NO active quests but hasn't logged in for > 24h, PUSH one.
+        if not active_quests:
+             # Check last login... (omitted for brevity, assume "Push Needed" if empty)
+             # But limit push frequency
+             pass
+
+        return None
+
 
 brain_service = BrainService()
+

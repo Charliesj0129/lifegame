@@ -637,6 +637,35 @@ class QuestService:
         new_quests = await self._generate_daily_batch(session, user_id)
         return new_quests, viper_taunt
 
+    async def bulk_adjust_difficulty(self, session: AsyncSession, user_id: str, target_tier: str = "E"):
+        """
+        Executive System Tool: Forcefully adjusts active Side Quests to a specific tier.
+        Used for 'Emergency Downgrade' when user is overwhelmed.
+        """
+        stmt = select(Quest).where(
+            Quest.user_id == user_id,
+            Quest.status == QuestStatus.ACTIVE.value,
+            Quest.quest_type == QuestType.SIDE.value,
+        )
+        result = await session.execute(stmt)
+        active_quests = result.scalars().all()
+
+        updated_count = 0
+        for q in active_quests:
+            q.difficulty_tier = target_tier
+            # Simple XP Scaling for now
+            if target_tier == "E":
+                q.xp_reward = 10
+            elif target_tier == "D":
+                q.xp_reward = 20
+            elif target_tier == "C":
+                q.xp_reward = 50
+            updated_count += 1
+            session.add(q)
+        
+        await session.commit()
+        return updated_count
+
     async def get_active_habits(self, session: AsyncSession, user_id: str):
         from legacy.models.dda import HabitState
 
