@@ -50,14 +50,14 @@ class HPService:
         trigger_rescue: bool = False,
     ) -> User:
         from domain.rules.health_rules import HealthRules, HPStatus
-        
+
         was_hollowed = user.is_hollowed or user.hp_status == HPStatus.HOLLOWED
         max_hp = user.max_hp or 100
         new_hp = max(0, min(max_hp, (user.hp or 0) + delta))
-        
+
         # Use Domain Rule
         new_status = HealthRules.determine_status(new_hp, was_hollowed=was_hollowed)
-        
+
         user.hp = new_hp
         user.hp_status = new_status
         user.is_hollowed = new_status == HPStatus.HOLLOWED
@@ -93,17 +93,14 @@ class HPService:
             await self.trigger_rescue_protocol(session, user)
         return drain
 
-    async def restore_by_difficulty(
-        self, session: AsyncSession, user: User, difficulty: str | None
-    ) -> int:
+    async def restore_by_difficulty(self, session: AsyncSession, user: User, difficulty: str | None) -> int:
         from domain.rules.health_rules import HealthRules
+
         delta = HealthRules.calculate_recovery(difficulty)
         await self.apply_hp_change(session, user, delta, source="quest_complete")
         return delta
 
-    async def restore_hp_from_quest(
-        self, session: AsyncSession, user: User, difficulty: str | None
-    ) -> User:
+    async def restore_hp_from_quest(self, session: AsyncSession, user: User, difficulty: str | None) -> User:
         await self.restore_by_difficulty(session, user, difficulty)
         return user
 
@@ -120,9 +117,7 @@ class HPService:
 
         from legacy.services.dungeon_service import dungeon_service
 
-        rescue = await dungeon_service.start_dungeon(
-            session, user.id, dungeon_type="RESCUE", duration_minutes=30
-        )
+        rescue = await dungeon_service.start_dungeon(session, user.id, dungeon_type="RESCUE", duration_minutes=30)
         return rescue.get("message", "⚠️ Hollowed Protocol 啟動。")
 
     async def get_hp_display(self, user: User) -> dict:

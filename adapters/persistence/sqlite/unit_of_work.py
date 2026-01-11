@@ -1,6 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from domain.ports.unit_of_work import UnitOfWork
 
+
 class SqlAlchemyUnitOfWork(UnitOfWork):
     def __init__(self, session_factory):
         self.session_factory = session_factory
@@ -15,7 +16,7 @@ class SqlAlchemyUnitOfWork(UnitOfWork):
             await self.rollback()
         else:
             await self.commit()
-            
+
         await self.session.close()
 
     async def commit(self):

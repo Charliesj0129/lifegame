@@ -12,25 +12,17 @@ class InventoryService:
     async def get_user_inventory(self, session: AsyncSession, user_id: str):
         from sqlalchemy.orm import joinedload
 
-        stmt = (
-            select(UserItem)
-            .where(UserItem.user_id == user_id)
-            .options(joinedload(UserItem.item))
-        )
+        stmt = select(UserItem).where(UserItem.user_id == user_id).options(joinedload(UserItem.item))
         result = await session.execute(stmt)
         return result.scalars().all()
 
     async def get_active_buffs(self, session: AsyncSession, user_id: str):
         now = datetime.now(timezone.utc)
-        stmt = select(UserBuff).where(
-            UserBuff.user_id == user_id, UserBuff.expires_at > now
-        )
+        stmt = select(UserBuff).where(UserBuff.user_id == user_id, UserBuff.expires_at > now)
         result = await session.execute(stmt)
         return result.scalars().all()
 
-    async def use_item(
-        self, session: AsyncSession, user_id: str, item_keyword: str
-    ) -> str:
+    async def use_item(self, session: AsyncSession, user_id: str, item_keyword: str) -> str:
         # Find item in inventory (by partial name match or exact ID?)
         # For chat bot, exact ID is hard. Let's try name match join.
         stmt = (
@@ -72,12 +64,7 @@ class InventoryService:
             # Create Buff
             duration = meta.get("duration_minutes", 60)
             multiplier = meta.get("multiplier", 1.1)
-            target = (
-                meta.get("buff")
-                or meta.get("attribute")
-                or meta.get("target_attribute")
-                or "ALL"
-            )
+            target = meta.get("buff") or meta.get("attribute") or meta.get("target_attribute") or "ALL"
 
             expires = datetime.now(timezone.utc) + timedelta(minutes=duration)
 
@@ -106,9 +93,7 @@ class InventoryService:
                 return "找不到使用者。"
             from legacy.services.hp_service import hp_service
 
-            await hp_service.apply_hp_change(
-                session, user, amount, source="item_restore_hp"
-            )
+            await hp_service.apply_hp_change(session, user, amount, source="item_restore_hp")
 
             user_item.quantity -= 1
             if user_item.quantity <= 0:

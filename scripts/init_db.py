@@ -6,6 +6,7 @@ import os
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 def init_db():
     try:
         logger.info("Initializing database...")
@@ -15,6 +16,7 @@ def init_db():
     except subprocess.CalledProcessError as e:
         logger.error(f"Database initialization failed: {e}")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     init_db()

@@ -15,9 +15,7 @@ from app.schemas.game_schemas import ProcessResult
 
 
 class UserService:
-    async def get_or_create_user(
-        self, session: AsyncSession, line_user_id: str, name: str = "Unknown"
-    ) -> User:
+    async def get_or_create_user(self, session: AsyncSession, line_user_id: str, name: str = "Unknown") -> User:
         result = await session.execute(select(User).where(User.id == line_user_id))
         user = result.scalars().first()
         if not user:
@@ -59,13 +57,14 @@ class UserService:
         Checks if user has triggered the 'Hollowing' state (Inactivity).
         """
         from datetime import datetime, timedelta, timezone
+
         if not user.last_active_date:
             return False
 
         now = datetime.now(timezone.utc)
         # Threshold: 48 hours (Configurable)
         threshold = timedelta(hours=48)
-        
+
         if (now - user.last_active_date) > threshold and not user.is_hollowed:
             user.is_hollowed = True
             user.hp_status = "HOLLOWED"
@@ -74,16 +73,12 @@ class UserService:
             return True
         return False
 
-    async def process_action(
-        self, session: AsyncSession, line_user_id: str, text: str
-    ) -> ProcessResult:
-
+    async def process_action(self, session: AsyncSession, line_user_id: str, text: str) -> ProcessResult:
         # 1. Get User
 
         user = await self.get_or_create_user(session, line_user_id)
 
         # 2. Fast/Slow Router (System 1 vs System 2)
-
 
         # Fast Mode Criteria
         is_fast_mode = False
@@ -91,9 +86,7 @@ class UserService:
 
         normalized_text = text.lower().strip()
         if len(text) < 15:
-            if any(
-                k in normalized_text for k in ["gym", "run", "lift", "workout", "str"]
-            ):
+            if any(k in normalized_text for k in ["gym", "run", "lift", "workout", "str"]):
                 ai_result = {
                     "stat_type": "STR",
                     "difficulty_tier": "C",
@@ -101,9 +94,7 @@ class UserService:
                     "loot_drop": {"has_loot": False},
                 }
                 is_fast_mode = True
-            elif any(
-                k in normalized_text for k in ["study", "code", "read", "learn", "int"]
-            ):
+            elif any(k in normalized_text for k in ["study", "code", "read", "learn", "int"]):
                 ai_result = {
                     "stat_type": "INT",
                     "difficulty_tier": "C",
@@ -111,9 +102,7 @@ class UserService:
                     "loot_drop": {"has_loot": False},
                 }
                 is_fast_mode = True
-            elif any(
-                k in normalized_text for k in ["sleep", "eat", "rest", "food", "vit"]
-            ):
+            elif any(k in normalized_text for k in ["sleep", "eat", "rest", "food", "vit"]):
                 ai_result = {
                     "stat_type": "VIT",
                     "difficulty_tier": "D",
@@ -127,24 +116,24 @@ class UserService:
         difficulty = "E"
         narrative = "Processing..."
         xp_gain = 0
-        has_loot = False # TODO: brain triggers loot
+        has_loot = False  # TODO: brain triggers loot
 
         if is_fast_mode:
-             attribute = ai_result.get("stat_type", "VIT")
-             difficulty = ai_result.get("difficulty_tier", "E")
-             narrative = ai_result.get("narrative", "數據已上傳。")
-             
-             # Accountant Math for System 1
-             raw_xp = accountant.calculate_xp(attribute, difficulty)
+            attribute = ai_result.get("stat_type", "VIT")
+            difficulty = ai_result.get("difficulty_tier", "E")
+            narrative = ai_result.get("narrative", "數據已上傳。")
+
+            # Accountant Math for System 1
+            raw_xp = accountant.calculate_xp(attribute, difficulty)
         else:
             # Phase 4: Brain Service (System 2)
             from application.services.brain_service import brain_service
-            
+
             plan = await brain_service.think_with_session(session, user.id, text)
-            
+
             narrative = plan.narrative
             difficulty = plan.flow_state.get("tier", "C")
-            
+
             if plan.stat_update:
                 attribute = plan.stat_update.stat_type
                 raw_xp = plan.stat_update.xp_amount
@@ -152,9 +141,9 @@ class UserService:
                 if plan.stat_update.hp_change != 0:
                     user.hp = max(0, min(100, user.hp + plan.stat_update.hp_change))
                 if plan.stat_update.gold_change != 0:
-                     user.gold += plan.stat_update.gold_change
+                    user.gold += plan.stat_update.gold_change
             else:
-                 raw_xp = 10 # Fallback
+                raw_xp = 10  # Fallback
 
         # Apply Buffs (Common Logic)
         active_buffs = await inventory_service.get_active_buffs(session, user.id)
@@ -240,14 +229,10 @@ class UserService:
         from legacy.services.hp_service import hp_service
 
         if streak_broken:
-            await hp_service.apply_hp_change(
-                session, user, -20, source="streak_broken", commit=False
-            )
+            await hp_service.apply_hp_change(session, user, -20, source="streak_broken", commit=False)
 
         if attribute == "VIT":
-            await hp_service.apply_hp_change(
-                session, user, 5, source="vit_recovery", commit=False
-            )
+            await hp_service.apply_hp_change(session, user, 5, source="vit_recovery", commit=False)
 
         user.last_active_date = now
         session.add(user)
@@ -271,9 +256,7 @@ class UserService:
         loot_name = None
         loot_rarity = None
 
-        loot_item = await loot_service.calculate_drop(
-            session, difficulty, force_drop=has_loot
-        )
+        loot_item = await loot_service.calculate_drop(session, difficulty, force_drop=has_loot)
         if loot_item:
             await loot_service.grant_item(session, user.id, loot_item)
             loot_name = loot_item.name

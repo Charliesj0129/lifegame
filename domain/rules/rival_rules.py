@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Optional, Tuple
 from datetime import date, timedelta
 
+
 @dataclass
 class RivalEncounterResult:
     missed_days: int
@@ -12,16 +13,17 @@ class RivalEncounterResult:
     should_debuff: bool
     debuff_attribute: Optional[str] = None
 
+
 class RivalRules:
     @staticmethod
     def calculate_inactivity_penalty(
-        last_active_date: Optional[date], 
+        last_active_date: Optional[date],
         current_date: date,
-        user_xp: int, 
+        user_xp: int,
         user_gold: int,
         user_level: int,
         rival_level: int,
-        rival_xp: int
+        rival_xp: int,
     ) -> RivalEncounterResult:
         """
         Calculates consequences of user inactivity.
@@ -57,5 +59,5 @@ class RivalRules:
             rival_level_up=level_up,
             theft_xp=theft_xp,
             theft_gold=theft_gold,
-            should_debuff=should_debuff
+            should_debuff=should_debuff,
         )

@@ -5,6 +5,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 async def seed_shop_items(session: AsyncSession):
     """Seed initial shop items if they don't exist."""
     items_data = [
@@ -16,7 +17,7 @@ async def seed_shop_items(session: AsyncSession):
             "rarity": ItemRarity.COMMON,
             "type": ItemType.CONSUMABLE,
             "is_purchasable": True,
-            "effect_meta": {"effect": "restore_hp", "value": 30}
+            "effect_meta": {"effect": "restore_hp", "value": 30},
         },
         {
             "id": "potion_hp_large",
@@ -26,7 +27,7 @@ async def seed_shop_items(session: AsyncSession):
             "rarity": ItemRarity.UNCOMMON,
             "type": ItemType.CONSUMABLE,
             "is_purchasable": True,
-            "effect_meta": {"effect": "restore_hp", "value": 80}
+            "effect_meta": {"effect": "restore_hp", "value": 80},
         },
         {
             "id": "clear_penalty",
@@ -36,7 +37,7 @@ async def seed_shop_items(session: AsyncSession):
             "rarity": ItemRarity.RARE,
             "type": ItemType.CONSUMABLE,
             "is_purchasable": True,
-            "effect_meta": {"effect": "clear_penalty"}
+            "effect_meta": {"effect": "clear_penalty"},
         },
         {
             "id": "xp_tome_1",
@@ -46,8 +47,8 @@ async def seed_shop_items(session: AsyncSession):
             "rarity": ItemRarity.RARE,
             "type": ItemType.CONSUMABLE,
             "is_purchasable": True,
-            "effect_meta": {"effect": "grant_xp", "value": 100}
-        }
+            "effect_meta": {"effect": "grant_xp", "value": 100},
+        },
     ]
 
     try:
@@ -62,11 +63,11 @@ async def seed_shop_items(session: AsyncSession):
                 logger.info(f"Seeding new item: {item.name}")
             else:
                 # Update properties if needed, or skip
-                existing.name = item_dict["name"] # Ensure name update
+                existing.name = item_dict["name"]  # Ensure name update
                 existing.price = item_dict["price"]
                 existing.is_purchasable = True
                 session.add(existing)
-        
+
         await session.commit()
     except Exception as e:
         logger.error(f"Seeding failed: {e}")

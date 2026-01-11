@@ -19,22 +19,21 @@ BASE_URL = "http://localhost:8000"
 USER_ID = "U_SIM_001"
 TOKEN = settings.HA_WEBHOOK_SECRET or "test_secret"
 
+
 class LineClient:
     def __init__(self, secret: str):
         self.secret = secret
         self.client = httpx.AsyncClient(base_url=BASE_URL, timeout=10.0)
 
     def _sign(self, body: str) -> str:
-        hash = hmac.new(
-            self.secret.encode("utf-8"), body.encode("utf-8"), hashlib.sha256
-        ).digest()
+        hash = hmac.new(self.secret.encode("utf-8"), body.encode("utf-8"), hashlib.sha256).digest()
         return base64.b64encode(hash).decode("utf-8")
 
     async def send_event(self, events: list):
         body = json.dumps({"destination": "U_BOT", "events": events})
         signature = self._sign(body)
         headers = {"x-line-signature": signature, "Content-Type": "application/json"}
-        
+
         url = "/line/callback"
         print(f"DEBUG: LineClient sending to {url}")
         response = await self.client.post(url, content=body, headers=headers)
@@ -117,19 +116,21 @@ async def verify_gold(expected_gold: int, expected_item: str = None):
 
         # Check Inventory
         if expected_item:
-            res = await conn.execute(text(f"SELECT quantity FROM user_items WHERE user_id='{USER_ID}' AND item_id='{expected_item}'"))
+            res = await conn.execute(
+                text(f"SELECT quantity FROM user_items WHERE user_id='{USER_ID}' AND item_id='{expected_item}'")
+            )
             row = res.fetchone()
             if row and row[0] > 0:
-                 logger.info(f"✅ DB Verified: Has Item {expected_item}")
+                logger.info(f"✅ DB Verified: Has Item {expected_item}")
             else:
-                 logger.error(f"❌ DB Mismatch: Item {expected_item} missing")
+                logger.error(f"❌ DB Mismatch: Item {expected_item} missing")
 
     await engine.dispose()
 
 
 async def main():
     logger.info("🎭 Starting Full Lifecycle Simulation...")
-    
+
     # Check Server
     async with httpx.AsyncClient() as client:
         try:
@@ -141,7 +142,7 @@ async def main():
             logger.error("❌ Failed to connect to localhost:8000. Is the server running?")
             return
 
-    secret = settings.LINE_CHANNEL_SECRET or "test_secret" # In prod parity, strictly reading env
+    secret = settings.LINE_CHANNEL_SECRET or "test_secret"  # In prod parity, strictly reading env
     line = LineClient(secret)
     web = WebClient(TOKEN)
 
@@ -158,14 +159,14 @@ async def main():
     logger.info("2️⃣  Actor 1 (LINE): Attacking Monster...")
     res = await line.message("attack")
     assert res.status_code == 200
-    
-    # Cheat: Add gold manually to verify spending? 
+
+    # Cheat: Add gold manually to verify spending?
     # Or assuming attack gives gold (logic says 'handle_attack' returns text, maybe no gold).
     # Prompts says "Simulate 'hit monster earn money'".
     # Current 'handle_attack' in main.py only returns text.
-    # To simulate economy, I need gold. 
+    # To simulate economy, I need gold.
     # Logic Verification: "Simulate 'hit monster earn money'".
-    # If the logic doesn't give gold, the simulation fails logic check. 
+    # If the logic doesn't give gold, the simulation fails logic check.
     # I will inject gold via DB to proceed with Economy test, noting the logic gap if any.
     logger.info("🛠️  Injecting Gold for Economy Test...")
     db_url = settings.SQLALCHEMY_DATABASE_URI
@@ -173,18 +174,28 @@ async def main():
     async with engine.begin() as conn:
         # Ensure user exists (in case Follow failed due to Event Structure mismatch)
         user_defaults = {
-            "id": USER_ID, "name": "SimUser", "level": 1, "gold": 0, "xp": 0,
-            "hp": 100, "max_hp": 100, "is_hollowed": False, "talent_points": 0
+            "id": USER_ID,
+            "name": "SimUser",
+            "level": 1,
+            "gold": 0,
+            "xp": 0,
+            "hp": 100,
+            "max_hp": 100,
+            "is_hollowed": False,
+            "talent_points": 0,
         }
         # SQLite compatible upsert or manual check
         res = await conn.execute(text(f"SELECT id FROM users WHERE id='{USER_ID}'"))
         if not res.fetchone():
-             logger.info("⚠️  User missing (Follow failed?), Injecting manually...")
-             # Basic fields
-             await conn.execute(text(
-                 "INSERT INTO users (id, name, level, gold, hp, max_hp, talent_points) VALUES (:id, :name, :level, :gold, :hp, :max_hp, :talent_points)"
-             ), user_defaults)
-             
+            logger.info("⚠️  User missing (Follow failed?), Injecting manually...")
+            # Basic fields
+            await conn.execute(
+                text(
+                    "INSERT INTO users (id, name, level, gold, hp, max_hp, talent_points) VALUES (:id, :name, :level, :gold, :hp, :max_hp, :talent_points)"
+                ),
+                user_defaults,
+            )
+
         await conn.execute(text(f"UPDATE users SET gold=200 WHERE id='{USER_ID}'"))
     await engine.dispose()
 
@@ -199,10 +210,10 @@ async def main():
     # 4. Economy (Buy Item) -> Using LINE Postback as Actor 1 (since Web API missing)
     # User asked for "Actor 2 calling /api/shop/buy". Since it's missing, I use Actor 1.
     logger.info("4️⃣  Actor 1 (LINE): Buying Potion (Postback)...")
-    res = await line.postback("action=buy_item&item_id=POTION") # assuming ID is POTION (string) or 1 (int)?
+    res = await line.postback("action=buy_item&item_id=POTION")  # assuming ID is POTION (string) or 1 (int)?
     # Setup script seeded POTION string ID. Postback params parses string. shop_service handles it.
     # shop_service might expect int ID if seeded as int? The code checks params.get.
-    # Setup script: id="POTION" (string). Shop service likely supports string IDs? 
+    # Setup script: id="POTION" (string). Shop service likely supports string IDs?
     # Wait, test_economy_system used string ID.
     if res.status_code == 200:
         logger.info("✅ Buy request sent.")
@@ -224,6 +235,7 @@ async def main():
         logger.warning(f"⚠️  Expected 400, got {res.status_code}")
 
     logger.info("🎉 Simulation Complete.")
+
 
 if __name__ == "__main__":
     asyncio.run(main())

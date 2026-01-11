@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from app.core.config import settings
 from app.core.migrations import run_migrations
 from app.core.logging_middleware import LoggingMiddleware
+
 # from app.api import webhook
 # from app.services.scheduler import dda_scheduler
 import asyncio
@@ -23,19 +24,19 @@ async def lifespan(app: FastAPI):
     if settings.AUTO_MIGRATE:
         try:
             logging.info("AUTO_MIGRATE enabled; running migrations.")
-            
+
             # Critical: Ensure data directory exists for Ephemeral DB
             os.makedirs("./data", exist_ok=True)
-            
+
             # Critical: For Ephemeral SQLite/Kuzu, force clean slate to avoid Lock/Schema errors
-            
+
             # Critical: For Ephemeral SQLite/Kuzu, force clean slate to avoid Lock/Schema errors
             # 1. Clean SQLite
             if "sqlite" in str(settings.SQLALCHEMY_DATABASE_URI):
                 # Extract path. typically "sqlite+aiosqlite:///./data/game.db"
                 # Simple heuristic:
                 if "game.db" in str(settings.SQLALCHEMY_DATABASE_URI):
-                    db_path = "./data/game.db" # Hardcoded based on our known config
+                    db_path = "./data/game.db"  # Hardcoded based on our known config
                     if os.path.exists(db_path):
                         logging.warning(f"Removing stale DB at {db_path} for clean migration.")
                         try:
@@ -45,18 +46,20 @@ async def lifespan(app: FastAPI):
 
             # 2. Clean KuzuDB (Graph)
             if settings.KUZU_DATABASE_PATH and os.path.exists(settings.KUZU_DATABASE_PATH):
-                 import shutil
-                 try:
-                     shutil.rmtree(settings.KUZU_DATABASE_PATH, ignore_errors=True)
-                     logging.warning(f"Removed stale KuzuDB at {settings.KUZU_DATABASE_PATH}")
-                 except Exception:
-                     pass
+                import shutil
+
+                try:
+                    shutil.rmtree(settings.KUZU_DATABASE_PATH, ignore_errors=True)
+                    logging.warning(f"Removed stale KuzuDB at {settings.KUZU_DATABASE_PATH}")
+                except Exception:
+                    pass
 
             await asyncio.to_thread(run_migrations)
 
             # Seed Data (Shop Items)
             from app.core.seeding import seed_shop_items
             from app.core.database import AsyncSessionLocal
+
             async with AsyncSessionLocal() as session:
                 await seed_shop_items(session)
 
@@ -89,15 +92,18 @@ from app.core.database import AsyncSessionLocal
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 
+
 # 1. Define Independent Handlers
 async def handle_attack(session, user_id: str, text: str) -> GameResult:
     """Handle attack command"""
     # In real logic, this would calculate damage, update DB, etc.
     return GameResult(text="⚔️ 你發動了攻擊！造成了 10 點傷害。", intent="attack")
 
+
 async def handle_defend(session, user_id: str, text: str) -> GameResult:
     """Handle defend command"""
     return GameResult(text="🛡️ 你擺出了防禦姿態，傷害減少 50%。", intent="defend")
+
 
 async def handle_ai_analysis(session, user_id: str, text: str) -> GameResult:
     """Handle natural language via BrainService (The Cortex) - Cognitive Upgrade."""
@@ -106,26 +112,26 @@ async def handle_ai_analysis(session, user_id: str, text: str) -> GameResult:
     from adapters.persistence.kuzu.adapter import get_kuzu_adapter
     from legacy.services.hp_service import hp_service
     from legacy.services.quest_service import quest_service
-    
+
     # --- PHASE 4: THE PULSE (LAZY EVALUATION) ---
     # Trigger "Wake Up" protocols based on user returning
     user = await user_service.get_or_create_user(session, user_id)
-    
+
     # 1. HP Drain
     drain_amount = await hp_service.calculate_daily_drain(session, user)
-    
+
     # 2. Viper/Quest Push
     pushed_quests = await quest_service.trigger_push_quests(session, user_id)
-         
+
     pulsed_events = {
         "drain_amount": drain_amount,
-        "viper_taunt": f"System rebooted. {len(pushed_quests)} tasks pending." if pushed_quests else None
+        "viper_taunt": f"System rebooted. {len(pushed_quests)} tasks pending." if pushed_quests else None,
     }
-    
+
     # --- PHASE 5: BRAIN TRANSPLANT ---
     # Use Cortex instead of Lizard Brain
     plan = await brain_service.think_with_session(session, user_id, text, pulsed_events=pulsed_events)
-    
+
     # Execute Plan
     if plan.stat_update:
         # Applying Brain's Stat Directives
@@ -133,52 +139,49 @@ async def handle_ai_analysis(session, user_id: str, text: str) -> GameResult:
         if update_data.stat_type:
             stat_key = update_data.stat_type.lower()
             if hasattr(user, stat_key):
-                 curr = getattr(user, stat_key) or 0
-                 setattr(user, stat_key, curr + 1) # Simplified for now, mostly driven by Brain's specific logic later
-        
+                curr = getattr(user, stat_key) or 0
+                setattr(user, stat_key, curr + 1)  # Simplified for now, mostly driven by Brain's specific logic later
+
         # Apply HP/Gold changes directly
         if update_data.hp_change != 0:
-             await hp_service.apply_hp_change(session, user, update_data.hp_change, source="brain_reward")
-        
+            await hp_service.apply_hp_change(session, user, update_data.hp_change, source="brain_reward")
+
         if update_data.gold_change != 0:
-             user.gold = (user.gold or 0) + update_data.gold_change
-             
+            user.gold = (user.gold or 0) + update_data.gold_change
+
         # XP
         if update_data.xp_amount > 0:
-             user.xp = (user.xp or 0) + update_data.xp_amount
+            user.xp = (user.xp or 0) + update_data.xp_amount
 
         await session.commit()
 
     # Record Event to Graph
     kuzu_adapter = get_kuzu_adapter()
     kuzu_adapter.record_user_event(
-        user_id, 
-        "ACTION", 
+        user_id,
+        "ACTION",
         {
             "content": plan.narrative,
             "stat_type": plan.stat_update.stat_type if plan.stat_update else "none",
             "raw_text": text,
-            "flow_tone": plan.flow_state.get("tone", "neutral")
-        }
+            "flow_tone": plan.flow_state.get("tone", "neutral"),
+        },
     )
-    
+
     # ---------------------------------------------------------
     # Intent Dispatcher (New Functional Logic)
     # ---------------------------------------------------------
     # Check if Brain thinks this is a Tool Call?
     # For now, we still rely on Regex Dispatcher for "view_quests" etc.
     # But if Brain return "tool_calls", we can process them here.
-    
+
     # Fallback to Text Intent for legacy compatibility in this transition phase
     # (We removed the 'intent' field from BrainSchema, relying on Tool Calls later)
     # But for View commands, the Dispatcher handles them BEFORE calling this Default Handler.
     # So we only handle "Chat/Action" here.
-    
-    return GameResult(
-        text=plan.narrative,
-        intent="ai_response",
-        metadata={"plan": plan.dict()}
-    )
+
+    return GameResult(text=plan.narrative, intent="ai_response", metadata={"plan": plan.dict()})
+
 
 # 2. Register Strategies
 dispatcher.register(lambda t: t.lower().strip() == "attack", handle_attack)
@@ -186,6 +189,7 @@ dispatcher.register(lambda t: t.lower().strip() == "defend", handle_defend)
 
 # Register Default AI Handler
 dispatcher.register_default(handle_ai_analysis)
+
 
 # 3. Expose Core Logic Wrapper
 # 3. Expose Core Logic Wrapper
@@ -197,9 +201,10 @@ async def process_game_logic(user_id: str, text: str, session: AsyncSession = No
     """
     if session:
         return await game_loop.process_message(session, user_id, text)
-    
+
     async with AsyncSessionLocal() as session:
         return await game_loop.process_message(session, user_id, text)
+
 
 # -----------------------------------------
 
@@ -207,11 +212,11 @@ async def process_game_logic(user_id: str, text: str, session: AsyncSession = No
 # New LINE webhook (clean architecture)
 from app.api import line_webhook
 from app.api import nerves
-from app.api import chat # [NEW] Phase 5: NPC Chat
+from app.api import chat  # [NEW] Phase 5: NPC Chat
 
 app.include_router(line_webhook.router, prefix="", tags=["line"])
 app.include_router(nerves.router, prefix="/api", tags=["nerves"])
-app.include_router(chat.router, prefix="/api", tags=["chat"]) # [NEW] Phase 5: NPC Chat
+app.include_router(chat.router, prefix="/api", tags=["chat"])  # [NEW] Phase 5: NPC Chat
 
 # Legacy routers moved to legacy/api
 # from app.api import users
@@ -234,9 +239,9 @@ async def health_check():
         "status": "ok",
         "version": settings.VERSION,
         "database": "unknown",
-        "timestamp": os.getenv("WEBSITE_HOSTNAME", "local")
+        "timestamp": os.getenv("WEBSITE_HOSTNAME", "local"),
     }
-    
+
     try:
         # Simple DB Check
         async with AsyncSessionLocal() as session:
@@ -247,10 +252,6 @@ async def health_check():
         health_status["status"] = "degraded"
         # Log the full error but don't crash the probe (return 200 with degraded status)
         logging.error(f"Health Check Failed: {e}", exc_info=True)
-        
-
-
-
 
 
 # --- Logic Refactoring for Testability ---
@@ -258,4 +259,5 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

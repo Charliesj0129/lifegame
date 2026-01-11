@@ -18,9 +18,7 @@ class CommandDispatcher:
         self._strategies = []
         self._default_strategies = []  # Priority Low (e.g. AI Fallback)
 
-    def register(
-        self, matcher: Callable[[str], bool], handler: Callable[..., Awaitable[Any]]
-    ):
+    def register(self, matcher: Callable[[str], bool], handler: Callable[..., Awaitable[Any]]):
         """Register a high-priority exact or regex matcher."""
         self._strategies.append((matcher, handler))
 
@@ -33,9 +31,7 @@ class CommandDispatcher:
 
         # 1. High Priority Strategies (Fast Exact Matches)
         for matcher, handler in self._strategies:
-            if matcher(
-                text
-            ):  # Pass raw text usually, or normalized? Let matcher decide.
+            if matcher(text):  # Pass raw text usually, or normalized? Let matcher decide.
                 logger.info(f"Dispatcher: Matched handler {handler.__name__}")
                 return await handler(session, user_id, text)
 
@@ -44,8 +40,9 @@ class CommandDispatcher:
             res = await handler(session, user_id, text)
             if res:  # If handler returns something legitimate (not None)
                 return res
-        
+
         from domain.models.game_result import GameResult
+
         return GameResult(text="⚠️ 無法處理此請求。", intent="unknown", metadata={})
 
 

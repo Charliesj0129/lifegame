@@ -4,25 +4,26 @@ from linebot.v3.messaging import (
     MessagingApi,
     ReplyMessageRequest,
     PushMessageRequest,
-    TextMessage, 
-    ImageMessage, 
-    QuickReply, 
-    QuickReplyItem, 
-    PostbackAction as LinePostbackAction
+    TextMessage,
+    ImageMessage,
+    QuickReply,
+    QuickReplyItem,
+    PostbackAction as LinePostbackAction,
 )
 from linebot.v3.webhooks import MessageEvent, TextMessageContent
 
 from domain.models.game_result import GameResult
-from legacy.services.line_bot import get_messaging_api # Legacy helper for now
+from legacy.services.line_bot import get_messaging_api  # Legacy helper for now
 
 logger = logging.getLogger(__name__)
+
 
 class LineClient:
     """
     Adapter for LINE Messaging API.
     Implements MessagingPort.
     """
-    
+
     def __init__(self):
         # We rely on the global get_messaging_api for now to avoid refactoring config loading yet
         pass
@@ -38,10 +39,8 @@ class LineClient:
                 return False
 
             messages = self._to_line_messages(result)
-            
-            await api.reply_message(
-                ReplyMessageRequest(reply_token=token, messages=messages)
-            )
+
+            await api.reply_message(ReplyMessageRequest(reply_token=token, messages=messages))
             return True
         except Exception as e:
             # Let the caller handle the fallback (e.g. invalid token)
@@ -58,10 +57,8 @@ class LineClient:
                 return False
 
             messages = self._to_line_messages(result)
-            
-            await api.push_message(
-                PushMessageRequest(to=user_id, messages=messages)
-            )
+
+            await api.push_message(PushMessageRequest(to=user_id, messages=messages))
             return True
         except Exception as e:
             logger.error(f"Failed to send LINE push: {e}", exc_info=True)
@@ -73,65 +70,64 @@ class LineClient:
         Handles formatting, Persona injection, and metadata extras.
         """
         from linebot.v3.messaging import FlexMessage
-        
+
         messages = []
         meta = result.metadata or {}
-        
+
         # 1. Pre-Message (e.g. Rival Taunt separate from Image)
         if meta.get("pre_text"):
-             # TODO: Handle pre_sender persona
-             messages.append(TextMessage(text=meta["pre_text"]))
+            # TODO: Handle pre_sender persona
+            messages.append(TextMessage(text=meta["pre_text"]))
 
         # 2. Main Content
         if meta.get("flex_message"):
-             # Direct Flex Object passing
-             messages.append(meta["flex_message"])
-             
+            # Direct Flex Object passing
+            messages.append(meta["flex_message"])
+
         elif result.image_url:
-            msg = ImageMessage(
-                original_content_url=result.image_url,
-                preview_image_url=result.image_url
-            )
+            msg = ImageMessage(original_content_url=result.image_url, preview_image_url=result.image_url)
             messages.append(msg)
-            
-        elif result.text and not meta.get("flex_message"): 
-             # Only verify text if no Flex (Flex usually overrides text)
-             # But if both exist, maybe send both? 
-             # Legacy logic: if Flex, text is ignored or separate.
-             # Let's send text if it's not "Flex Message" placeholder
-             if result.text != "Flex Message":
-                 messages.append(TextMessage(text=result.text))
-        
+
+        elif result.text and not meta.get("flex_message"):
+            # Only verify text if no Flex (Flex usually overrides text)
+            # But if both exist, maybe send both?
+            # Legacy logic: if Flex, text is ignored or separate.
+            # Let's send text if it's not "Flex Message" placeholder
+            if result.text != "Flex Message":
+                messages.append(TextMessage(text=result.text))
+
         # 3. Quick Replies (Attach to LAST message)
         # TODO: Line allows QuickReply on any message type.
         # Ensure last message exists.
-        
+
         # 4. Audio Message (Fanfare)
         if meta.get("audio_message"):
-             messages.append(meta["audio_message"])
-             
+            messages.append(meta["audio_message"])
+
         # 5. Legacy List (from Postback)
         if meta.get("legacy_messages"):
-             # These are already Line Message Objects
-             messages.extend(meta["legacy_messages"])
+            # These are already Line Message Objects
+            messages.extend(meta["legacy_messages"])
 
         # Inject Sender (Persona) - ONLY for TextMessage for now
         sender_persona = meta.get("sender")
         if sender_persona:
-             # Need to get sender object from persona_service?
-             # LineClient shouldn't depend on persona_service directly... 
-             # But we need the icon/name.
-             # Passed as object? GameLoop passed 'persona_service.SYSTEM' which is a Dict/Obj?
-             # Let's import persona_service here? Coupling risk.
-             # Or assume it was resolved to Name/Icon in GameResult?
-             # For Phase 1, import service or helper.
-             from legacy.services.persona_service import persona_service
-             sender_obj = persona_service.get_sender_object(sender_persona)
-             
-             for m in messages:
-                  if isinstance(m, TextMessage):
-                       m.sender = sender_obj
+            # Need to get sender object from persona_service?
+            # LineClient shouldn't depend on persona_service directly...
+            # But we need the icon/name.
+            # Passed as object? GameLoop passed 'persona_service.SYSTEM' which is a Dict/Obj?
+            # Let's import persona_service here? Coupling risk.
+            # Or assume it was resolved to Name/Icon in GameResult?
+            # For Phase 1, import service or helper.
+            from legacy.services.persona_service import persona_service
+
+            sender_obj = persona_service.get_sender_object(sender_persona)
+
+            for m in messages:
+                if isinstance(m, TextMessage):
+                    m.sender = sender_obj
 
         return messages
+
 
 line_client = LineClient()

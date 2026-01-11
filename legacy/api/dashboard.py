@@ -14,9 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 @router.get("/dashboard/{user_id}", response_class=HTMLResponse)
-async def get_dashboard(
-    request: Request, user_id: str, db: AsyncSession = Depends(get_db)
-):
+async def get_dashboard(request: Request, user_id: str, db: AsyncSession = Depends(get_db)):
     """
     Renders the LifeGame Dashboard for a specific user.
     """
@@ -41,16 +39,12 @@ async def get_dashboard(
         from legacy.models.quest import Quest, Goal
 
         # Active Quests
-        stmt = select(Quest).where(
-            Quest.user_id == user_id, Quest.status != QuestStatus.DONE.value
-        )
+        stmt = select(Quest).where(Quest.user_id == user_id, Quest.status != QuestStatus.DONE.value)
         result = await db.execute(stmt)
         active_quests = result.scalars().all()
 
         # Active Goal
-        stmt_goal = select(Goal).where(
-            Goal.user_id == user_id, Goal.status == GoalStatus.ACTIVE.value
-        )
+        stmt_goal = select(Goal).where(Goal.user_id == user_id, Goal.status == GoalStatus.ACTIVE.value)
         res_goal = await db.execute(stmt_goal)
         active_goal = res_goal.scalars().first()
 

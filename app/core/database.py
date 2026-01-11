@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy import text # Import text for PRAGMA
+from sqlalchemy import text  # Import text for PRAGMA
 from app.core.config import settings
 
 # For local dev without Docker, allow overriding via env or fallback?
@@ -21,6 +21,6 @@ async def get_db():
         # Enable WAL mode for SQLite to reduce locking
         if "sqlite" in settings.SQLALCHEMY_DATABASE_URI:
             await session.execute(text("PRAGMA journal_mode=WAL;"))
-            await session.execute(text("PRAGMA synchronous=NORMAL;")) # Optional but faster
-            
+            await session.execute(text("PRAGMA synchronous=NORMAL;"))  # Optional but faster
+
         yield session

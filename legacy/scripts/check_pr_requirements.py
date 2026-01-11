@@ -27,9 +27,7 @@ def main() -> int:
         return 0
 
     body = pr.get("body") or ""
-    missing_sections = [
-        section for section in REQUIRED_SECTIONS if section.lower() not in body.lower()
-    ]
+    missing_sections = [section for section in REQUIRED_SECTIONS if section.lower() not in body.lower()]
 
     files_url = pr.get("url", "") + "/files?per_page=100"
     headers = {"Accept": "application/vnd.github+json"}
@@ -45,15 +43,8 @@ def main() -> int:
         print(f"Failed to fetch PR files: {exc}")
         return 1
 
-    touched = [
-        f.get("filename", "")
-        for f in files
-        if f.get("filename")
-    ]
-    requires_sections = any(
-        any(path.startswith(prefix) for prefix in WATCH_PATHS)
-        for path in touched
-    )
+    touched = [f.get("filename", "") for f in files if f.get("filename")]
+    requires_sections = any(any(path.startswith(prefix) for prefix in WATCH_PATHS) for path in touched)
 
     if requires_sections and missing_sections:
         print("PR touches schema/models/prompts but required sections are missing.")

@@ -55,9 +55,7 @@ async def test_buy_item_success(db_session):
     assert u.gold == 50
 
     # Check Inventory
-    stmt = select(UserItem).where(
-        UserItem.user_id == "u1", UserItem.item_id == "POTION"
-    )
+    stmt = select(UserItem).where(UserItem.user_id == "u1", UserItem.item_id == "POTION")
     result = await db_session.execute(stmt)
     inv = result.scalars().first()
     assert inv is not None

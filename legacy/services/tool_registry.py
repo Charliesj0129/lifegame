@@ -70,12 +70,7 @@ class ToolRegistry:
         """Sets a new macro goal."""
         goal, plan = await quest_service.create_new_goal(session, user_id, goal_text)
 
-        milestones = (
-            plan.get("milestones")
-            or plan.get("tactical_quests")
-            or plan.get("micro_missions")
-            or []
-        )
+        milestones = plan.get("milestones") or plan.get("tactical_quests") or plan.get("micro_missions") or []
         habits = plan.get("daily_habits", [])
 
         msg = flex_renderer.render_plan_confirmation(goal.title, milestones, habits)

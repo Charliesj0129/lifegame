@@ -38,9 +38,7 @@ def upgrade() -> None:
         sa.Column("cha_xp", sa.Integer(), default=0),
         sa.Column("gold", sa.Integer(), default=0),
         sa.Column("xp", sa.Integer(), default=0),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column("updated_at", sa.DateTime(timezone=True), onupdate=sa.func.now()),
     )
     op.create_index(op.f("ix_users_id"), "users", ["id"], unique=False)
@@ -56,14 +54,10 @@ def upgrade() -> None:
         sa.Column("difficulty_tier", sa.String(), nullable=False),
         sa.Column("xp_gained", sa.Integer(), default=0),
         sa.Column("gold_gained", sa.Integer(), default=0),
-        sa.Column(
-            "timestamp", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("timestamp", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"]),
     )
-    op.create_index(
-        op.f("ix_action_logs_user_id"), "action_logs", ["user_id"], unique=False
-    )
+    op.create_index(op.f("ix_action_logs_user_id"), "action_logs", ["user_id"], unique=False)
 
     # Items
     op.create_table(
@@ -73,9 +67,7 @@ def upgrade() -> None:
         sa.Column("description", sa.String(), nullable=True),
         sa.Column(
             "rarity",
-            sa.Enum(
-                "COMMON", "UNCOMMON", "RARE", "EPIC", "LEGENDARY", name="itemrarity"
-            ),
+            sa.Enum("COMMON", "UNCOMMON", "RARE", "EPIC", "LEGENDARY", name="itemrarity"),
             nullable=True,
         ),
         sa.Column(
@@ -84,9 +76,7 @@ def upgrade() -> None:
             nullable=True,
         ),
         sa.Column("effect_meta", sa.JSON(), nullable=True),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
 
     # UserItems
@@ -96,15 +86,11 @@ def upgrade() -> None:
         sa.Column("user_id", sa.String(), nullable=True),
         sa.Column("item_id", sa.String(), nullable=True),
         sa.Column("quantity", sa.Integer(), default=1),
-        sa.Column(
-            "acquired_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("acquired_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"]),
         sa.ForeignKeyConstraint(["item_id"], ["items.id"]),
     )
-    op.create_index(
-        op.f("ix_user_items_user_id"), "user_items", ["user_id"], unique=False
-    )
+    op.create_index(op.f("ix_user_items_user_id"), "user_items", ["user_id"], unique=False)
 
     # UserBuffs
     op.create_table(
@@ -114,14 +100,10 @@ def upgrade() -> None:
         sa.Column("target_attribute", sa.String(), nullable=False),
         sa.Column("multiplier", sa.Float(), default=1.0),
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"]),
     )
-    op.create_index(
-        op.f("ix_user_buffs_user_id"), "user_buffs", ["user_id"], unique=False
-    )
+    op.create_index(op.f("ix_user_buffs_user_id"), "user_buffs", ["user_id"], unique=False)
 
 
 def downgrade() -> None:

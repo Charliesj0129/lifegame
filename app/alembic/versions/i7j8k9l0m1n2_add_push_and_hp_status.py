@@ -25,9 +25,7 @@ def upgrade() -> None:
     )
     op.add_column(
         "users",
-        sa.Column(
-            "push_timezone", sa.String(), nullable=True, server_default="Asia/Taipei"
-        ),
+        sa.Column("push_timezone", sa.String(), nullable=True, server_default="Asia/Taipei"),
     )
 
     # Add HP status fields (hp and max_hp already exist)
@@ -35,9 +33,7 @@ def upgrade() -> None:
         "users",
         sa.Column("hp_status", sa.String(), nullable=True, server_default="HEALTHY"),
     )
-    op.add_column(
-        "users", sa.Column("hollowed_at", sa.DateTime(timezone=True), nullable=True)
-    )
+    op.add_column("users", sa.Column("hollowed_at", sa.DateTime(timezone=True), nullable=True))
 
 
 def downgrade() -> None:

@@ -25,18 +25,14 @@ class NarrativeService:
             "Output JSON: {'narrative': 'str'}"
         )
 
-        user_prompt = (
-            f"Action: {action_text}. Result: {result_data}. Context: {user_context}"
-        )
+        user_prompt = f"Action: {action_text}. Result: {result_data}. Context: {user_context}"
 
         try:
             data = await ai_engine.generate_json(system_prompt, user_prompt)
             story = data.get("narrative", "Action completed.")
 
             # Save to Lore
-            entry = LoreEntry(
-                series=f"User:{user_id}", chapter=1, title=action_text[:50], body=story
-            )
+            entry = LoreEntry(series=f"User:{user_id}", chapter=1, title=action_text[:50], body=story)
             session.add(entry)
 
             return story
@@ -66,7 +62,7 @@ class NarrativeService:
         try:
             data = await ai_engine.generate_json(system_prompt, f"Context: {context}")
             comment = data.get("comment") or data.get("taunt") or "太弱了。"
-            return f"🐍 Viper: \"{comment}\""
+            return f'🐍 Viper: "{comment}"'
         except Exception:
             return '🐍 Viper: "..."'
 

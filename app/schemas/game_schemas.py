@@ -11,9 +11,7 @@ class ProcessResult(BaseModel):
     xp_gained: int
     new_level: int
     leveled_up: bool
-    loot_drop: Optional[Any] = (
-        None  # Pydantic might struggle with SQLAlchemy object, use dict or schema?
-    )
+    loot_drop: Optional[Any] = None  # Pydantic might struggle with SQLAlchemy object, use dict or schema?
     # For now, let's store keys needed for rendering
     loot_name: Optional[str] = None
     loot_rarity: Optional[str] = None
@@ -33,6 +31,7 @@ class ProcessResult(BaseModel):
             rarity = self.loot_rarity or ""
             msg += f"\n🎁 掉落：獲得 {self.loot_name}（{rarity}）"
         return msg
+
 
 # Compatibility Alias
 GameResult = ProcessResult

@@ -28,23 +28,15 @@ class CraftingService:
                 user_qty = inventory.get(ing.item_id, 0)
                 if user_qty < ing.quantity_required:
                     can_craft = False
-                    missing.append(
-                        f"{ing.item.name} x{ing.quantity_required - user_qty}"
-                    )
+                    missing.append(f"{ing.item.name} x{ing.quantity_required - user_qty}")
 
-            craftable_recipes.append(
-                {"recipe": r, "can_craft": can_craft, "missing": missing}
-            )
+            craftable_recipes.append({"recipe": r, "can_craft": can_craft, "missing": missing})
 
         return craftable_recipes
 
     async def craft_item(self, session: AsyncSession, user_id: str, recipe_id: str):
         # 1. Fetch Recipe
-        stmt = (
-            select(Recipe)
-            .where(Recipe.id == recipe_id)
-            .options(selectinload(Recipe.ingredients))
-        )
+        stmt = select(Recipe).where(Recipe.id == recipe_id).options(selectinload(Recipe.ingredients))
         result = await session.execute(stmt)
         recipe = result.scalars().first()
 

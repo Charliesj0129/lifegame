@@ -258,9 +258,7 @@ class FlexRenderer:
                 }
             )
 
-        bubble["body"]["contents"].append(
-            {"type": "separator", "margin": "md", "color": COLOR_LINE}
-        )
+        bubble["body"]["contents"].append({"type": "separator", "margin": "md", "color": COLOR_LINE})
 
         if result.leveled_up:
             bubble["body"]["contents"].append(
@@ -307,12 +305,11 @@ class FlexRenderer:
                 ]
             )
 
-        return FlexMessage(
-            alt_text=result.to_text_message(), contents=FlexContainer.from_dict(bubble)
-        )
+        return FlexMessage(alt_text=result.to_text_message(), contents=FlexContainer.from_dict(bubble))
 
     def render_status(self, user: User, lore_progress: list = None) -> FlexMessage:
         from legacy.services.flex.status import status_renderer as sub_renderer
+
         return sub_renderer.render_status(user, lore_progress)
 
     def render_lore_shard(self, shard) -> FlexMessage:
@@ -404,11 +401,7 @@ class FlexRenderer:
             for h in habits:
                 tier = getattr(h, "tier", "T1")
                 streak = getattr(h, "zone_streak_days", 0) or 0
-                habit_label = (
-                    getattr(h, "habit_name", None)
-                    or getattr(h, "habit_tag", None)
-                    or "習慣"
-                )
+                habit_label = getattr(h, "habit_name", None) or getattr(h, "habit_tag", None) or "習慣"
                 done_today = getattr(h, "last_outcome_date", None) == today
 
                 if done_today:
@@ -499,9 +492,7 @@ class FlexRenderer:
             diff_color = COLOR_TIER_MAP.get(q.difficulty_tier, COLOR_TEXT)
             loot_chance_text = ""
             if q.difficulty_tier in loot_chance_map:
-                loot_chance_text = (
-                    f"🎲 掉落率 {loot_chance_map.get(q.difficulty_tier)}%"
-                )
+                loot_chance_text = f"🎲 掉落率 {loot_chance_map.get(q.difficulty_tier)}%"
 
             verification_type = (q.verification_type or "").upper()
             verification_hint = verification_labels.get(verification_type)
@@ -754,9 +745,7 @@ class FlexRenderer:
             },
         }
 
-        return FlexMessage(
-            alt_text="今日任務", contents=FlexContainer.from_dict(bubble)
-        )
+        return FlexMessage(alt_text="今日任務", contents=FlexContainer.from_dict(bubble))
 
     def render_push_briefing(
         self,
@@ -797,11 +786,7 @@ class FlexRenderer:
         habit_rows = []
         if habits:
             for h in habits[:2]:
-                label = (
-                    getattr(h, "habit_name", None)
-                    or getattr(h, "habit_tag", None)
-                    or "習慣"
-                )
+                label = getattr(h, "habit_name", None) or getattr(h, "habit_tag", None) or "習慣"
                 habit_rows.append(
                     {
                         "type": "box",
@@ -857,9 +842,7 @@ class FlexRenderer:
         body_contents.extend(quest_rows)
 
         if habit_rows:
-            body_contents.append(
-                {"type": "separator", "margin": "md", "color": COLOR_LINE}
-            )
+            body_contents.append({"type": "separator", "margin": "md", "color": COLOR_LINE})
             body_contents.append(
                 {
                     "type": "text",
@@ -993,9 +976,7 @@ class FlexRenderer:
             },
         }
 
-        return FlexMessage(
-            alt_text="黑市交易所", contents=FlexContainer.from_dict(bubble)
-        )
+        return FlexMessage(alt_text="黑市交易所", contents=FlexContainer.from_dict(bubble))
 
     def render_crafting_menu(self, recipes: list) -> FlexMessage:
         COLOR_BG = "#0D1117"
@@ -1116,9 +1097,7 @@ class FlexRenderer:
             },
         }
 
-        return FlexMessage(
-            alt_text="製造工坊", contents=FlexContainer.from_dict(bubble)
-        )
+        return FlexMessage(alt_text="製造工坊", contents=FlexContainer.from_dict(bubble))
 
     def render_boss_status(self, boss) -> FlexMessage:
         if not boss:
@@ -1218,13 +1197,9 @@ class FlexRenderer:
             },
         }
 
-        return FlexMessage(
-            alt_text=f"首領戰：{boss.name}", contents=FlexContainer.from_dict(bubble)
-        )
+        return FlexMessage(alt_text=f"首領戰：{boss.name}", contents=FlexContainer.from_dict(bubble))
 
-    def render_plan_confirmation(
-        self, goal_title: str, milestones: list, habits: list
-    ) -> FlexMessage:
+    def render_plan_confirmation(self, goal_title: str, milestones: list, habits: list) -> FlexMessage:
         COLOR_BG = "#0D1117"
         COLOR_ACCENT = "#2f81f7"
 
@@ -1238,7 +1213,7 @@ class FlexRenderer:
                         {"type": "text", "text": "🔹", "flex": 0, "size": "xxs"},
                         {
                             "type": "text",
-                            "text": f"{m.get('title')}（{m.get('difficulty','C')}）",
+                            "text": f"{m.get('title')}（{m.get('difficulty', 'C')}）",
                             "color": "#E6EDF3",
                             "size": "xs",
                             "flex": 1,
@@ -1301,8 +1276,7 @@ class FlexRenderer:
             {
                 "type": "box",
                 "layout": "vertical",
-                "contents": m_rows
-                or [{"type": "text", "text": "尚無", "size": "xs", "color": "#8B949E"}],
+                "contents": m_rows or [{"type": "text", "text": "尚無", "size": "xs", "color": "#8B949E"}],
             },
             {
                 "type": "text",
@@ -1315,8 +1289,7 @@ class FlexRenderer:
             {
                 "type": "box",
                 "layout": "vertical",
-                "contents": h_rows
-                or [{"type": "text", "text": "尚無", "size": "xs", "color": "#8B949E"}],
+                "contents": h_rows or [{"type": "text", "text": "尚無", "size": "xs", "color": "#8B949E"}],
             },
         ]
 

@@ -51,11 +51,7 @@ async def get_user_inventory(user_id: str, db: AsyncSession = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    result = await db.execute(
-        select(UserItem)
-        .where(UserItem.user_id == user_id)
-        .options(selectinload(UserItem.item))
-    )
+    result = await db.execute(select(UserItem).where(UserItem.user_id == user_id).options(selectinload(UserItem.item)))
     user_items = result.scalars().all()
 
     inventory = []

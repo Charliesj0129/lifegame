@@ -12,16 +12,19 @@ os.environ.setdefault("KUZU_DATABASE_PATH", "/tmp/test_kuzu_db")
 # Patches get_kuzu_adapter immediately to protect Collection Phase imports
 try:
     import adapters.persistence.kuzu.adapter
+
     if os.environ.get("TESTING"):
         adapters.persistence.kuzu.adapter.get_kuzu_adapter = MagicMock(return_value=MagicMock())
 except ImportError:
     pass
+
 
 @pytest.fixture(scope="session", autouse=True)
 def mock_kuzu_global():
     # Placeholder to satisfy pytest if needed, or remove completely.
     # Logic moved to top level.
     yield
+
 
 try:
     import pytest_asyncio
@@ -53,9 +56,7 @@ if pytest_asyncio:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
 
-        async_session = sessionmaker(
-            engine, class_=AsyncSession, expire_on_commit=False
-        )
+        async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
         async with async_session() as session:
             yield session
 

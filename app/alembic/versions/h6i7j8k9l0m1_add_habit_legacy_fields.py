@@ -29,9 +29,7 @@ def _has_column(table: str, column: str) -> bool:
 
 def upgrade() -> None:
     if not _has_column("habit_states", "current_tier"):
-        op.add_column(
-            "habit_states", sa.Column("current_tier", sa.Integer(), nullable=True)
-        )
+        op.add_column("habit_states", sa.Column("current_tier", sa.Integer(), nullable=True))
 
     if not _has_column("habit_states", "exp"):
         op.add_column("habit_states", sa.Column("exp", sa.Integer(), nullable=True))

@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import Type, Optional, List, Any
 
+
 class SqlAlchemyRepository(Repository[T]):
     def __init__(self, session: AsyncSession, model_cls: Type[T]):
         self.session = session

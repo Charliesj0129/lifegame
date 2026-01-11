@@ -18,6 +18,7 @@ from app.core.dispatcher import dispatcher
 
 logger = logging.getLogger(__name__)
 
+
 class GameLoop:
     """
     Orchestrates the Main Game Loop:
@@ -29,7 +30,6 @@ class GameLoop:
     """
 
     async def process_message(self, session: AsyncSession, user_id: str, text: str) -> GameResult:
-        
         try:
             # 1. Get User
             user = await user_service.get_or_create_user(session, user_id)
@@ -37,13 +37,13 @@ class GameLoop:
             # 2. Vitals Check (Hollowed)
             is_hollowed = getattr(user, "is_hollowed", False) is True
             hp_status = getattr(user, "hp_status", "")
-            
+
             if is_hollowed or hp_status == "HOLLOWED":
                 rescue_msg = await hp_service.trigger_rescue_protocol(session, user)
                 return GameResult(
                     text=f"⚠️ 瀕死狀態啟動。\n{rescue_msg}",
                     intent="hollowed_rescue",
-                    metadata={"sender": persona_service.SYSTEM}
+                    metadata={"sender": persona_service.SYSTEM},
                 )
 
             # 3. Environment (Rival)
@@ -55,11 +55,11 @@ class GameLoop:
 
             # 4. Dispatch Input
             result_obj = await dispatcher.dispatch(session, user_id, text)
-            
+
             # 5. Normalize Result
             # Logic similar to what we did in webhook refactor, but cleaner.
             game_result = self._normalize_result(result_obj)
-            
+
             # 6. Apply Context (Rival Log)
             if rival_log:
                 if game_result.text:
@@ -68,24 +68,25 @@ class GameLoop:
                     game_result.text = rival_log
 
             # 7. Apply Persona Hint (if not already set)
-            if not game_result.metadata: game_result.metadata = {}
-            
+            if not game_result.metadata:
+                game_result.metadata = {}
+
             # Determine Intent Tool (for persona selection)
             # We need to extract intent from result if dispatch didn't return it clearly
             # Legacy dispatcher returns (msg, tool, data).
             # _normalize_result handles extraction.
             intent = game_result.intent
-            
+
             # Persona Logic
             if intent == "hollowed_rescue":
                 sender = persona_service.SYSTEM
             elif intent == "get_status":
                 from legacy.services.lore_service import lore_service
                 from legacy.services.flex_renderer import flex_renderer
-                
+
                 lore_prog = await lore_service.get_user_progress(session, user_id)
                 flex_msg = flex_renderer.render_status(user, lore_prog)
-                
+
                 game_result.metadata["flex_message"] = flex_msg
                 game_result.text = "Status Update"
                 sender = persona_service.SYSTEM
@@ -93,11 +94,11 @@ class GameLoop:
             elif intent == "get_quests":
                 from legacy.services.quest_service import quest_service
                 from legacy.services.flex_renderer import flex_renderer
-                
+
                 quests = await quest_service.get_daily_quests(session, user_id)
                 habits = await quest_service.get_daily_habits(session, user_id)
                 flex_msg = flex_renderer.render_quest_list(quests, habits)
-                
+
                 game_result.metadata["flex_message"] = flex_msg
                 game_result.text = "Quest List"
                 sender = persona_service.SYSTEM
@@ -108,7 +109,7 @@ class GameLoop:
                 sender = persona_service.MENTOR
             else:
                 sender = persona_service.SYSTEM
-                
+
             game_result.metadata["sender"] = sender
 
             # 8. Side Effects (Audio)
@@ -128,7 +129,7 @@ class GameLoop:
             # So if GameResult has image_url or flex_message, we put rival_log in metadata["extra_text"]?
             # Or simplified: Start with Text(rival_log), then Image.
             # Let's use metadata["pre_message"] = rival_log.
-            
+
             if rival_log and (game_result.image_url or game_result.metadata.get("flex_message")):
                 # We can't merge text into image/flex.
                 game_result.metadata["pre_text"] = rival_log
@@ -139,48 +140,47 @@ class GameLoop:
         except Exception as e:
             logger.error(f"GameLoop Error: {e}", exc_info=True)
             error_hash = uuid.uuid4().hex[:8]
-            return GameResult(
-                text=f"⚠️ 系統異常 ({error_hash})",
-                metadata={"sender": persona_service.SYSTEM}
-            )
+            return GameResult(text=f"⚠️ 系統異常 ({error_hash})", metadata={"sender": persona_service.SYSTEM})
 
     def _normalize_result(self, result_obj: Any) -> GameResult:
         if isinstance(result_obj, GameResult):
-             return result_obj
-        
+            return result_obj
+
         intent = "unknown"
         meta = {}
-        
+
         if isinstance(result_obj, tuple):
-             # (msg, tool, data)
-             msg = result_obj[0]
-             intent = result_obj[1] if len(result_obj) > 1 else "unknown"
-             meta = result_obj[2] if len(result_obj) > 2 else {}
+            # (msg, tool, data)
+            msg = result_obj[0]
+            intent = result_obj[1] if len(result_obj) > 1 else "unknown"
+            meta = result_obj[2] if len(result_obj) > 2 else {}
         else:
-             msg = result_obj
-        
+            msg = result_obj
+
         # Convert Msg -> Text or Metadata
         from linebot.v3.messaging import TextMessage, FlexMessage
-        
+
         text = ""
         flex = None
-        
+
         if isinstance(msg, TextMessage):
             text = msg.text
         elif isinstance(msg, FlexMessage):
-             flex = msg
-             text = "Flex Message" # Fallback text?
+            flex = msg
+            text = "Flex Message"  # Fallback text?
         elif hasattr(msg, "type") and msg.type == "flex":
-             # Container object
-             flex = msg
+            # Container object
+            flex = msg
         else:
-             text = str(msg)
-             
+            text = str(msg)
+
         gr = GameResult(text=text, intent=intent, metadata=meta)
         if flex:
-            if not gr.metadata: gr.metadata = {}
+            if not gr.metadata:
+                gr.metadata = {}
             gr.metadata["flex_message"] = flex
-            
+
         return gr
+
 
 game_loop = GameLoop()

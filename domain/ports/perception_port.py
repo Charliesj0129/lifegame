@@ -3,6 +3,7 @@ from typing import Any, Dict
 from domain.events.game_event import GameEvent
 from domain.models.game_result import GameResult
 
+
 class PerceptionPort(ABC):
     @abstractmethod
     async def process_event(self, event: GameEvent) -> GameResult:

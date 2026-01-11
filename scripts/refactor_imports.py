@@ -1,4 +1,3 @@
-
 import os
 
 files_to_update = [
@@ -13,16 +12,16 @@ files_to_update = [
     "tests/integration/test_brain_hook.py",
     "app/api/nerves.py",
     "application/services/brain_service.py",
-    "application/services/perception_service.py"
+    "application/services/perception_service.py",
 ]
 
 for filepath in files_to_update:
     if os.path.exists(filepath):
         with open(filepath, "r") as f:
             content = f.read()
-        
+
         new_content = content.replace("app.services", "application.services")
-        
+
         if content != new_content:
             with open(filepath, "w") as f:
                 f.write(new_content)
