@@ -232,6 +232,17 @@ If they are bored/winning, challenge them (Higher Difficulty).
                  if created.tzinfo: created = created.replace(tzinfo=None)
                  days_since = (now - created).days
             
+            if days_since > 30:
+                 # POLICY: CHECKMATE PROTOCOL (Forced Accountability)
+                 logger.warning(f"Executive Judgment: Goal {goal.title} ignored for {days_since}d. TRIGGERING CHECKMATE.")
+                 # Force Boss Fight logic could go here, or just a very severe Bridge Quest
+                 # Simple version: Priority S bridge quest
+                 return AgentSystemAction(
+                    action_type="PUSH_QUEST",
+                    details={"title": f"BOSS: Reclaim {goal.title}", "diff": "S", "type": "REDEMPTION"},
+                    reason=f"CHECKMATE (Goal ignored {days_since} days)"
+                 )
+            
             if days_since > 7:
                  # POLICY: STAGNATION DETECTED
                  logger.info(f"Executive Judgment: Goal {goal.title} is stagnant ({days_since}d). Building Bridge.")
@@ -243,7 +254,23 @@ If they are bored/winning, challenge them (Higher Difficulty).
                         reason=f"Goal Stagnation ({days_since} days)"
                      )
 
+        # 5. Reality Sync (Stub)
+        # Check external calendar load
+        external_load = await self._get_external_load(user_id)
+        if external_load > 0.8: # > 80% busy
+             logger.info("Executive Judgment: External High Load detected. Adjusting difficulty.")
+             count = await quest_service.bulk_adjust_difficulty(session, user_id, target_tier="E")
+             return AgentSystemAction(
+                action_type="DIFFICULTY_CHANGE",
+                details={"tier": "E", "source": "CALENDAR_SYNC"},
+                reason="High External Load"
+             )
+
         return None
+
+    async def _get_external_load(self, user_id: str) -> float:
+        """Stub for Google/Outlook Calendar integration."""
+        return 0.0
 
 
 brain_service = BrainService()
