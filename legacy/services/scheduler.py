@@ -114,7 +114,7 @@ class DDAScheduler:
         """
         if self._lock.locked():
             return
-        
+
         from application.services.brain_service import brain_service
 
         async with self._lock:

@@ -188,19 +188,23 @@ class QuestService:
                 session.add(habit)
 
             await session.commit()
-            
+
             # 5. Kuzu Graph Sync
             try:
-                from legacy.services.kuzu_service_factory import get_kuzu_adapter_safe # Mock safe factory
+                from legacy.services.kuzu_service_factory import get_kuzu_adapter_safe  # Mock safe factory
+
                 # OR import directly if safe
                 from adapters.persistence.kuzu.adapter import get_kuzu_adapter
+
                 adapter = get_kuzu_adapter()
-                
+
                 # Create Goal Node
                 adapter.add_node("Goal", {"id": goal.id, "title": goal.title, "status": "ACTIVE"})
                 # Link User -> Goal
-                adapter.add_relationship("User", user_id, "PURSUES", "Goal", goal.id, from_key_field="id", to_key_field="id")
-                
+                adapter.add_relationship(
+                    "User", user_id, "PURSUES", "Goal", goal.id, from_key_field="id", to_key_field="id"
+                )
+
                 logger.info(f"Synced Goal {goal.title} to Kuzu Graph.")
             except Exception as e:
                 logger.error(f"Kuzu Sync Failed: {e}")
@@ -224,31 +228,31 @@ class QuestService:
 
         # Generate 1 micro-step
         system_prompt = (
-             "Goal: " + goal.title + "\n"
-             "User has stagnated. Generate 1 very easy 'Bridge Quest' to restart momentum.\n"
-             "JSON: { 'title': '...', 'desc': '...', 'diff': 'E', 'xp': 10 }"
+            "Goal: " + goal.title + "\n"
+            "User has stagnated. Generate 1 very easy 'Bridge Quest' to restart momentum.\n"
+            "JSON: { 'title': '...', 'desc': '...', 'diff': 'E', 'xp': 10 }"
         )
         try:
-             ai_data = await ai_engine.generate_json(system_prompt, "Generate Bridge Task")
-             t = ai_data if isinstance(ai_data, dict) else ai_data[0]
-             
-             q = Quest(
+            ai_data = await ai_engine.generate_json(system_prompt, "Generate Bridge Task")
+            t = ai_data if isinstance(ai_data, dict) else ai_data[0]
+
+            q = Quest(
                 user_id=user_id,
                 goal_id=goal.id,
                 title=f"🚀 {t.get('title', 'Restart')}",
-                description=t.get('desc', 'Get back on track.'),
+                description=t.get("desc", "Get back on track."),
                 difficulty_tier="E",
                 xp_reward=20,
-                quest_type=QuestType.SIDE.value, # Side quest to support Main Goal
+                quest_type=QuestType.SIDE.value,  # Side quest to support Main Goal
                 status=QuestStatus.ACTIVE.value,
-                scheduled_date=datetime.date.today()
-             )
-             session.add(q)
-             await session.commit()
-             return q
+                scheduled_date=datetime.date.today(),
+            )
+            session.add(q)
+            await session.commit()
+            return q
         except Exception as e:
-             logger.error(f"Bridge Quest Gen Failed: {e}")
-             return None
+            logger.error(f"Bridge Quest Gen Failed: {e}")
+            return None
 
     async def trigger_push_quests(self, session: AsyncSession, user_id: str, time_block: str = "Morning"):
         """
@@ -716,7 +720,7 @@ class QuestService:
                 q.xp_reward = 50
             updated_count += 1
             session.add(q)
-        
+
         await session.commit()
         return updated_count
 
