@@ -38,7 +38,7 @@ async def test_executive_judgment_overwhelm(mock_session):
     # Call 2: Active Goals -> [] (Empty, so we don't trigger bridge logic check)
     mock_quests_result = MagicMock()
     mock_quests_result.scalars.return_value.all.return_value = stale_quests
-    
+
     mock_goals_result = MagicMock()
     mock_goals_result.scalars.return_value.all.return_value = []
 
@@ -80,10 +80,10 @@ async def test_executive_judgment_normal(mock_session):
     # Call 2: Active Goals -> []
     mock_quests_result = MagicMock()
     mock_quests_result.scalars.return_value.all.return_value = fresh_quests
-    
+
     mock_goals_result = MagicMock()
     mock_goals_result.scalars.return_value.all.return_value = []
-    
+
     mock_session.execute.side_effect = [mock_quests_result, mock_goals_result]
 
     with patch(
