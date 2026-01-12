@@ -33,10 +33,16 @@ async def test_executive_judgment_overwhelm(mock_session):
         Quest(id="q2", user_id=user_id, status=QuestStatus.ACTIVE.value, created_at=old_date),
     ]
 
-    # Mock DB Query
-    mock_result = MagicMock()
-    mock_result.scalars.return_value.all.return_value = stale_quests
-    mock_session.execute.return_value = mock_result
+    # Mock DB Query Responses
+    # Call 1: Active Quests -> stale_quests
+    # Call 2: Active Goals -> [] (Empty, so we don't trigger bridge logic check)
+    mock_quests_result = MagicMock()
+    mock_quests_result.scalars.return_value.all.return_value = stale_quests
+    
+    mock_goals_result = MagicMock()
+    mock_goals_result.scalars.return_value.all.return_value = []
+
+    mock_session.execute.side_effect = [mock_quests_result, mock_goals_result]
 
     # Mock QuestService
     with patch(
@@ -70,9 +76,15 @@ async def test_executive_judgment_normal(mock_session):
         Quest(id="q1", user_id=user_id, status=QuestStatus.ACTIVE.value, created_at=new_date),
     ]
 
-    mock_result = MagicMock()
-    mock_result.scalars.return_value.all.return_value = fresh_quests
-    mock_session.execute.return_value = mock_result
+    # Call 1: Active Quests -> fresh_quests
+    # Call 2: Active Goals -> []
+    mock_quests_result = MagicMock()
+    mock_quests_result.scalars.return_value.all.return_value = fresh_quests
+    
+    mock_goals_result = MagicMock()
+    mock_goals_result.scalars.return_value.all.return_value = []
+    
+    mock_session.execute.side_effect = [mock_quests_result, mock_goals_result]
 
     with patch(
         "legacy.services.quest_service.quest_service.bulk_adjust_difficulty", new_callable=AsyncMock
