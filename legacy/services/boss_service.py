@@ -62,6 +62,32 @@ class BossService:
             if user:
                 user.gold = (user.gold or 0) + 500
 
+            # --- Graph Sync ---
+            try:
+                from legacy.services.kuzu_service_factory import get_kuzu_adapter_safe
+
+                adapter = get_kuzu_adapter_safe()
+                if adapter:
+                    # Ensure Boss Node
+                    # Use unique ID if available, or generate a deterministic one for this *encounter*?
+                    # Boss table has 'id' (UUID usually).
+                    adapter.add_node("Boss", {"id": str(boss.id), "name": boss.name, "level": boss.level})
+
+                    import datetime
+
+                    adapter.add_relationship(
+                        "User",
+                        user_id,
+                        "DEFEATED",
+                        "Boss",
+                        str(boss.id),
+                        {"timestamp": datetime.datetime.now().isoformat()},
+                        from_key_field="id",
+                        to_key_field="id",
+                    )
+            except Exception as e:
+                print(f"Graph Sync Failed: {e}")
+
         await session.commit()
         return msg
 

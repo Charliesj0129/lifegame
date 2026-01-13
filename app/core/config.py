@@ -76,6 +76,7 @@ class Settings(BaseSettings):
     )
     ENABLE_SCHEDULER: bool = False
     SCHEDULER_INTERVAL_SECONDS: int = 60
+    LOG_LEVEL: str = "INFO"
 
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=True)
 
