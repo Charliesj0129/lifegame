@@ -1566,5 +1566,85 @@ class FlexRenderer:
 
         return FlexMessage(alt_text=f"敵人: {rival_name}", contents=FlexContainer.from_dict(bubble))
 
+    def render_hollowed_state(self, user_hp: int, max_hp: int = 100) -> FlexMessage:
+        """Renders an 'Emergency Protocol' card when user is Hollowed (HP <= 0)."""
+        COLOR_BG = "#1A0505"
+        COLOR_DANGER = "#FF3B6B"
+        COLOR_TEXT = "#FF6B6B"
+        COLOR_MUTED = "#8B4545"
+
+        hp_pct = max(0, int((user_hp / max_hp) * 100))
+
+        bubble = {
+            "type": "bubble",
+            "size": "mega",
+            "header": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": "⚠️ SYSTEM CRITICAL ⚠️",
+                        "weight": "bold",
+                        "color": COLOR_DANGER,
+                        "size": "lg",
+                        "align": "center",
+                    },
+                    {
+                        "type": "text",
+                        "text": f"HP: {hp_pct}%",
+                        "color": COLOR_MUTED,
+                        "size": "xs",
+                        "align": "center",
+                        "margin": "sm",
+                    },
+                ],
+                "backgroundColor": COLOR_BG,
+                "paddingAll": "lg",
+            },
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": "HOLLOWED PROTOCOL ACTIVE",
+                        "weight": "bold",
+                        "color": COLOR_TEXT,
+                        "size": "md",
+                        "align": "center",
+                    },
+                    {"type": "separator", "margin": "md", "color": "#4A1515"},
+                    {
+                        "type": "text",
+                        "text": "所有任務已暫停。\n完成「救援地城」以恢復HP。",
+                        "color": COLOR_MUTED,
+                        "size": "sm",
+                        "margin": "lg",
+                        "wrap": True,
+                        "align": "center",
+                    },
+                ],
+                "backgroundColor": "#0F0505",
+                "paddingAll": "xl",
+            },
+            "footer": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {
+                        "type": "button",
+                        "action": {"type": "postback", "label": "🚨 進入救援", "data": "action=start_rescue"},
+                        "style": "primary",
+                        "color": COLOR_DANGER,
+                    }
+                ],
+                "backgroundColor": COLOR_BG,
+                "paddingAll": "md",
+            },
+        }
+
+        return FlexMessage(alt_text="⚠️ HOLLOWED PROTOCOL", contents=FlexContainer.from_dict(bubble))
+
 
 flex_renderer = FlexRenderer()
