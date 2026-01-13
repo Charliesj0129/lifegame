@@ -31,6 +31,7 @@ async def test_crafting_flow(db_session):
 
     # Verify Recipe exists
     from sqlalchemy.orm import selectinload
+
     stmt = select(Recipe).options(selectinload(Recipe.ingredients))
     recipe = (await db_session.execute(stmt)).scalars().first()
     assert recipe is not None
