@@ -53,7 +53,14 @@ class ShopService:
             session.add(user_item)
 
         await session.commit()
-        return {"success": True, "message": f"已購買 {item.name}（-{price} G）。"}
+
+        # F3: NPC Interaction (Kael)
+        from legacy.services.npc_service import npc_service
+
+        kael_context = {"item_bought": item.name, "cost": price, "user_gold_left": user.gold}
+        dialogue = await npc_service.get_dialogue("kael", f"User bought {item.name} for {price}G.", kael_context)
+
+        return {"success": True, "message": f"{dialogue}\n\n[系統] 已購買 {item.name}（-{price} G）。"}
 
     async def refresh_daily_stock(
         self, session: AsyncSession, slots: int = 3, user_hp: int = 100, goal_tags: list = None
