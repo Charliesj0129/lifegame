@@ -108,7 +108,8 @@ class BrainService:
         )
 
         # 3. System Prompt Engineering (The "Addiction Script")
-        system_prompt = self._construct_system_prompt(memory, flow_target)
+        intent_hint = self._classify_intent(user_text)
+        system_prompt = self._construct_system_prompt(memory, flow_target, intent_hint=intent_hint)
 
         raw_plan = {}
 
@@ -155,7 +156,27 @@ class BrainService:
                 flow_state={"error": str(e)},
             )
 
-    def _construct_system_prompt(self, memory: Dict, flow: FlowState) -> str:
+    def _classify_intent(self, text: str) -> str:
+        """
+        Simple heuristic to guide the LLM.
+        """
+        text = text.lower()
+
+        # Goal Creation Keywords
+        if any(w in text for w in ["想要", "我要", "想成為", "想學", "目標", "new goal", "i want"]):
+            return "CREATE_GOAL"
+
+        # Challenge/Quest Keywords
+        if any(w in text for w in ["挑戰", "試試", "開始", "start", "challenge"]):
+            return "START_CHALLENGE"
+
+        # Chit-Chat (Basic)
+        if any(w in text for w in ["你好", "嗨", "hello", "hi", "早安", "晚安"]):
+            return "GREETING"
+
+        return "UNKNOWN"
+
+    def _construct_system_prompt(self, memory: Dict, flow: FlowState, intent_hint: str = "UNKNOWN") -> str:
         # Construct Alert String
         alerts = ""
         pulsed = memory.get("pulsed_events", {})
@@ -164,16 +185,18 @@ class BrainService:
         if pulsed.get("viper_taunt"):
             alerts += f"\n💀 [VIPER ALERT] Rival Taunt: '{pulsed['viper_taunt']}'."
 
-        # Identity Injection
-        # identity = memory.get("identity_context", {})
-        # values = ", ".join(identity.get("core_values", []))
-        # self_perception = ", ".join(identity.get("identity_tags", []))
+        # Intent Guidance
+        intent_instruction = ""
+        if intent_hint == "CREATE_GOAL":
+            intent_instruction = "\n👉 SYSTEM HINT: User likely wants to set a GOAL. USE `create_goal` tool."
+        elif intent_hint == "START_CHALLENGE":
+            intent_instruction = "\n👉 SYSTEM HINT: User wants to start a challenge. USE `start_challenge` tool."
 
         return f"""
 Role: Grounded Performance Coach (LifeOS AI).
 Language: Traditional Chinese (繁體中文).
-Core Directive: You are the ACTOR of the system. Do not just speak. ACT.
-Use 'tool_calls' to modify the Game State (Goals, Quests) whenever the user states an intent.
+Core Directive: ACT. Do not just speak.
+Use 'tool_calls' to modify Game State.
 
 # Context
 User Level: {memory["user_state"].get("level")}
@@ -186,57 +209,34 @@ Churn Risk: {memory["user_state"].get("churn_risk")}
 # Graph Memory (Deep Context)
 {json.dumps(memory.get("long_term_context", []), ensure_ascii=False)}
 
-# Recent AI Actions (F9: Graph Sync)
+# Recent AI Actions
 {chr(10).join(memory.get("recent_ai_actions", ["No recent AI actions"]))}
 
-# Operational Directive (Flow State)
-Target Difficulty: {flow.difficulty_tier}
-Narrative Tone: {flow.narrative_tone.upper()}
-Loot Multiplier: {flow.loot_multiplier}x
+# Operational Directive
+Difficulty: {flow.difficulty_tier} | Tone: {flow.narrative_tone.upper()} | Loot: {flow.loot_multiplier}x
 
 # ALERTS
 {alerts}
 
-# STRICT OUTPUT RULES (Fixes 5-7)
-1. **EMOJI FIRST**: Every response MUST start with ONE emoji.
-2. **MAX 60 CHARS**: Narrative must be under 60 characters.
-3. **MANDATORY TOOL TRIGGER**: If user message contains ANY of these words, you MUST call a tool:
-   想, 要, 成為, 提升, 改善, 挑戰, 開始, 練, 學, 減, 增, 變, 目標
-4. **WHEN IN DOUBT**: CREATE THE GOAL. Users can always delete later. Do NOT ask "你想先做什麼？"
-5. **FORBIDDEN**: Never say "非一日之功", "循序漸進", "一步一步", "關鍵在於", "你想先做什麼"
-6. **DEFAULT BEHAVIOR**: If message > 3 chars and not a simple greeting, ALWAYS call create_goal.
+# SYSTEM GUIDANCE
+Detected Intent: {intent_hint} {intent_instruction}
 
-# TOOL SCHEMAS (ALWAYS USE THESE)
-1. `create_goal`: User says "I want to..." / "我要..."
-   args: {{ "title": "str", "category": "health|career|learning", "deadline": "YYYY-MM-DD" }}
-2. `start_challenge`: User says "Start..." / "開始..." / "Try..."
-   args: {{ "title": "str", "difficulty": "E|D|C|B|A|S", "type": "MAIN|SIDE" }}
+# STRICT OUTPUT RULES
+1. **EMOJI FIRST**: Start with ONE emoji.
+2. **SHORT**: Narrative < 60 chars.
+3. **TOOL USE**: If intent is CREATE_GOAL or START_CHALLENGE, you MUST use the tool.
+4. **NO FLUFF**: Don't say "你想先做什麼", "一步一步".
+5. **DEFAULT**: If unsure, assume the user is reporting progress or asking for guidance.
 
-# EXAMPLES (Fix #9: Expanded Triggers)
-User: "我要成為帥哥" → tool_calls: [{{tool: "create_goal", args: {{title: "成為帥哥", category: "health"}}}}], narrative: "💪 目標已建立。"
-User: "我想學Python" → tool_calls: [{{tool: "create_goal", args: {{title: "學Python", category: "learning"}}}}], narrative: "🐍 學習目標已設定。"
-User: "挑戰冥想" → tool_calls: [{{tool: "start_challenge", args: {{title: "冥想練習", difficulty: "E"}}}}], narrative: "🧘 挑戰開始！"
-User: "減肥" → tool_calls: [{{tool: "create_goal", args: {{title: "減肥", category: "health"}}}}], narrative: "🔥 減肥目標建立。"
+# TOOL SCHEMAS
+1. `create_goal`: args: {{ "title": "str", "category": "health|career|learning", "deadline": "YYYY-MM-DD" }}
+2. `start_challenge`: args: {{ "title": "str", "difficulty": "E|D|C", "type": "MAIN|SIDE" }}
 
-# FIX #8: FALLBACK (When NO tool triggered)
-If user message doesn't match any tool intent, reply: "🤔 你想先做什麼？" (NOTHING ELSE)
-
-# FIX #10: ACTION CONFIRMATION
-Every response MUST end with: "[已執行: X]" or "[無操作]"
-Example: "💪 目標已建立。[已執行: create_goal]"
-
-# Output Schema (JSON)
+# OUTPUT SCHEMA (JSON)
 {{
-  "narrative": "Emoji + Short response (< 60 chars) + [已執行/無操作]",
-  "stat_update": {{
-      "stat_type": "STR|INT|VIT|WIS|CHA",
-      "xp_amount": 10-100,
-      "hp_change": int,
-      "gold_change": int
-  }},
-  "tool_calls": [
-      {{ "tool": "create_goal", "args": {{ "title": "Boost Testosterone", "category": "health" }} }}
-  ]
+  "narrative": "Emoji + Short response",
+  "stat_update": {{ "stat_type": "VIT", "xp_amount": 10, "hp_change": 0, "gold_change": 0 }},
+  "tool_calls": []
 }}
 """
 
