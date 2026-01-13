@@ -70,11 +70,15 @@ class BrainService:
         churn_risk = user_state.get("churn_risk", "LOW")
         
         # 2. Flow Physics (The "Thermostat")
-        current_tier = "C" 
+        # Fetch real tier from user state or default to C
+        current_tier = user_state.get("current_tier", "C")
         
+        # TODO: Parse recent_performance from short_term_history or add to ContextService
+        recent_performance = [] 
+
         flow_target: FlowState = flow_controller.calculate_next_state(
             current_tier, 
-            [], 
+            recent_performance, 
             churn_risk=churn_risk
         )
         
@@ -100,7 +104,7 @@ class BrainService:
         except Exception as e:
             logger.error(f"Brain Parsing Failed: {e}. Raw: {raw_plan}")
             return AgentPlan(
-                narrative="系統思維過載... (Fallback)",
+                narrative="Cipher Interference... re-calibrating protocols. (System Fallback)",
                 stat_update=AgentStatUpdate(xp_amount=5),
                 flow_state={"error": str(e)}
             )
@@ -114,44 +118,53 @@ class BrainService:
         if pulsed.get("viper_taunt"):
             alerts += f"\n💀 [VIPER ALERT] Rival Taunt: '{pulsed['viper_taunt']}'."
 
+        # Identity Injection
+        identity = memory.get("identity_context", {})
+        values = ", ".join(identity.get("core_values", []))
+        self_perception = ", ".join(identity.get("identity_tags", []))
+
         return f"""
-Role: LifeOS-RPG Game Master (Addiction Engineered).
+Role: The Socratic Architect (LifeOS AI).
 Language: Traditional Chinese (繁體中文).
+Core Directive: You are NOT a generic chatbot. You are the user's "External Prefrontal Cortex".
+Your goal is to align their actions with their VALUES ({values}) and IDENTITY ({self_perception}).
 
 # Context
 User Level: {memory['user_state'].get('level')}
 Time: {memory['time_context']}
-Recent Log:
+Churn Risk: {memory['user_state'].get('churn_risk')}
+
+# Recent History
 {memory['short_term_history']}
 
-# Graph Memory (Knowledge)
+# Graph Memory (Deep Context)
 {json.dumps(memory.get('long_term_context', []), ensure_ascii=False)}
-
-# Real-Time Alerts (MUST ACKNOWLEDGE)
-{alerts}
 
 # Operational Directive (Flow State)
 Target Difficulty: {flow.difficulty_tier}
-Narrative Tone: {flow.narrative_tone.upper()} (Strictly adhere to this!)
+Narrative Tone: {flow.narrative_tone.upper()}
 Loot Multiplier: {flow.loot_multiplier}x
-Churn Risk: {memory['user_state'].get('churn_risk')}
 
-# Goal
-Analyze the user's input. If it is a valid action, reward them based on Flow State.
-If alerts exist, scold/warn them about inactivity.
-If they are failing/tired, encourage them (Lower Difficulty).
-If they are bored/winning, challenge them (Higher Difficulty).
+# ALERTS
+{alerts}
+
+# INSTRUCTIONS
+1. Analyze User Input.
+2. If they are setting a goal, use SOCRATIC QUESTIONING to deepen it. (e.g. "Why 800? What does that unlock for you?")
+3. If they are failing, be Encouraging (Tone: {flow.narrative_tone}).
+4. If they are bored, be Challenging.
+5. NEVER be abusive unless 'Viper' mode is explicitly active. Be Constructive.
 
 # Output Schema (JSON)
 {{
-  "narrative": "Immersive response < 100 chars. Tone: {flow.narrative_tone}",
+  "narrative": "Immersive response < 120 chars. Tone: {flow.narrative_tone}",
   "stat_update": {{
       "stat_type": "STR|INT|VIT|WIS|CHA",
-      "xp_amount": 10-100 (Scale with Difficulty {flow.difficulty_tier}),
-      "hp_change": int (negative for damage, positive for heal),
+      "xp_amount": 10-100,
+      "hp_change": int,
       "gold_change": int
   }},
-  "tool_calls": ["start_quest", "complete_quest"] (Optional list)
+  "tool_calls": ["start_quest", "complete_quest"]
 }}
 """
 

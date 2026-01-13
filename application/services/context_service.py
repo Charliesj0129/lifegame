@@ -35,10 +35,14 @@ class ContextService:
         # 3. User State & Time
         user_state = await self._get_user_state(session, user_id)
         
+        # 4. Identity Context (Semantic Self)
+        identity = self._get_identity_context(user_id)
+
         return {
             "short_term_history": short_term_str,
             "long_term_context": long_term_data,
             "user_state": user_state,
+            "identity_context": identity,
             "time_context": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
         }
 
@@ -72,6 +76,19 @@ class ContextService:
             }
         except Exception as e:
             logger.error(f"Failed to fetch User State: {e}")
+            return {}
+
+    def _get_identity_context(self, user_id: str) -> Dict[str, Any]:
+        """
+        Fetch semantic identity (Who am I?) and values (What matters?) from Graph.
+        """
+        try:
+            # Placeholder: In future, use self.kuzu.query(...) to find (User)-[:VALUES]->(Value)
+            return {
+                "core_values": ["Growth", "Autonomy"],
+                "identity_tags": ["Seeker", "Architect"]
+            }
+        except Exception:
             return {}
 
 context_service = ContextService()
