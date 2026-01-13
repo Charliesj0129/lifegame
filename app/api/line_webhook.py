@@ -268,7 +268,9 @@ if webhook_handler:
                     item_id = params.get("item_id")
                     if item_id:
                         buy_result = await shop_service.buy_item(session, user_id, item_id)
-                        result = GameResult(text=buy_result)
+                        # buy_result is {"success": bool, "message": str}
+                        msg = buy_result.get("message", "交易結束")
+                        result = GameResult(text=msg)
                     else:
                         result = GameResult(text="⚠️ 缺少物品ID")
 
