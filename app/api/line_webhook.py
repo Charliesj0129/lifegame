@@ -262,7 +262,24 @@ if webhook_handler:
 
                 elif action == "accept_all_quests":
                     await quest_service.accept_all_pending(session, user_id)
-                    result = GameResult(text="✅ 已接受所有任務！")
+
+                elif action == "reroll_quests":
+                    new_quests, viper = await quest_service.reroll_quests(session, user_id)
+                    if new_quests is None:
+                        # new_quests is None means Error (viper string contains error msg)
+                        result = GameResult(text=viper)
+                    else:
+                        from legacy.services.flex_renderer import flex_renderer
+
+                        # Re-render quest list
+                        # Need habits too?
+                        habits = await quest_service.get_active_habits(session, user_id)
+                        flex = flex_renderer.render_quest_list(new_quests, habits)
+
+                        msg = "♻️ 任務已重新生成！"
+                        if viper:
+                            msg += f"\n\n🐍 Viper: {viper}"
+                        result = GameResult(text=msg, intent="reroll", metadata={"flex_message": flex})
 
                 elif action == "craft":
                     recipe_id = params.get("recipe_id")

@@ -691,8 +691,18 @@ class QuestService:
             return {"quest": quest, "loot": loot}
         return None
 
-    async def reroll_quests(self, session: AsyncSession, user_id: str):
-        """Archives current daily quests and generates new ones. Returns (new_quests, viper_taunt)."""
+    async def reroll_quests(self, session: AsyncSession, user_id: str, cost: int = 100):
+        """Archives current daily quests and generates new ones. Deducts gold."""
+        from legacy.services.user_service import user_service
+
+        # 1. Check Gold
+        user = await user_service.get_user(session, user_id)
+        if not user or (user.gold or 0) < cost:
+            return None, "⚠️ 金幣不足，無法重新生成 (需 100 G)。"
+
+        # 2. Deduct Gold
+        user.gold -= cost
+
         today = datetime.date.today()
 
         # Archive old ones
@@ -709,15 +719,13 @@ class QuestService:
             # Proactive Nuance: Viper mocks failure
             # We need to fetch User/Rival
             from legacy.services.rival_service import rival_service
-            from legacy.services.user_service import user_service
 
-            user = await user_service.get_user(session, user_id)
             rival = await rival_service.get_rival(session, user_id)
 
             if user and rival:
                 # Construct context
                 count = len(failed_quests)
-                context_prompt = f"User failed {count} quests (e.g. '{failed_quests[0].title}')."
+                context_prompt = f"User rerolled quests to avoid {count} tasks (e.g. '{failed_quests[0].title}'). Call them a coward."
 
                 # Feature 4: Viper Taunt via NarrativeService
                 from legacy.services.narrative_service import narrative_service
