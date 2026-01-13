@@ -116,32 +116,20 @@ class RivalService:
         return rival
 
     async def get_taunt(self, session: AsyncSession, user: User, rival: Rival) -> str:
-        """Generates a contextual taunt using AI."""
+        """Generates a contextual taunt using AI via NarrativeService."""
         try:
             # 1. Build Context
-            # Simple diff
-            str_diff = rival.level - user.level
-            status_context = "Rival is stronger." if str_diff > 0 else "MATCHED."
-
-            system_prompt = (
-                "You are 'Viper', an arrogant AI rival in a Cyberpunk LifeRPG. "
-                "The user is your competitor. "
-                "Generate a short, stinging 1-sentence taunt based on the stats."
-            )
-            user_prompt = f"Context: {status_context}. Viper Lv.{rival.level} vs User Lv.{user.level}."
-
-            # 2. Call AI
-            # We use generate_json typically, but here we just want text.
-            # If ai_engine only has generate_json, we wrap it or add generate_text.
-            # Checking ai_engine usage elsewhere... it seems we use generate_json.
-            # Let's use generate_json with a schema or just simple text if supported.
-            # Looking at ai_engine.py (implied), likely it has generate_content or similar.
-            # Let's assume generate_json returns a dict, we can ask for {"taunt": "str"}
-
-            response = await ai_engine.generate_json(system_prompt + " Output JSON: {'taunt': 'str'}", user_prompt)
-
-            taunt = response.get("taunt", "我正在進化。")
-            return f"Viper：「{taunt}」"
+            context_data = {
+                "event": "Random Encounter / Status Check",
+                "user_level": user.level or 1,
+                "hp_pct": int(((user.hp or 0) / (user.max_hp or 100)) * 100),
+                "streak": user.streak_count or 0,
+                "gold": user.gold or 0
+            }
+            
+            # 2. Delegate to NarrativeService
+            from legacy.services.narrative_service import narrative_service
+            return await narrative_service.get_viper_comment(session, user.id, context_data)
 
         except Exception as e:
             logger.error(f"Taunt Gen Failed: {e}")
