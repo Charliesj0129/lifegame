@@ -55,7 +55,13 @@ class ShopService:
         await session.commit()
         return {"success": True, "message": f"已購買 {item.name}（-{price} G）。"}
 
-    async def refresh_daily_stock(self, session: AsyncSession, slots: int = 3):
+    async def refresh_daily_stock(
+        self, session: AsyncSession, slots: int = 3, user_hp: int = 100, goal_tags: list = None
+    ):
+        """
+        F7: Context-Aware Shop Refresh.
+        Weights item selection based on user state (HP, Goals).
+        """
         from legacy.models.gamification import ItemRarity
 
         result = await session.execute(select(Item))
@@ -69,12 +75,38 @@ class ShopService:
 
         import random
 
+        # Context-aware filtering
+        prioritized = []
+
+        # If HP is low, prioritize healing items
+        if user_hp < 30:
+            healing_items = [i for i in items if "heal" in (i.effect_meta or {}).get("effect", "").lower()]
+            prioritized.extend(healing_items)
+
+        # If user has goal tags, prioritize related items
+        if goal_tags:
+            for item in items:
+                item_tags = (item.effect_meta or {}).get("tags", [])
+                if any(gt.lower() in str(item_tags).lower() for gt in goal_tags):
+                    if item not in prioritized:
+                        prioritized.append(item)
+
         rare_pool = [i for i in items if i.rarity in {ItemRarity.RARE, ItemRarity.EPIC, ItemRarity.LEGENDARY}]
-        [i for i in items if i not in rare_pool]
 
         selected = []
+
+        # Add prioritized items first
+        for item in prioritized[:2]:
+            if item not in selected:
+                selected.append(item)
+
+        # Add one rare if available
         if rare_pool:
-            selected.append(random.choice(rare_pool))
+            rare_choice = random.choice(rare_pool)
+            if rare_choice not in selected:
+                selected.append(rare_choice)
+
+        # Fill remaining slots
         remaining = [i for i in items if i not in selected]
         random.shuffle(remaining)
         while remaining and len(selected) < slots:

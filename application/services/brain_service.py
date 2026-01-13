@@ -295,5 +295,111 @@ Loot Multiplier: {flow.loot_multiplier}x
         """Stub for Google/Outlook Calendar integration."""
         return 0.0
 
+    async def generate_weekly_report(self, session, user_id: str) -> dict:
+        """
+        F5: Generates a weekly performance review.
+        Returns: {"grade": "S-F", "summary": str, "xp_total": int, "suggestions": list}
+        """
+        from legacy.services.quest_service import quest_service
+
+        # Fetch week's completed quests
+        quests = await quest_service.get_completed_quests_this_week(session, user_id)
+        xp_total = sum(q.xp_reward or 0 for q in quests)
+        quest_count = len(quests)
+
+        # Grade calculation
+        if quest_count >= 21:
+            grade = "S"
+        elif quest_count >= 14:
+            grade = "A"
+        elif quest_count >= 10:
+            grade = "B"
+        elif quest_count >= 7:
+            grade = "C"
+        elif quest_count >= 3:
+            grade = "D"
+        else:
+            grade = "F"
+
+        # AI summary
+        try:
+            result = await ai_engine.generate_json(
+                "Generate a brief weekly review in Traditional Chinese. Output JSON: {'summary': 'str', 'suggestions': ['str']}",
+                f"User completed {quest_count} quests for {xp_total} XP. Grade: {grade}.",
+            )
+            summary = result.get("summary", f"本週完成 {quest_count} 任務。")
+            suggestions = result.get("suggestions", [])
+        except Exception as e:
+            logger.warning(f"Weekly report AI failed: {e}")
+            summary = f"本週完成 {quest_count} 任務，獲得 {xp_total} XP。"
+            suggestions = []
+
+        return {"grade": grade, "summary": summary, "xp_total": xp_total, "suggestions": suggestions}
+
+    async def judge_reroll_request(self, session, user_id: str, reason: str) -> dict:
+        """
+        F6: AI judges if a quest reroll request is valid.
+        Returns: {"approved": bool, "verdict": str}
+        """
+        try:
+            result = await ai_engine.generate_json(
+                """You are a strict task arbiter. User wants to skip/reroll a quest.
+Judge if the excuse is VALID (legitimate) or INVALID (lazy).
+Output JSON: {"approved": true/false, "verdict": "Brief explanation in Traditional Chinese"}
+Examples of VALID: "I have an urgent work meeting", "Medical emergency"
+Examples of INVALID: "I don't feel like it", "Too tired", "Lazy"
+""",
+                f"User's excuse: {reason}",
+            )
+            return {"approved": result.get("approved", False), "verdict": result.get("verdict", "系統無法判斷。")}
+        except Exception as e:
+            logger.error(f"Reroll judgment failed: {e}")
+            return {"approved": False, "verdict": "系統錯誤，默認拒絕。"}
+
+    async def initiate_tribunal(self, session, user_id: str, charge: str, penalty_xp: int = 100) -> dict:
+        """
+        F8: Creates a penalty tribunal where user must plead.
+        Returns: {"session_id": str, "charge": str, "max_penalty": int}
+        """
+        import uuid
+
+        session_id = str(uuid.uuid4())[:8]
+
+        # Store in session or cache for later postback resolution
+        # For now, return the setup data
+        return {
+            "session_id": session_id,
+            "charge": charge,
+            "max_penalty": penalty_xp,
+            "options": ["認罪 (Guilty)", "無罪抗辯 (Not Guilty)"],
+        }
+
+    async def suggest_habit_stack(self, session, user_id: str) -> str:
+        """
+        F9: AI analyzes habit logs and suggests stacking optimizations.
+        Returns a suggestion string.
+        """
+        from legacy.services.quest_service import quest_service
+
+        # Fetch recent habit completions
+        habits = await quest_service.get_daily_habits(session, user_id)
+        habit_names = [h.habit_name or h.habit_tag for h in habits if h] if habits else []
+
+        if len(habit_names) < 2:
+            return "目前習慣數量不足，建議先建立至少兩個習慣。"
+
+        try:
+            result = await ai_engine.generate_json(
+                """You are a behavioral optimization coach.
+Analyze these habits and suggest a "habit stacking" strategy.
+Output JSON: {"suggestion": "A brief actionable suggestion in Traditional Chinese"}
+""",
+                f"User's habits: {', '.join(habit_names)}",
+            )
+            return result.get("suggestion", "建議將習慣串聯執行以提高成功率。")
+        except Exception as e:
+            logger.warning(f"Habit stack suggestion failed: {e}")
+            return "建議將成功率高的習慣放在前面，新習慣緊接其後。"
+
 
 brain_service = BrainService()

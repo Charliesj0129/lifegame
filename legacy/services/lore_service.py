@@ -89,9 +89,23 @@ class LoreService:
             try:
                 from legacy.services.ai_engine import ai_engine
 
+                # F10: Lore Weaving - Inject user context into AI prompt
+                user_context = f"使用者 ID: {user_id}"
+                try:
+                    from legacy.services.quest_service import quest_service
+
+                    # Fetch recent achievements for personalization
+                    achievements = await quest_service.get_completed_quests_this_week(session, user_id)
+                    if achievements:
+                        ach_titles = [a.title for a in achievements[:3]]
+                        user_context += f"，最近成就: {', '.join(ach_titles)}"
+                except Exception:
+                    pass  # Graceful degradation
+
                 payload = await ai_engine.generate_json(
                     system_prompt=(
-                        "你是賽博檔案系統。生成一段世界觀劇情，需為繁體中文。輸出 JSON: {'title': 'str', 'body': 'str'}"
+                        f"你是賽博檔案系統。生成一段世界觀劇情，需為繁體中文。{user_context}。"
+                        "輸出 JSON: {'title': 'str', 'body': 'str'}"
                     ),
                     user_prompt=f"系列：{series}，章節：{next_chapter}",
                 )
