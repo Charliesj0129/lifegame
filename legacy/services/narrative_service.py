@@ -40,28 +40,61 @@ class NarrativeService:
             logger.error(f"Narrative Gen Failed: {e}")
             return "Action completed."
 
-    async def get_viper_comment(self, session, user_id: str, context: str) -> str:
+    async def get_viper_comment(self, session, user_id: str, context_data: dict | str) -> str:
         """
-        Generates a taunt or comment from the Rival (Viper).
+        Generates a context-aware comment from Viper.
+        Args:
+            context_data: Dict containing {hp, gold, streak, event, user_level} or legacy str.
         """
-        # Fetch Rival Level
+        # Fetch Rival
         from legacy.services.rival_service import rival_service
 
         rival = await rival_service.get_rival(session, user_id)
         if not rival:
-            return "..."
+            rival_level = 1
+        else:
+            rival_level = rival.level
+
+        # Parse Context
+        if isinstance(context_data, str):
+            # Legacy fallback
+            event = context_data
+            user_level = 1
+            streak = 0
+            hp_pct = 100
+        else:
+            event = context_data.get("event", "General status check")
+            user_level = context_data.get("user_level", 1)
+            streak = context_data.get("streak", 0)
+            hp_pct = context_data.get("hp_pct", 100)
+
+        # Determine Relationship Tier
+        level_gap = rival_level - user_level
+
+        if streak > 5 and level_gap < 5:
+            relationship = "Respectful Rival"
+            tone = "Acknowledging strength, but challenging to do better."
+        elif streak == 0 or level_gap > 10:
+            relationship = "Hostile/Disappointed"
+            tone = "Mocking weakness, arrogant, superior."
+        else:
+            relationship = "Competitive"
+            tone = "Calculated, strictly comparing metrics."
 
         system_prompt = (
-            f"Role: Viper (Rival AI, Lv.{rival.level}). "
-            "Personality: Arrogant, Calculating, but pushes the user to be better. "
+            f"Role: Viper (AI Rival, Lv.{rival_level}). "
+            f"Relationship: {relationship}. "
+            f"Tone: {tone} "
             "Task: Comment on the user's situation. Max 1 sentence. "
             "Language: ALWAYS use Traditional Chinese (繁體中文). "
             "Output JSON: {'comment': 'str'}"
         )
 
+        user_prompt = f"User Stats: [Lv.{user_level}, HP:{hp_pct}%, Streak:{streak}]. Current Event: {event}."
+
         try:
-            data = await ai_engine.generate_json(system_prompt, f"Context: {context}")
-            comment = data.get("comment") or data.get("taunt") or "太弱了。"
+            data = await ai_engine.generate_json(system_prompt, user_prompt)
+            comment = data.get("comment") or data.get("taunt") or "..."
             return f'🐍 Viper: "{comment}"'
         except Exception:
             return '🐍 Viper: "..."'

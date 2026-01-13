@@ -41,7 +41,7 @@ class HelpService:
 
         # 3. Quest Status
         active_quests = await quest_service.get_daily_quests(session, user.id)
-        pending_count = sum(1 for q in active_quests if q.status == QuestStatus.TODO.value)
+        pending_count = sum(1 for q in active_quests if q.status == QuestStatus.PENDING.value)
 
         if pending_count > 0:
             tips.append(

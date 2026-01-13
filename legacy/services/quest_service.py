@@ -723,14 +723,20 @@ class QuestService:
             rival = await rival_service.get_rival(session, user_id)
 
             if user and rival:
-                # Construct context
+                # Construct Rich Context for F9: Viper Personality
                 count = len(failed_quests)
-                context_prompt = f"User rerolled quests to avoid {count} tasks (e.g. '{failed_quests[0].title}'). Call them a coward."
+                context_data = {
+                    "event": f"User gave up on {count} quests (paid 100G). Quests: {[q.title for q in failed_quests]}",
+                    "user_level": user.level or 1,
+                    "hp_pct": int(((user.hp or 0) / (user.max_hp or 100)) * 100),
+                    "streak": user.streak_count or 0,
+                    "gold": user.gold or 0,
+                }
 
                 # Feature 4: Viper Taunt via NarrativeService
                 from legacy.services.narrative_service import narrative_service
 
-                viper_taunt = await narrative_service.get_viper_comment(session, user_id, context_prompt)
+                viper_taunt = await narrative_service.get_viper_comment(session, user_id, context_data)
 
         for q in failed_quests:
             await session.delete(q)  # Reset logic
