@@ -169,16 +169,39 @@ async def handle_ai_analysis(session, user_id: str, text: str) -> GameResult:
     )
 
     # ---------------------------------------------------------
-    # Intent Dispatcher (New Functional Logic)
+    # Intent Dispatcher (Deep Integration)
     # ---------------------------------------------------------
-    # Check if Brain thinks this is a Tool Call?
-    # For now, we still rely on Regex Dispatcher for "view_quests" etc.
-    # But if Brain return "tool_calls", we can process them here.
+    # Execute Tool Calls
+    for tool_call in plan.tool_calls:
+        try:
+            tool_name = tool_call.get("tool")
+            args = tool_call.get("args", {})
+            logger.info(f"Executing AI Tool: {tool_name} with {args}")
 
-    # Fallback to Text Intent for legacy compatibility in this transition phase
-    # (We removed the 'intent' field from BrainSchema, relying on Tool Calls later)
-    # But for View commands, the Dispatcher handles them BEFORE calling this Default Handler.
-    # So we only handle "Chat/Action" here.
+            if tool_name == "create_goal":
+                # AI Arg Mapping
+                title = args.get("title", "New Goal")
+                # category = args.get("category", "health") # Unused
+                # Create Goal (Logic: QuestService)
+                # Map to create_new_goal(session, user_id, goal_text)
+                from legacy.models.quest import GoalStatus
+
+                _goal, _ai_plan = await quest_service.create_new_goal(session, user_id, goal_text=title)
+                plan.narrative += f"\n[SYSTEM: Goal '{title}' Created & Decomposed]"
+
+            elif tool_name == "start_challenge":
+                # AI Arg Mapping
+                title = args.get("title", "Challenge")
+                difficulty = args.get("difficulty", "E")
+                # Create Quest
+                _quest = await quest_service.create_quest(
+                    session, user_id, title=title, description="AI Challenge", difficulty=difficulty
+                )
+                plan.narrative += f"\n[SYSTEM: Quest '{title}' ({difficulty}) Started]"
+
+        except Exception as e:
+            logger.error(f"Tool Execution Failed ({tool_name}): {e}", exc_info=True)
+            plan.narrative += f"\n[SYSTEM ERROR: Could not execute {tool_name}]"
 
     return GameResult(text=plan.narrative, intent="ai_response", metadata={"plan": plan.dict()})
 

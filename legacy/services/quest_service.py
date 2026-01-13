@@ -22,6 +22,43 @@ class QuestService:
         {"tag": "整理桌面", "name": "整理桌面"},
     ]
 
+    async def create_quest(
+        self,
+        session: AsyncSession,
+        user_id: str,
+        title: str,
+        description: str = "",
+        difficulty: str = "C",
+        quest_type: str = "SIDE",
+    ):
+        """Generic method to create a single quest."""
+        q = Quest(
+            user_id=user_id,
+            title=title,
+            description=description,
+            difficulty_tier=difficulty,
+            quest_type=quest_type,
+            status=QuestStatus.ACTIVE.value,
+            scheduled_date=datetime.date.today(),
+            xp_reward=20,  # Default, or calc based on diff
+        )
+        if difficulty == "E":
+            q.xp_reward = 10
+        elif difficulty == "D":
+            q.xp_reward = 20
+        elif difficulty == "C":
+            q.xp_reward = 50
+        elif difficulty == "B":
+            q.xp_reward = 100
+        elif difficulty == "A":
+            q.xp_reward = 200
+        elif difficulty == "S":
+            q.xp_reward = 500
+
+        session.add(q)
+        await session.commit()
+        return q
+
     async def get_daily_quests(self, session: AsyncSession, user_id: str):
         """
         Fetches active quests for today.
