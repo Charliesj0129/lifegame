@@ -5,12 +5,21 @@ from app.models.user import User
 class FlexStatusRenderer:
     def render_status(self, user: User, lore_progress: list = None) -> FlexMessage:
         # Robust attribute retrieval with defaults
-        # lvl = getattr(user, "level", 1) or 1
-        # xp = getattr(user, "xp", 0) or 0
         current_hp = getattr(user, "hp", 100)
         if current_hp is None:
             current_hp = 100
-        max_hp = 100
+        max_hp = getattr(user, "max_hp", 100) or 100
+
+        # Attributes with SAFE defaults
+        str_val = getattr(user, "str", 1) or 1
+        int_val = getattr(user, "int", 1) or 1
+        vit_val = getattr(user, "vit", 1) or 1
+        wis_val = getattr(user, "wis", 1) or 1
+        cha_val = getattr(user, "cha", 1) or 1
+
+        user_level = getattr(user, "level", 1) or 1
+        job_class = getattr(user, "job_class", "Novice") or "Novice"
+        user_name = getattr(user, "name", "User") or "User"
 
         # Calculate derived stats
         # xp_next = lvl * 100
@@ -40,10 +49,10 @@ class FlexStatusRenderer:
                 "layout": "vertical",
                 "contents": [
                     {"type": "text", "text": "STATUS WINDOW", "weight": "bold", "color": "#1DB446", "size": "sm"},
-                    {"type": "text", "text": user.name or "User", "weight": "bold", "size": "xxl", "margin": "md"},
+                    {"type": "text", "text": user_name, "weight": "bold", "size": "xxl", "margin": "md"},
                     {
                         "type": "text",
-                        "text": f"Lv.{user.level} {user.job_class or 'Novice'}",
+                        "text": f"Lv.{user_level} {job_class}",
                         "size": "xs",
                         "color": "#aaaaaa",
                     },
@@ -61,7 +70,7 @@ class FlexStatusRenderer:
                         "contents": [
                             {
                                 "type": "text",
-                                "text": f"HP {user.hp}/{user.max_hp}",
+                                "text": f"HP {current_hp}/{max_hp}",
                                 "size": "xs",
                                 "color": "#ffffff",
                                 "flex": 1,
@@ -92,9 +101,9 @@ class FlexStatusRenderer:
                         "layout": "horizontal",
                         "margin": "xl",
                         "contents": [
-                            {"type": "text", "text": f"STR: {user.str}", "size": "sm", "color": "#cccccc"},
-                            {"type": "text", "text": f"INT: {user.int}", "size": "sm", "color": "#cccccc"},
-                            {"type": "text", "text": f"VIT: {user.vit}", "size": "sm", "color": "#cccccc"},
+                            {"type": "text", "text": f"STR: {str_val}", "size": "sm", "color": "#cccccc"},
+                            {"type": "text", "text": f"INT: {int_val}", "size": "sm", "color": "#cccccc"},
+                            {"type": "text", "text": f"VIT: {vit_val}", "size": "sm", "color": "#cccccc"},
                         ],
                     },
                     {
@@ -102,8 +111,8 @@ class FlexStatusRenderer:
                         "layout": "horizontal",
                         "margin": "md",
                         "contents": [
-                            {"type": "text", "text": f"WIS: {user.wis}", "size": "sm", "color": "#cccccc"},
-                            {"type": "text", "text": f"CHA: {user.cha}", "size": "sm", "color": "#cccccc"},
+                            {"type": "text", "text": f"WIS: {wis_val}", "size": "sm", "color": "#cccccc"},
+                            {"type": "text", "text": f"CHA: {cha_val}", "size": "sm", "color": "#cccccc"},
                             {"type": "text", "text": " ", "size": "sm"},
                         ],
                     },
