@@ -235,11 +235,69 @@ async def handle_ai_analysis(session, user_id: str, text: str) -> GameResult:
     return GameResult(text=plan.narrative, intent="ai_response", metadata=result_meta)
 
 
-# 2. Register Strategies
+# =============================================================================
+# Phase 3: Chinese Command Handlers (Fixes 1-4)
+# =============================================================================
+
+
+async def handle_status(session: AsyncSession, user_id: str, text: str) -> GameResult:
+    """Handler for '狀態' command - returns user status Flex card."""
+    from legacy.services.user_service import user_service
+    from legacy.services.flex_renderer import flex_renderer
+
+    user = await user_service.get_or_create_user(session, user_id)
+    flex = flex_renderer.render_status(user)
+    return GameResult(text="📊 玩家狀態", intent="status", metadata={"flex_message": flex})
+
+
+async def handle_quests(session: AsyncSession, user_id: str, text: str) -> GameResult:
+    """Handler for '任務' command - returns quest list Flex card."""
+    from legacy.services.quest_service import quest_service
+    from legacy.services.flex_renderer import flex_renderer
+
+    quests = await quest_service.get_daily_quests(session, user_id)
+    if quests:
+        flex = flex_renderer.render_quest_list(quests)
+        return GameResult(text="📋 今日任務", intent="quests", metadata={"flex_message": flex})
+    else:
+        return GameResult(text="📭 目前沒有任務。試試說「我想...」來設定新目標！", intent="quests")
+
+
+async def handle_new_goal(session: AsyncSession, user_id: str, text: str) -> GameResult:
+    """Handler for '新目標' or goal-setting intent - prompts or creates goal."""
+    from legacy.services.quest_service import quest_service
+    from legacy.services.flex_renderer import flex_renderer
+
+    # Extract goal from text if present
+    goal_text = text.replace("新目標", "").replace("我想設定", "").replace("我想", "").strip()
+
+    if len(goal_text) > 3:
+        # User provided a goal - create it directly
+        goal, ai_plan = await quest_service.create_new_goal(session, user_id, goal_text=goal_text)
+        flex = flex_renderer.render_goal_card(title=goal_text, category="general")
+        return GameResult(
+            text=f"🎯 目標「{goal_text}」已建立！[已執行: create_goal]",
+            intent="goal_created",
+            metadata={"flex_message": flex},
+        )
+    else:
+        # No goal text - prompt user
+        return GameResult(text="🎯 你想達成什麼目標？（例如：學Python、減肥、早起）", intent="goal_prompt")
+
+
+# 2. Register Strategies - Chinese Commands FIRST
+dispatcher.register(lambda t: t.strip() in ["狀態", "status", "狀態 "], handle_status)
+dispatcher.register(lambda t: t.strip() in ["任務", "quests", "任務 "], handle_quests)
+dispatcher.register(
+    lambda t: "新目標" in t or "設定目標" in t or "設定新目標" in t or t.strip() == "我想設定新目標",
+    handle_new_goal,
+)
+
+# Legacy (keep for compatibility)
 dispatcher.register(lambda t: t.lower().strip() == "attack", handle_attack)
 dispatcher.register(lambda t: t.lower().strip() == "defend", handle_defend)
 
-# Register Default AI Handler
+# Register Default AI Handler (LAST - catches everything else)
 dispatcher.register_default(handle_ai_analysis)
 
 

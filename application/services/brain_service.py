@@ -99,6 +99,11 @@ class BrainService:
             # 4. AI Generation
             raw_plan = await ai_engine.generate_json(system_prompt, f"User Input: {user_text}")
 
+            # Fix #8: Debug logging for raw AI response
+            logger.info(f"AI Raw Response: {json.dumps(raw_plan, ensure_ascii=False)[:500]}")
+            if raw_plan.get("tool_calls"):
+                logger.info(f"AI Tool Calls Detected: {raw_plan['tool_calls']}")
+
             # 5. Hydrate & Validate
             if "stat_update" not in raw_plan:
                 raw_plan["stat_update"] = None
@@ -158,14 +163,16 @@ Loot Multiplier: {flow.loot_multiplier}x
 # ALERTS
 {alerts}
 
-# STRICT OUTPUT RULES
+# STRICT OUTPUT RULES (Fixes 5-7)
 1. **EMOJI FIRST**: Every response MUST start with ONE emoji.
-2. **MAX 80 CHARS**: Narrative must be under 80 characters. NO EXCEPTIONS.
-3. **ACTION BIAS**: If user mentions goal/challenge/task, ALWAYS call a tool.
-4. **NO PHILOSOPHY**: FORBIDDEN: "非一日之功", "循序漸進", "一步一步", "關鍵在於".
-5. **IF UNSURE**: Just ask "你想先做什麼？" (10 chars).
+2. **MAX 60 CHARS**: Narrative must be under 60 characters.
+3. **MANDATORY TOOL TRIGGER**: If user message contains ANY of these words, you MUST call a tool:
+   想, 要, 成為, 提升, 改善, 挑戰, 開始, 練, 學, 減, 增, 變, 目標
+4. **WHEN IN DOUBT**: CREATE THE GOAL. Users can always delete later. Do NOT ask "你想先做什麼？"
+5. **FORBIDDEN**: Never say "非一日之功", "循序漸進", "一步一步", "關鍵在於", "你想先做什麼"
+6. **DEFAULT BEHAVIOR**: If message > 3 chars and not a simple greeting, ALWAYS call create_goal.
 
-# TOOL SCHEMAS (Trigger on ANY goal/challenge intent)
+# TOOL SCHEMAS (ALWAYS USE THESE)
 1. `create_goal`: User says "I want to..." / "我要..."
    args: {{ "title": "str", "category": "health|career|learning", "deadline": "YYYY-MM-DD" }}
 2. `start_challenge`: User says "Start..." / "開始..." / "Try..."
