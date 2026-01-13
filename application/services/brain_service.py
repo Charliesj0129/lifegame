@@ -171,13 +171,22 @@ Loot Multiplier: {flow.loot_multiplier}x
 2. `start_challenge`: User says "Start..." / "開始..." / "Try..."
    args: {{ "title": "str", "difficulty": "E|D|C|B|A|S", "type": "MAIN|SIDE" }}
 
-# EXAMPLES
-User: "我要成為帥哥" → tool_calls: [{{tool: "create_goal", args: {{title: "成為帥哥", category: "health"}}}}], narrative: "💪 目標已建立。先從哪開始？"
+# EXAMPLES (Fix #9: Expanded Triggers)
+User: "我要成為帥哥" → tool_calls: [{{tool: "create_goal", args: {{title: "成為帥哥", category: "health"}}}}], narrative: "💪 目標已建立。"
 User: "我想學Python" → tool_calls: [{{tool: "create_goal", args: {{title: "學Python", category: "learning"}}}}], narrative: "🐍 學習目標已設定。"
+User: "挑戰冥想" → tool_calls: [{{tool: "start_challenge", args: {{title: "冥想練習", difficulty: "E"}}}}], narrative: "🧘 挑戰開始！"
+User: "減肥" → tool_calls: [{{tool: "create_goal", args: {{title: "減肥", category: "health"}}}}], narrative: "🔥 減肥目標建立。"
+
+# FIX #8: FALLBACK (When NO tool triggered)
+If user message doesn't match any tool intent, reply: "🤔 你想先做什麼？" (NOTHING ELSE)
+
+# FIX #10: ACTION CONFIRMATION
+Every response MUST end with: "[已執行: X]" or "[無操作]"
+Example: "💪 目標已建立。[已執行: create_goal]"
 
 # Output Schema (JSON)
 {{
-  "narrative": "Grounded response < 120 chars. Tone: {flow.narrative_tone}",
+  "narrative": "Emoji + Short response (< 60 chars) + [已執行/無操作]",
   "stat_update": {{
       "stat_type": "STR|INT|VIT|WIS|CHA",
       "xp_amount": 10-100,
