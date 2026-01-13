@@ -1171,21 +1171,11 @@ class FlexRenderer:
                         "alignItems": "center",
                     },
                     status_text,
-                    {"type": "separator", "margin": "md", "color": "#30363D"},
+                    {"type": "separator", "margin": "sm", "color": "#30363D"},
                 ],
                 "margin": "md",
             }
             recipe_rows.append(row)
-
-        if not recipe_rows:
-            recipe_rows.append(
-                {
-                    "type": "text",
-                    "text": "尚未解鎖配方。",
-                    "color": "#8B949E",
-                    "align": "center",
-                }
-            )
 
         bubble = {
             "type": "bubble",
@@ -1193,19 +1183,7 @@ class FlexRenderer:
                 "type": "box",
                 "layout": "vertical",
                 "contents": [
-                    {
-                        "type": "text",
-                        "text": "⚒️ 製造工坊",
-                        "weight": "bold",
-                        "color": COLOR_ACCENT,
-                        "size": "md",
-                    },
-                    {
-                        "type": "text",
-                        "text": "組合素材，打造新道具。",
-                        "color": "#8B949E",
-                        "size": "xs",
-                    },
+                    {"type": "text", "text": "🔧 鍊金實驗室", "weight": "bold", "color": COLOR_ACCENT, "size": "md"}
                 ],
                 "backgroundColor": COLOR_BG,
                 "paddingAll": "lg",
@@ -1218,8 +1196,173 @@ class FlexRenderer:
                 "paddingAll": "lg",
             },
         }
+        return FlexMessage(alt_text="合成實驗室", contents=FlexContainer.from_dict(bubble))
 
-        return FlexMessage(alt_text="製造工坊", contents=FlexContainer.from_dict(bubble))
+    def render_boss_encounter(self, user, boss) -> FlexMessage:
+        COLOR_BG = "#161B22"
+        COLOR_BOSS = "#DA3633"  # Red
+
+        if not boss:
+            # Render "Summon" View
+            bubble = {
+                "type": "bubble",
+                "body": {
+                    "type": "box",
+                    "layout": "vertical",
+                    "contents": [
+                        {
+                            "type": "text",
+                            "text": "沒有活躍的首領",
+                            "color": "#8B949E",
+                            "align": "center",
+                            "weight": "bold",
+                        },
+                        {
+                            "type": "text",
+                            "text": "召喚心中的惡魔來對抗吧...",
+                            "color": "#8B949E",
+                            "size": "xs",
+                            "align": "center",
+                            "margin": "sm",
+                        },
+                        {
+                            "type": "button",
+                            "style": "primary",
+                            "color": COLOR_BOSS,
+                            "action": {
+                                "type": "postback",
+                                "label": "召喚首領",
+                                "data": "action=spawn_boss",
+                                "displayText": "召喚首領",
+                            },
+                            "margin": "lg",
+                        },
+                    ],
+                    "backgroundColor": COLOR_BG,
+                    "paddingAll": "xl",
+                },
+            }
+            return FlexMessage(alt_text="首領召喚", contents=FlexContainer.from_dict(bubble))
+
+        # Render "Combat" View
+        hp_percent = int((boss.hp / boss.max_hp) * 100)
+
+        # HP Bar Logic (Simulated with Box width? iterating separators? Line Flex doesn't do percent width easily)
+        # Using a text representation for simplicity first: "HP: [|||||     ] 50%"
+        hp_text = f"HP: {boss.hp}/{boss.max_hp}"
+
+        bubble = {
+            "type": "bubble",
+            "size": "giga",
+            "header": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": f"👹 {boss.name} (Lv.{boss.level})",
+                        "weight": "bold",
+                        "color": COLOR_BOSS,
+                        "size": "xl",
+                    },
+                    {"type": "text", "text": hp_text, "color": "#F0883E", "weight": "bold", "margin": "sm"},
+                    {
+                        "type": "box",
+                        "layout": "vertical",
+                        "contents": [],
+                        "backgroundColor": "#30363D",
+                        "height": "6px",
+                        "margin": "sm",
+                        "cornerRadius": "3px",
+                    },
+                    {
+                        "type": "box",
+                        "layout": "vertical",
+                        "contents": [],
+                        "backgroundColor": "#F0883E",
+                        "height": "6px",
+                        "width": f"{hp_percent}%",
+                        "position": "absolute",
+                        "offsetTop": "53px",  # Adjust based on header height... tricky. simplified: use separate box
+                        "offsetStart": "20px",
+                        "cornerRadius": "3px",
+                    },
+                ],
+                "backgroundColor": COLOR_BG,
+                "paddingAll": "lg",
+            },
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": "首領正在注視著你...",
+                        "color": "#8B949E",
+                        "size": "sm",
+                        "align": "center",
+                        "margin": "md",
+                    },
+                    {
+                        "type": "button",
+                        "style": "primary",
+                        "color": COLOR_BOSS,
+                        "action": {
+                            "type": "postback",
+                            "label": "⚔️ 攻擊 (消耗 50 XP)",
+                            "data": "action=attack_boss",
+                            "displayText": "攻擊首領",
+                        },
+                        "margin": "xl",
+                        "height": "sm",
+                    },
+                ],
+                "backgroundColor": COLOR_BG,
+                "paddingAll": "lg",
+            },
+        }
+        # Re-adjust HP bar visual: Line Flex absolute positioning is hard to guess.
+        # Easier: progress bar using linear-gradient background? Not supported.
+        # Simple method: 2 boxes horizontal, weighted flex.
+
+        hp_bar_container = {
+            "type": "box",
+            "layout": "horizontal",
+            "contents": [
+                {
+                    "type": "box",
+                    "layout": "vertical",
+                    "backgroundColor": "#F0883E",
+                    "flex": hp_percent if hp_percent > 0 else 0,
+                    "height": "6px",
+                },
+                {
+                    "type": "box",
+                    "layout": "vertical",
+                    "backgroundColor": "#30363D",
+                    "flex": 100 - hp_percent,
+                    "height": "6px",
+                },
+            ],
+            "margin": "sm",
+            "cornerRadius": "3px",
+            "backgroundColor": "#30363D",
+        }
+
+        # Inject HP bar into header contents correctly
+        bubble["header"]["contents"] = [
+            {
+                "type": "text",
+                "text": f"👹 {boss.name} (Lv.{boss.level})",
+                "weight": "bold",
+                "color": COLOR_BOSS,
+                "size": "xl",
+            },
+            {"type": "text", "text": hp_text, "color": "#F0883E", "weight": "bold", "margin": "sm"},
+            hp_bar_container,
+        ]
+
+        return FlexMessage(alt_text=f"首領戰: {boss.name}", contents=FlexContainer.from_dict(bubble))
 
     def render_boss_status(self, boss) -> FlexMessage:
         if not boss:

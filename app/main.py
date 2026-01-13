@@ -424,8 +424,23 @@ async def handle_craft(session: AsyncSession, user_id: str, text: str) -> GameRe
 
 
 async def handle_boss(session: AsyncSession, user_id: str, text: str) -> GameResult:
-    """Handler for '首領' command - placeholder."""
-    return GameResult(text="👹 首領挑戰開發中，敬請期待！", intent="boss_wip")
+    """Handler for '首領' command - show boss encounter."""
+    from legacy.services.boss_service import boss_service
+    from legacy.services.flex_renderer import flex_renderer
+    from legacy.services.user_service import user_service
+
+    try:
+        user = await user_service.get_or_create_user(session, user_id)
+        boss = await boss_service.get_active_boss(session, user_id)
+
+        # Render Logic
+        flex = flex_renderer.render_boss_encounter(user, boss)
+
+        status_text = f"👹 首領戰：{boss.name}" if boss else "👹 首領戰：無"
+        return GameResult(text=status_text, intent="boss", metadata={"flex_message": flex})
+    except Exception as e:
+        logger.error(f"Boss load failed: {e}", exc_info=True)
+        return GameResult(text="⚠️ 首領系統異常。", intent="boss_error")
 
 
 async def handle_help(session: AsyncSession, user_id: str, text: str) -> GameResult:
