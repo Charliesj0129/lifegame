@@ -348,11 +348,22 @@ async def handle_checkin(session: AsyncSession, user_id: str, text: str) -> Game
 async def handle_inventory(session: AsyncSession, user_id: str, text: str) -> GameResult:
     """Handler for '背包' command - show inventory."""
     from legacy.services.user_service import user_service
+    from legacy.services.inventory_service import inventory_service
+    from legacy.services.flex_renderer import flex_renderer
 
     try:
         user = await user_service.get_or_create_user(session, user_id)
-        gold = user.gold or 0
-        return GameResult(text=f"🎒 背包：💰 {gold} 金幣", intent="inventory")
+
+        # Lazy Seed (for prototype/dev)
+        await inventory_service.seed_default_items_if_needed(session)
+
+        # Fetch Inventory
+        items = await inventory_service.get_inventory(session, user_id)
+
+        # Render
+        flex = flex_renderer.render_inventory(user, items)
+
+        return GameResult(text=f"🎒 背包：{len(items)} 件物品", intent="inventory", metadata={"flex_message": flex})
     except Exception as e:
         logger.error(f"Inventory failed: {e}", exc_info=True)
         return GameResult(text="⚠️ 背包載入失敗。", intent="inventory_error")
