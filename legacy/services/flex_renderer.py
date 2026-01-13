@@ -1327,5 +1327,151 @@ class FlexRenderer:
             ),
         )
 
+    def render_goal_card(self, title: str, category: str = "general") -> FlexMessage:
+        """Renders a 'Goal Contract' card when AI creates a new goal."""
+        COLOR_BG = "#0D1117"
+        COLOR_ACCENT = "#7DF9FF"
+        COLOR_TEXT = "#E6EDF3"
+        COLOR_MUTED = "#8B949E"
+
+        category_emoji = {
+            "health": "💪",
+            "career": "💼",
+            "learning": "📚",
+            "finance": "💰",
+            "social": "🤝",
+        }.get(category.lower(), "🎯")
+
+        bubble = {
+            "type": "bubble",
+            "size": "kilo",
+            "header": {
+                "type": "box",
+                "layout": "horizontal",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": "📜 目標契約",
+                        "weight": "bold",
+                        "color": COLOR_ACCENT,
+                        "size": "sm",
+                    },
+                    {
+                        "type": "text",
+                        "text": f"{category_emoji} {category.upper()}",
+                        "color": COLOR_MUTED,
+                        "size": "xxs",
+                        "align": "end",
+                    },
+                ],
+                "backgroundColor": COLOR_BG,
+                "paddingAll": "lg",
+            },
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": title,
+                        "weight": "bold",
+                        "color": COLOR_TEXT,
+                        "size": "lg",
+                        "wrap": True,
+                    },
+                    {
+                        "type": "text",
+                        "text": "契約已簽署。系統將自動分解為可執行任務。",
+                        "color": COLOR_MUTED,
+                        "size": "xs",
+                        "margin": "md",
+                        "wrap": True,
+                    },
+                ],
+                "backgroundColor": "#161B22",
+                "paddingAll": "lg",
+            },
+        }
+
+        return FlexMessage(alt_text=f"目標契約：{title}", contents=FlexContainer.from_dict(bubble))
+
+    def render_quest_brief(self, title: str, difficulty: str = "C", xp_reward: int = 50) -> FlexMessage:
+        """Renders a 'Mission Brief' card when AI starts a challenge/quest."""
+        COLOR_BG = "#0D1117"
+        COLOR_ACCENT = "#00F5FF"
+        COLOR_TEXT = "#E6EDF3"
+
+        tier_colors = {
+            "S": "#FF3B6B",
+            "A": "#FF6B6B",
+            "B": "#FFB020",
+            "C": "#F6D365",
+            "D": "#5CDE7A",
+            "E": "#20D6C7",
+        }
+        diff_color = tier_colors.get(difficulty.upper(), COLOR_ACCENT)
+
+        bubble = {
+            "type": "bubble",
+            "size": "kilo",
+            "header": {
+                "type": "box",
+                "layout": "horizontal",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": "⚔️ 任務啟動",
+                        "weight": "bold",
+                        "color": COLOR_ACCENT,
+                        "size": "sm",
+                    },
+                    {
+                        "type": "box",
+                        "layout": "vertical",
+                        "contents": [
+                            {
+                                "type": "text",
+                                "text": f"難度 {difficulty.upper()}",
+                                "size": "xxs",
+                                "weight": "bold",
+                                "color": "#0B0F14",
+                                "align": "center",
+                            }
+                        ],
+                        "backgroundColor": diff_color,
+                        "paddingAll": "xs",
+                        "cornerRadius": "8px",
+                    },
+                ],
+                "backgroundColor": COLOR_BG,
+                "paddingAll": "lg",
+            },
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": title,
+                        "weight": "bold",
+                        "color": COLOR_TEXT,
+                        "size": "lg",
+                        "wrap": True,
+                    },
+                    {
+                        "type": "text",
+                        "text": f"+{xp_reward} 經驗值",
+                        "color": "#FACC15",
+                        "size": "sm",
+                        "margin": "md",
+                    },
+                ],
+                "backgroundColor": "#161B22",
+                "paddingAll": "lg",
+            },
+        }
+
+        return FlexMessage(alt_text=f"任務啟動：{title}", contents=FlexContainer.from_dict(bubble))
+
 
 flex_renderer = FlexRenderer()

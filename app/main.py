@@ -172,6 +172,9 @@ async def handle_ai_analysis(session, user_id: str, text: str) -> GameResult:
     # Intent Dispatcher (Deep Integration)
     # ---------------------------------------------------------
     # Execute Tool Calls
+    from legacy.services.flex_renderer import flex_renderer
+
+    tool_flex_messages = []
     for tool_call in plan.tool_calls:
         try:
             tool_name = tool_call.get("tool")
@@ -181,29 +184,37 @@ async def handle_ai_analysis(session, user_id: str, text: str) -> GameResult:
             if tool_name == "create_goal":
                 # AI Arg Mapping
                 title = args.get("title", "New Goal")
-                # category = args.get("category", "health") # Unused
+                category = args.get("category", "general")
                 # Create Goal (Logic: QuestService)
-                # Map to create_new_goal(session, user_id, goal_text)
                 from legacy.models.quest import GoalStatus
 
                 _goal, _ai_plan = await quest_service.create_new_goal(session, user_id, goal_text=title)
-                plan.narrative += f"\n[SYSTEM: Goal '{title}' Created & Decomposed]"
+                # Generate Flex Card
+                flex_msg = flex_renderer.render_goal_card(title=title, category=category)
+                tool_flex_messages.append(flex_msg)
 
             elif tool_name == "start_challenge":
                 # AI Arg Mapping
                 title = args.get("title", "Challenge")
                 difficulty = args.get("difficulty", "E")
                 # Create Quest
-                _quest = await quest_service.create_quest(
+                quest = await quest_service.create_quest(
                     session, user_id, title=title, description="AI Challenge", difficulty=difficulty
                 )
-                plan.narrative += f"\n[SYSTEM: Quest '{title}' ({difficulty}) Started]"
+                # Generate Flex Card
+                xp = getattr(quest, "xp_reward", 50)
+                flex_msg = flex_renderer.render_quest_brief(title=title, difficulty=difficulty, xp_reward=xp)
+                tool_flex_messages.append(flex_msg)
 
         except Exception as e:
             logger.error(f"Tool Execution Failed ({tool_name}): {e}", exc_info=True)
-            plan.narrative += f"\n[SYSTEM ERROR: Could not execute {tool_name}]"
+            plan.narrative += f"\n[SYSTEM ERROR: {tool_name}]"
 
-    return GameResult(text=plan.narrative, intent="ai_response", metadata={"plan": plan.dict()})
+    result_meta = {"plan": plan.model_dump()}
+    if tool_flex_messages:
+        result_meta["flex_messages"] = tool_flex_messages
+
+    return GameResult(text=plan.narrative, intent="ai_response", metadata=result_meta)
 
 
 # 2. Register Strategies
