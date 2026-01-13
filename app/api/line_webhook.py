@@ -264,6 +264,18 @@ if webhook_handler:
                     await quest_service.accept_all_pending(session, user_id)
                     result = GameResult(text="✅ 已接受所有任務！")
 
+                elif action == "craft":
+                    recipe_id = params.get("recipe_id")
+                    from legacy.services.crafting_service import crafting_service
+
+                    if recipe_id:
+                        craft_result = await crafting_service.craft_item(session, user_id, recipe_id)
+                        # craft_result is {"success": bool, "message": str}
+                        msg = craft_result.get("message", "合成結束")
+                        result = GameResult(text=msg)
+                    else:
+                        result = GameResult(text="⚠️ 缺少配方ID")
+
                 elif action == "buy_item":
                     item_id = params.get("item_id")
                     if item_id:

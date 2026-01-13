@@ -400,8 +400,27 @@ dispatcher.register(
 
 # Placeholder handlers for未實現 features
 async def handle_craft(session: AsyncSession, user_id: str, text: str) -> GameResult:
-    """Handler for '合成' command - placeholder."""
-    return GameResult(text="🔧 合成系統開發中，敬請期待！", intent="craft_wip")
+    """Handler for '合成' command - show crafting menu."""
+    from legacy.services.crafting_service import crafting_service
+    from legacy.services.flex_renderer import flex_renderer
+    from legacy.services.user_service import user_service
+
+    try:
+        await user_service.get_or_create_user(session, user_id)
+
+        # Lazy Seed
+        await crafting_service.seed_default_recipes(session)
+
+        # Fetch Recipes
+        recipes = await crafting_service.get_available_recipes(session, user_id)
+
+        # Render
+        flex = flex_renderer.render_crafting_menu(recipes)
+
+        return GameResult(text="🔧 合成介面", intent="craft", metadata={"flex_message": flex})
+    except Exception as e:
+        logger.error(f"Crafting failed: {e}", exc_info=True)
+        return GameResult(text="⚠️ 合成載入失敗。", intent="craft_error")
 
 
 async def handle_boss(session: AsyncSession, user_id: str, text: str) -> GameResult:
