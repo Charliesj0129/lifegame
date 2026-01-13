@@ -222,7 +222,24 @@ class DDAScheduler:
             dda_hint = await self._daily_hint(session, user.id)
             flex = flex_renderer.render_push_briefing("🌅 早安任務", quests, habits, dda_hint)
             flex.quick_reply = self._build_quick_reply()
-            await api.push_message(PushMessageRequest(to=user.id, messages=[flex]))
+
+            # Build messages list
+            messages_to_push = [flex]
+
+            # Generate Voice Briefing (Optional)
+            try:
+                from legacy.services.audio_service import audio_service
+
+                quest_count = len(quests)
+                habit_count = len(habits) if habits else 0
+                summary_text = f"早安，今日有 {quest_count} 個任務和 {habit_count} 個習慣。請開始行動。"
+                audio_msg = await audio_service.generate_briefing_audio(summary_text)
+                if audio_msg:
+                    messages_to_push.append(audio_msg)
+            except Exception as e:
+                logger.warning(f"Audio briefing skipped: {e}")
+
+            await api.push_message(PushMessageRequest(to=user.id, messages=messages_to_push))
             profile.last_morning_date = now_local.date()
             await session.commit()
             return
