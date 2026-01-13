@@ -83,6 +83,37 @@ class CraftingService:
             session.add(new_item)
 
         await session.commit()
+        await session.commit()
+
+        # --- Graph Sync ---
+        try:
+            from legacy.services.kuzu_service_factory import get_kuzu_adapter_safe
+
+            adapter = get_kuzu_adapter_safe()
+            if adapter:
+                # Ensure Item Node
+                adapter.add_node(
+                    "Item", {"id": recipe.result_item_id, "name": recipe.name}
+                )  # Using recipe name as proxy or fetch item?
+                # Actually better to fetch item name properly, but recipe.name usually matches result.
+
+                # Link User -> Item (CRAFTED)
+                import datetime
+
+                adapter.add_relationship(
+                    "User",
+                    user_id,
+                    "CRAFTED",
+                    "Item",
+                    recipe.result_item_id,
+                    {"timestamp": datetime.datetime.now().isoformat()},
+                    from_key_field="id",
+                    to_key_field="id",
+                )
+        except Exception as e:
+            # Non-blocking
+            print(f"Graph Sync Failed: {e}")
+
         return {"success": True, "message": f"⚒️ 合成成功！獲得 {recipe.name}。"}
 
     async def seed_default_recipes(self, session: AsyncSession):

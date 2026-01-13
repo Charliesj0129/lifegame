@@ -12,7 +12,9 @@ import os
 
 
 # Setup logging
-logging.basicConfig(level=logging.INFO)
+from app.core.logging_config import setup_logging
+
+setup_logging()
 logger = logging.getLogger(__name__)
 
 
