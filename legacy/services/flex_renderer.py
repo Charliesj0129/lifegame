@@ -734,9 +734,9 @@ class FlexRenderer:
                         "type": "button",
                         "action": {
                             "type": "postback",
-                            "label": "♻️ 重新生成",
+                            "label": "♻️ 重新生成 (100G)",
                             "data": "action=reroll_quests",
-                            "displayText": "重新生成任務",
+                            "displayText": "重新生成任務 (消耗 100G)",
                         },
                         "style": "secondary",
                         "height": "sm",
