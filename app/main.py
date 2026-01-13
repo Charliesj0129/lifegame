@@ -174,6 +174,11 @@ async def handle_ai_analysis(session, user_id: str, text: str) -> GameResult:
     # Execute Tool Calls
     from legacy.services.flex_renderer import flex_renderer
 
+    # Fix #4: Debug logging for tool calls
+    logger.info(f"AI Tool Calls Count: {len(plan.tool_calls)}")
+    if plan.tool_calls:
+        logger.info(f"Tool Calls: {plan.tool_calls}")
+
     tool_flex_messages = []
     for tool_call in plan.tool_calls:
         try:

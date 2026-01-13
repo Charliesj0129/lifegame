@@ -81,8 +81,13 @@ class LineClient:
 
         # 2. Main Content
         if meta.get("flex_message"):
-            # Direct Flex Object passing
+            # Direct Flex Object passing (singular)
             messages.append(meta["flex_message"])
+
+        # 2b. Tool-generated Flex Messages (list) - Fix #1
+        if meta.get("flex_messages"):
+            for flex_msg in meta["flex_messages"]:
+                messages.append(flex_msg)
 
         elif result.image_url:
             msg = ImageMessage(original_content_url=result.image_url, preview_image_url=result.image_url)
