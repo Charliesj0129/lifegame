@@ -61,6 +61,6 @@ async def test_brain_think_with_pulse(mock_context_service, mock_flow_controller
     args, _ = mock_ai_engine.generate_json.call_args
     system_prompt = args[0]
 
-    assert "Real-Time Alerts" in system_prompt
+    assert "ALERTS" in system_prompt
     assert "HP Drained: 50" in system_prompt
     assert "Where have you been?" in system_prompt

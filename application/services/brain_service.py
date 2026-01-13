@@ -94,12 +94,14 @@ class BrainService:
 
         # 3. System Prompt Engineering (The "Addiction Script")
         system_prompt = self._construct_system_prompt(memory, flow_target)
+        
+        raw_plan = {}
 
-        # 4. AI Generation
-        raw_plan = await ai_engine.generate_json(system_prompt, f"User Input: {user_text}")
-
-        # 5. Hydrate & Validate
         try:
+            # 4. AI Generation
+            raw_plan = await ai_engine.generate_json(system_prompt, f"User Input: {user_text}")
+
+            # 5. Hydrate & Validate
             if "stat_update" not in raw_plan:
                 raw_plan["stat_update"] = None
 
