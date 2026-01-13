@@ -152,6 +152,16 @@ class UserService:
         old_level = user.level
         accountant.apply_xp(user, attribute, xp_gain)
 
+        # F9: Lore Unlock Check
+        lore_msg = ""
+        if user.level > old_level:
+            # Trigger Lore Check
+            from legacy.services.lore_service import lore_service
+
+            new_chapter = await lore_service.check_lore_unlock(session, user.id, user.level)
+            if new_chapter:
+                lore_msg = f"\n\n📜 解鎖劇情：{new_chapter.title}\n(輸入 'Lore' 查看)"
+
         # 4. Persistence
         log = ActionLog(
             user_id=user.id,
@@ -285,20 +295,17 @@ class UserService:
             msg += f"\n🎁 掉落：{loot_name}（{loot_rarity}）"
 
         if user.level > old_level:
+            leveled_up = True
             msg += f"\n🎉 等級提升！目前等級 {user.level}"
             if lore_msg:
                 msg += lore_msg
+        else:
+            leveled_up = False
 
         # Determine Title
-        title = "街頭鼠"
-        if user.level >= 5:
-            title = "跑者"
-        if user.level >= 10:
-            title = "街頭武士"
-        if user.level >= 20:
-            title = "賽博傳奇"
-        if user.streak_count >= 3:
-            title = f"🔥 {title}"
+        from application.services.title_service import title_service
+
+        title = await title_service.get_user_title(session, user)
 
         return ProcessResult(
             text=msg,
@@ -308,7 +315,7 @@ class UserService:
             difficulty_tier=difficulty,
             xp_gained=xp_gain,
             new_level=user.level,
-            leveled_up=(user.level > old_level),
+            leveled_up=leveled_up,
             loot_name=loot_name,
             loot_rarity=loot_rarity,
             narrative=narrative,

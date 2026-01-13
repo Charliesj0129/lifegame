@@ -48,6 +48,7 @@ class NarrativeService:
         """
         # Fetch Rival
         from legacy.services.rival_service import rival_service
+
         rival = await rival_service.get_rival(session, user_id)
         if not rival:
             rival_level = 1
@@ -69,7 +70,7 @@ class NarrativeService:
 
         # Determine Relationship Tier
         level_gap = rival_level - user_level
-        
+
         if streak > 5 and level_gap < 5:
             relationship = "Respectful Rival"
             tone = "Acknowledging strength, but challenging to do better."
@@ -88,11 +89,8 @@ class NarrativeService:
             "Language: ALWAYS use Traditional Chinese (繁體中文). "
             "Output JSON: {'comment': 'str'}"
         )
-        
-        user_prompt = (
-            f"User Stats: [Lv.{user_level}, HP:{hp_pct}%, Streak:{streak}]. "
-            f"Current Event: {event}."
-        )
+
+        user_prompt = f"User Stats: [Lv.{user_level}, HP:{hp_pct}%, Streak:{streak}]. Current Event: {event}."
 
         try:
             data = await ai_engine.generate_json(system_prompt, user_prompt)

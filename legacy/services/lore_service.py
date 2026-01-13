@@ -1,131 +1,92 @@
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
 from legacy.models.lore import LoreEntry, LoreProgress
+from legacy.services.ai_engine import ai_engine
 import logging
 
 logger = logging.getLogger(__name__)
 
 
 class LoreService:
-    async def get_user_progress(self, session: AsyncSession, user_id: str) -> list[LoreProgress]:
-        stmt = select(LoreProgress).where(LoreProgress.user_id == user_id).order_by(LoreProgress.series)
-        result = await session.execute(stmt)
-        return result.scalars().all()
+    # Thresholds: Chapter X unlocks at Level Y
+    LEVEL_THRESHOLDS = {1: 1, 2: 5, 3: 10, 4: 20, 5: 30, 6: 50}
 
-    async def get_unlocked_lore(self, session: AsyncSession, user_id: str) -> list[LoreEntry]:
+    async def check_lore_unlock(self, session: AsyncSession, user_id: str, user_level: int) -> LoreEntry | None:
         """
-        Returns all LoreEntries that the user has unlocked based on LoreProgress.
-        Also returns User-specific generated lore (series="User:{id}").
+        Checks if a new chapter should be unlocked based on user level.
+        Generates and saves the chapter if unlocked.
         """
         # 1. Get Progress
-        stmt_prog = select(LoreProgress).where(LoreProgress.user_id == user_id)
-        result_prog = await session.execute(stmt_prog)
-        progress_map = {p.series: p.current_chapter for p in result_prog.scalars().all()}
+        stmt = select(LoreProgress).where(LoreProgress.user_id == user_id, LoreProgress.series == "main")
+        progress = (await session.execute(stmt)).scalars().first()
 
-        # 2. Fetch all relevant entries
-        # Requires complex query or fetching all and filtering?
-        # Better to query:
-        # (series == 'User:{id}') OR (progress_map.get(series) >= chapter)
-        # SQL construct:
-        # SELECT * FROM lore_entries WHERE series = 'User:{id}'
-        # OR (series IN keys AND chapter <= val) -- hard to express in single SQL unless joined.
-        # Let's fetch all relevant series first.
+        if not progress:
+            progress = LoreProgress(user_id=user_id, series="main", current_chapter=0)
+            session.add(progress)
+            await session.commit()  # Ensure ID exists
 
-        stmt = select(LoreEntry).order_by(LoreEntry.created_at.desc())
-        result = await session.execute(stmt)
-        all_entries = result.scalars().all()
+        next_chapter = progress.current_chapter + 1
+        required_level = self.LEVEL_THRESHOLDS.get(next_chapter)
 
-        unlocked = []
-        user_series = f"User:{user_id}"
+        if not required_level:
+            return None  # End of content
 
-        for entry in all_entries:
-            if entry.series == user_series:
-                unlocked.append(entry)
-            elif entry.series in progress_map:
-                if entry.chapter <= progress_map[entry.series]:
-                    unlocked.append(entry)
+        if user_level >= required_level:
+            # Unlock!
+            logger.info(f"Unlocking Lore Chapter {next_chapter} for {user_id}")
+            chapter_entry = await self._generate_chapter(session, user_id, next_chapter)
 
-        return unlocked
+            if chapter_entry:
+                progress.current_chapter = next_chapter
+                session.add(progress)
+                await session.commit()
+                return chapter_entry
 
-    async def unlock_next_chapter(self, session: AsyncSession, user_id: str, series: str) -> LoreProgress:
-        """
-        Unlocks the next chapter for a given series.
-        Creates progress record if not exists.
-        """
-        stmt = select(LoreProgress).where(LoreProgress.user_id == user_id, LoreProgress.series == series)
-        result = await session.execute(stmt)
-        prog = result.scalars().first()
+        return None
 
-        if not prog:
-            prog = LoreProgress(user_id=user_id, series=series, current_chapter=1)
-            session.add(prog)
-        else:
-            prog.current_chapter += 1
+    async def _generate_chapter(self, session: AsyncSession, user_id: str, chapter: int) -> LoreEntry:
+        """Generates chapter content via AI."""
+        # Check if already exists (global lore? or per user? LoreEntry model seems generic)
+        # Assuming Lore is unique per user for now (Personalized Story)
 
-        await session.commit()
-        return prog
-
-    async def unlock_data_shard(self, session: AsyncSession, user_id: str, series: str = "MainStory") -> LoreEntry:
-        stmt = select(LoreProgress).where(LoreProgress.user_id == user_id, LoreProgress.series == series)
-        result = await session.execute(stmt)
-        prog = result.scalars().first()
-
-        if not prog:
-            prog = LoreProgress(user_id=user_id, series=series, current_chapter=0)
-            session.add(prog)
-            await session.commit()
-
-        next_chapter = (prog.current_chapter or 0) + 1
-
-        entry_stmt = select(LoreEntry).where(
-            LoreEntry.series == series,
-            LoreEntry.chapter == next_chapter,
+        system_prompt = (
+            "Role: Cyberpunk RPG Novelist. "
+            "Task: Write a short story chapter (approx 150 words). "
+            f"Series: LifeOS - The Awakening. Chapter: {chapter}. "
+            "Setting: A dystopian future where self-discipline determines social standing. "
+            "Language: ALWAYS use Traditional Chinese (繁體中文). "
+            "Output JSON: {'title': 'str', 'body': 'str'}"
         )
-        entry = (await session.execute(entry_stmt)).scalars().first()
 
-        if not entry:
-            title = f"{series}｜第 {next_chapter} 章"
-            body = "檔案片段尚未完整同步，請稍後再次嘗試。"
-            try:
-                from legacy.services.ai_engine import ai_engine
+        context_prompt = (
+            f"Chapter {chapter}. The protagonist (User) has reached Level {self.LEVEL_THRESHOLDS.get(chapter)}."
+        )
 
-                # F10: Lore Weaving - Inject user context into AI prompt
-                user_context = f"使用者 ID: {user_id}"
-                try:
-                    from legacy.services.quest_service import quest_service
-
-                    # Fetch recent achievements for personalization
-                    achievements = await quest_service.get_completed_quests_this_week(session, user_id)
-                    if achievements:
-                        ach_titles = [a.title for a in achievements[:3]]
-                        user_context += f"，最近成就: {', '.join(ach_titles)}"
-                except Exception:
-                    pass  # Graceful degradation
-
-                payload = await ai_engine.generate_json(
-                    system_prompt=(
-                        f"你是賽博檔案系統。生成一段世界觀劇情，需為繁體中文。{user_context}。"
-                        "輸出 JSON: {'title': 'str', 'body': 'str'}"
-                    ),
-                    user_prompt=f"系列：{series}，章節：{next_chapter}",
-                )
-                title = payload.get("title", title)
-                body = payload.get("body", body)
-            except Exception as exc:
-                logger.warning("Lore generation failed: %s", exc)
+        try:
+            data = await ai_engine.generate_json(system_prompt, context_prompt)
+            title = data.get("title", f"Chapter {chapter}")
+            body = data.get("body", "Content missing...")
 
             entry = LoreEntry(
-                series=series,
-                chapter=next_chapter,
+                series=f"User:{user_id}",  # Unique series per user
+                chapter=chapter,
                 title=title,
                 body=body,
             )
             session.add(entry)
+            # Commit happens in caller for atomicity with progress,
+            # BUT we need entry.id if we return it?
+            # Caller commits both progress and entry.
+            return entry
 
-        prog.current_chapter = next_chapter
-        session.add(prog)
-        await session.commit()
-        return entry
+        except Exception as e:
+            logger.error(f"Lore Gen Failed: {e}")
+            return None
+
+    async def get_user_lore(self, session: AsyncSession, user_id: str) -> list[LoreEntry]:
+        """Returns all unlocked lore for user."""
+        stmt = select(LoreEntry).where(LoreEntry.series == f"User:{user_id}").order_by(LoreEntry.chapter)
+        return (await session.execute(stmt)).scalars().all()
 
 
 lore_service = LoreService()

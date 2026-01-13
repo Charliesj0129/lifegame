@@ -719,7 +719,7 @@ class QuestService:
             # Proactive Nuance: Viper mocks failure
             # We need to fetch User/Rival
             from legacy.services.rival_service import rival_service
-            
+
             rival = await rival_service.get_rival(session, user_id)
 
             if user and rival:
@@ -730,7 +730,7 @@ class QuestService:
                     "user_level": user.level or 1,
                     "hp_pct": int(((user.hp or 0) / (user.max_hp or 100)) * 100),
                     "streak": user.streak_count or 0,
-                    "gold": user.gold or 0
+                    "gold": user.gold or 0,
                 }
 
                 # Feature 4: Viper Taunt via NarrativeService

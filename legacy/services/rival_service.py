@@ -124,11 +124,12 @@ class RivalService:
                 "user_level": user.level or 1,
                 "hp_pct": int(((user.hp or 0) / (user.max_hp or 100)) * 100),
                 "streak": user.streak_count or 0,
-                "gold": user.gold or 0
+                "gold": user.gold or 0,
             }
-            
+
             # 2. Delegate to NarrativeService
             from legacy.services.narrative_service import narrative_service
+
             return await narrative_service.get_viper_comment(session, user.id, context_data)
 
         except Exception as e:
