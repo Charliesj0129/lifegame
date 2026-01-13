@@ -161,19 +161,19 @@ class BrainService:
         Simple heuristic to guide the LLM.
         """
         text = text.lower()
-        
+
         # Goal Creation Keywords
         if any(w in text for w in ["想要", "我要", "想成為", "想學", "目標", "new goal", "i want"]):
             return "CREATE_GOAL"
-            
+
         # Challenge/Quest Keywords
         if any(w in text for w in ["挑戰", "試試", "開始", "start", "challenge"]):
             return "START_CHALLENGE"
-            
+
         # Chit-Chat (Basic)
         if any(w in text for w in ["你好", "嗨", "hello", "hi", "早安", "晚安"]):
             return "GREETING"
-            
+
         return "UNKNOWN"
 
     def _construct_system_prompt(self, memory: Dict, flow: FlowState, intent_hint: str = "UNKNOWN") -> str:
