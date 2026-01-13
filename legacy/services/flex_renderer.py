@@ -1473,5 +1473,98 @@ class FlexRenderer:
 
         return FlexMessage(alt_text=f"任務啟動：{title}", contents=FlexContainer.from_dict(bubble))
 
+    def render_rival_card(
+        self, rival_name: str, rival_level: int, rival_xp: int, user_level: int, taunt: str = ""
+    ) -> FlexMessage:
+        """Renders a 'Rival Dossier' card showing enemy stats."""
+        COLOR_BG = "#0D1117"
+        COLOR_DANGER = "#FF3B6B"
+        COLOR_TEXT = "#E6EDF3"
+        COLOR_MUTED = "#8B949E"
+
+        # Threat level calculation
+        level_diff = rival_level - user_level
+        if level_diff >= 3:
+            threat_text = "☠️ 極度危險"
+            threat_color = "#FF3B6B"
+        elif level_diff >= 1:
+            threat_text = "⚠️ 威脅中"
+            threat_color = "#FFB020"
+        elif level_diff >= -1:
+            threat_text = "⚔️ 勢均力敵"
+            threat_color = "#7DF9FF"
+        else:
+            threat_text = "✓ 優勢"
+            threat_color = "#5CDE7A"
+
+        bubble = {
+            "type": "bubble",
+            "size": "kilo",
+            "header": {
+                "type": "box",
+                "layout": "horizontal",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": "🐍 敵人檔案",
+                        "weight": "bold",
+                        "color": COLOR_DANGER,
+                        "size": "sm",
+                    },
+                    {
+                        "type": "text",
+                        "text": threat_text,
+                        "color": threat_color,
+                        "size": "xxs",
+                        "align": "end",
+                    },
+                ],
+                "backgroundColor": COLOR_BG,
+                "paddingAll": "lg",
+            },
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": rival_name,
+                        "weight": "bold",
+                        "color": COLOR_TEXT,
+                        "size": "xl",
+                    },
+                    {
+                        "type": "box",
+                        "layout": "horizontal",
+                        "contents": [
+                            {"type": "text", "text": f"Lv.{rival_level}", "color": COLOR_DANGER, "size": "lg"},
+                            {
+                                "type": "text",
+                                "text": f"XP: {rival_xp}",
+                                "color": COLOR_MUTED,
+                                "size": "sm",
+                                "align": "end",
+                            },
+                        ],
+                        "margin": "sm",
+                    },
+                    {"type": "separator", "margin": "md", "color": "#30363D"},
+                    {
+                        "type": "text",
+                        "text": f"「{taunt}」" if taunt else "「沉默...」",
+                        "color": COLOR_MUTED,
+                        "size": "sm",
+                        "margin": "md",
+                        "wrap": True,
+                        "style": "italic",
+                    },
+                ],
+                "backgroundColor": "#161B22",
+                "paddingAll": "lg",
+            },
+        }
+
+        return FlexMessage(alt_text=f"敵人: {rival_name}", contents=FlexContainer.from_dict(bubble))
+
 
 flex_renderer = FlexRenderer()
