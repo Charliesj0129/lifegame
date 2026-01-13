@@ -101,7 +101,6 @@ class RecipeIngredient(Base):
     quantity_required = Column(Integer, default=1)
 
     item = relationship("Item")
-    item = relationship("Item")
 
 
 class BossStatus(str, enum.Enum):

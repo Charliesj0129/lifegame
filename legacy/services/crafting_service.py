@@ -85,5 +85,54 @@ class CraftingService:
         await session.commit()
         return {"success": True, "message": f"⚒️ 合成成功！獲得 {recipe.name}。"}
 
+    async def seed_default_recipes(self, session: AsyncSession):
+        """
+        Seeds basic recipes if none exist.
+        """
+        stmt = select(Recipe).limit(1)
+        existing = (await session.execute(stmt)).scalars().first()
+        if existing:
+            return
+
+        # Fetch basic items to link
+        from legacy.models.gamification import Item
+
+        items = (await session.execute(select(Item))).scalars().all()
+        item_map = {i.name: i.id for i in items}
+
+        # We need "Life Potion" (生命藥水) -> "Mega Potion" (大生命藥水) or something
+        # Let's assume we have "生命藥水".
+        # Let's create a "Mega Potion" item if not exists
+        mega_potion_id = "ITEM_MEGA_POTION"
+        mega_potion = await session.get(Item, mega_potion_id)
+        if not mega_potion:
+            mega_potion = Item(
+                id=mega_potion_id,
+                name="大生命藥水",
+                description="恢復 200 點生命值。",
+                type="CONSUMABLE",
+                rarity="RARE",
+                effect_meta={"hp_restore": 200},
+                price=300,
+            )
+            session.add(mega_potion)
+
+        # Recipe: 3x Potion -> 1x Mega Potion
+        potion_id = item_map.get("生命藥水")
+        if potion_id:
+            recipe = Recipe(
+                id="RECIPE_MEGA_POTION",
+                name="合成大生命藥水",
+                result_item_id=mega_potion_id,
+                result_quantity=1,
+                success_rate=0.9,
+            )
+            session.add(recipe)
+            await session.flush()
+
+            ingredient = RecipeIngredient(recipe_id=recipe.id, item_id=potion_id, quantity_required=3)
+            session.add(ingredient)
+            await session.commit()
+
 
 crafting_service = CraftingService()
