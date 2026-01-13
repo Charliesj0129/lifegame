@@ -276,6 +276,22 @@ if webhook_handler:
                     else:
                         result = GameResult(text="⚠️ 缺少配方ID")
 
+                elif action == "spawn_boss":
+                    from legacy.services.boss_service import boss_service
+
+                    spawn_msg = await boss_service.spawn_boss(session, user_id)
+                    result = GameResult(text=spawn_msg)
+
+                elif action == "attack_boss":
+                    from legacy.services.boss_service import boss_service
+
+                    # Simple MVP: Deal 100 damage
+                    dmg_msg = await boss_service.deal_damage(session, user_id, 100)
+                    if dmg_msg:
+                        result = GameResult(text=dmg_msg)
+                    else:
+                        result = GameResult(text="⚠️ 沒有活躍的首領")
+
                 elif action == "buy_item":
                     item_id = params.get("item_id")
                     if item_id:
