@@ -1,125 +1,105 @@
+from typing import List, Tuple
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
-from legacy.models.gamification import Item, UserItem, UserBuff
+from legacy.models.gamification import Item, UserItem, ItemRarity, ItemType
 from app.models.user import User
-from datetime import datetime, timedelta, timezone
-import logging
-
-logger = logging.getLogger(__name__)
+import uuid
 
 
 class InventoryService:
-    async def get_user_inventory(self, session: AsyncSession, user_id: str):
-        from sqlalchemy.orm import joinedload
-
-        stmt = select(UserItem).where(UserItem.user_id == user_id).options(joinedload(UserItem.item))
+    async def get_inventory(self, session: AsyncSession, user_id: str) -> List[Tuple[Item, int]]:
+        """
+        Returns a list of (Item, quantity) tuples for the user.
+        """
+        # UserItem already has relationship to Item, but we want to return (Item, qty) format for renderer
+        stmt = select(UserItem, Item).join(Item, UserItem.item_id == Item.id).where(UserItem.user_id == user_id)
         result = await session.execute(stmt)
-        return result.scalars().all()
+        rows = result.all()
+        # rows are [(UserItem, Item), ...]
+        return [(row[1], row[0].quantity) for row in rows]
 
-    async def get_active_buffs(self, session: AsyncSession, user_id: str):
-        now = datetime.now(timezone.utc)
-        stmt = select(UserBuff).where(UserBuff.user_id == user_id, UserBuff.expires_at > now)
-        result = await session.execute(stmt)
-        return result.scalars().all()
+    async def add_item(self, session: AsyncSession, user_id: str, item_id: str, quantity: int = 1):
+        """
+        Adds an item to the user's inventory.
+        """
+        # Check if slot exists
+        stmt = select(UserItem).where(UserItem.user_id == user_id, UserItem.item_id == item_id)
+        slot = (await session.execute(stmt)).scalars().first()
 
-    async def use_item(self, session: AsyncSession, user_id: str, item_keyword: str) -> str:
-        # Find item in inventory (by partial name match or exact ID?)
-        # For chat bot, exact ID is hard. Let's try name match join.
-        stmt = (
-            select(UserItem)
-            .join(Item)
-            .where(
-                UserItem.user_id == user_id,
-                UserItem.quantity > 0,
-                Item.name.ilike(f"%{item_keyword}%"),
-            )
-        )
-        result = await session.execute(stmt)
-        user_item = result.scalars().first()
+        if slot:
+            slot.quantity += quantity
+        else:
+            slot = UserItem(user_id=user_id, item_id=item_id, quantity=quantity)
+            session.add(slot)
 
-        if not user_item:
-            return f"背包中沒有符合「{item_keyword}」的道具。"
+        await session.commit()
 
-        item = await session.get(Item, user_item.item_id)
-        if not item or not item.effect_meta:
-            return f"{item.name if item else '道具'}無法使用。"
+    async def remove_item(self, session: AsyncSession, user_id: str, item_id: str, quantity: int = 1) -> bool:
+        """
+        Removes an item. Returns False if insufficient quantity.
+        """
+        stmt = select(UserItem).where(UserItem.user_id == user_id, UserItem.item_id == item_id)
+        slot = (await session.execute(stmt)).scalars().first()
 
-        meta = item.effect_meta or {}
-        effect = meta.get("effect")
-        # {"buff": "INT", "multiplier": 1.2, "duration_minutes": 60}
+        if not slot or slot.quantity < quantity:
+            return False
 
-        if item.id == "ITEM_DATA_SHARD" or effect == "lore_unlock":
-            from legacy.services.lore_service import lore_service
+        slot.quantity -= quantity
+        if slot.quantity <= 0:
+            await session.delete(slot)
 
-            entry = await lore_service.unlock_data_shard(session, user_id)
+        await session.commit()
+        return True
 
-            user_item.quantity -= 1
-            if user_item.quantity <= 0:
-                await session.delete(user_item)
+    async def seed_default_items_if_needed(self, session: AsyncSession):
+        """
+        Seeds basic game items if the Item table is empty.
+        """
+        stmt = select(Item).limit(1)
+        existing = (await session.execute(stmt)).scalars().first()
+        if existing:
+            return
 
-            await session.commit()
-            return entry
-
-        if "buff" in meta or effect == "buff_multiplier":
-            # Create Buff
-            duration = meta.get("duration_minutes", 60)
-            multiplier = meta.get("multiplier", 1.1)
-            target = meta.get("buff") or meta.get("attribute") or meta.get("target_attribute") or "ALL"
-
-            expires = datetime.now(timezone.utc) + timedelta(minutes=duration)
-
-            buff = UserBuff(
-                user_id=user_id,
-                target_attribute=target,
-                multiplier=multiplier,
-                expires_at=expires,
-            )
-            session.add(buff)
-
-            # Consume
-            user_item.quantity -= 1
-            if user_item.quantity <= 0:
-                await session.delete(user_item)  # Remove 0 quantity rows?
-
-            await session.commit()
-            return f"已使用 {item.name}！{target} 效果提升 {multiplier} 倍，持續 {duration} 分鐘。"
-
-        if effect == "restore_hp":
-            amount = int(meta.get("amount", 0))
-            if amount <= 0:
-                return f"使用 {item.name} 但沒有任何效果。"
-            user = await session.get(User, user_id)
-            if not user:
-                return "找不到使用者。"
-            from legacy.services.hp_service import hp_service
-
-            await hp_service.apply_hp_change(session, user, amount, source="item_restore_hp")
-
-            user_item.quantity -= 1
-            if user_item.quantity <= 0:
-                await session.delete(user_item)
-            await session.commit()
-            return f"已使用 {item.name}！HP +{amount}。"
-
-        if effect == "grant_xp":
-            amount = int(meta.get("amount", 0))
-            if amount <= 0:
-                return f"使用 {item.name} 但沒有任何效果。"
-
-            user = await session.get(User, user_id)
-            if not user:
-                return "找不到使用者。"
-
-            user.xp = (user.xp or 0) + amount
-
-            user_item.quantity -= 1
-            if user_item.quantity <= 0:
-                await session.delete(user_item)
-
-            await session.commit()
-            return f"已使用 {item.name}！XP +{amount}。"
-
-        return f"使用 {item.name} 但沒有任何效果。"
+        items = [
+            Item(
+                id=str(uuid.uuid4()),
+                name="生命藥水",
+                description="恢復 50 點生命值。",
+                type=ItemType.CONSUMABLE,
+                rarity=ItemRarity.COMMON,
+                effect_meta={"hp_restore": 50},
+                price=50,
+            ),
+            Item(
+                id=str(uuid.uuid4()),
+                name="經驗秘典 (小)",
+                description="獲得 100 點經驗值。",
+                type=ItemType.CONSUMABLE,
+                rarity=ItemRarity.UNCOMMON,
+                effect_meta={"xp_grant": 100},
+                price=150,
+            ),
+            Item(
+                id=str(uuid.uuid4()),
+                name="專注藥劑",
+                description="提升專注力，接下來的任務 XP +20%。",
+                type=ItemType.CONSUMABLE,
+                rarity=ItemRarity.RARE,
+                effect_meta={"buff": "focus", "duration": 3600},
+                price=300,
+            ),
+            Item(
+                id=str(uuid.uuid4()),
+                name="命運硬幣",
+                description="重新生成今日任務 (Reroll)。",
+                type=ItemType.CONSUMABLE,
+                rarity=ItemRarity.EPIC,
+                effect_meta={"action": "reroll_quest"},
+                price=500,
+            ),
+        ]
+        session.add_all(items)
+        await session.commit()
 
 
 inventory_service = InventoryService()

@@ -885,6 +885,126 @@ class FlexRenderer:
 
         return FlexMessage(alt_text=title, contents=FlexContainer.from_dict(bubble))
 
+    def render_inventory(self, user: User, items: list) -> FlexMessage:
+        COLOR_BG = "#0D1117"
+        COLOR_ACCENT = "#7DF9FF"
+
+        if not items:
+            return FlexMessage(
+                alt_text="🎒 背包",
+                contents=FlexContainer.from_dict(
+                    {
+                        "type": "bubble",
+                        "size": "giga",
+                        "body": {
+                            "type": "box",
+                            "layout": "vertical",
+                            "contents": [
+                                {
+                                    "type": "text",
+                                    "text": "🎒 背包",
+                                    "weight": "bold",
+                                    "color": COLOR_ACCENT,
+                                    "size": "xl",
+                                },
+                                {
+                                    "type": "text",
+                                    "text": f"持有金幣: 💰 {user.gold or 0}",
+                                    "size": "sm",
+                                    "color": "#F5C542",
+                                    "margin": "md",
+                                },
+                                {"type": "separator", "color": "#30363D", "margin": "md"},
+                                {
+                                    "type": "text",
+                                    "text": "空空如也...",
+                                    "color": "#8B949E",
+                                    "size": "sm",
+                                    "margin": "lg",
+                                    "align": "center",
+                                },
+                            ],
+                            "backgroundColor": COLOR_BG,
+                            "paddingAll": "xl",
+                        },
+                    }
+                ),
+            )
+
+        item_rows = []
+        for item, qty in items:
+            # Visual tweaks based on rarity
+            rarity_color = "#8B949E"
+            if item.rarity == "UNCOMMON":
+                rarity_color = "#20D6C7"
+            if item.rarity == "RARE":
+                rarity_color = "#F5C542"
+            if item.rarity == "EPIC":
+                rarity_color = "#C77DFF"
+
+            row = {
+                "type": "box",
+                "layout": "horizontal",
+                "contents": [
+                    {
+                        "type": "box",
+                        "layout": "vertical",
+                        "contents": [
+                            {"type": "text", "text": item.name, "weight": "bold", "color": "#E6EDF3", "size": "sm"},
+                            {
+                                "type": "text",
+                                "text": f"{item.rarity} | {item.type}",
+                                "size": "xxs",
+                                "color": rarity_color,
+                            },
+                        ],
+                        "flex": 3,
+                    },
+                    {
+                        "type": "text",
+                        "text": f"x{qty}",
+                        "weight": "bold",
+                        "color": "#F5C542",
+                        "align": "end",
+                        "gravity": "center",
+                        "flex": 1,
+                    },
+                ],
+                "margin": "md",
+                "action": {"type": "postback", "label": "Detail", "data": f"action=item_detail&id={item.id}"},
+            }
+            item_rows.append(row)
+            item_rows.append({"type": "separator", "color": "#30363D", "margin": "sm"})
+
+        bubble = {
+            "type": "bubble",
+            "size": "giga",
+            "header": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {"type": "text", "text": "🎒 戰術背包", "weight": "bold", "color": COLOR_ACCENT, "size": "xl"},
+                    {
+                        "type": "text",
+                        "text": f"持有金幣: 💰 {user.gold or 0}",
+                        "size": "xs",
+                        "color": "#F5C542",
+                        "margin": "sm",
+                    },
+                ],
+                "backgroundColor": COLOR_BG,
+                "paddingAll": "lg",
+            },
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": item_rows,
+                "backgroundColor": COLOR_BG,
+                "paddingAll": "lg",
+            },
+        }
+        return FlexMessage(alt_text="🎒 背包清單", contents=FlexContainer.from_dict(bubble))
+
     def render_shop_list(self, items: list, user_gold: int) -> FlexMessage:
         COLOR_BG = "#0D1117"
         COLOR_ACCENT = "#F5C542"
