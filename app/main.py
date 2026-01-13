@@ -258,7 +258,7 @@ async def handle_status(session: AsyncSession, user_id: str, text: str) -> GameR
 
     try:
         user = await user_service.get_or_create_user(session, user_id)
-        lore_prog = await lore_service.get_progress(session, user_id)
+        lore_prog = await lore_service.get_user_progress(session, user_id)
         flex = flex_renderer.render_status(user, lore_prog)
         return GameResult(text="📊 玩家狀態", intent="status", metadata={"flex_message": flex})
     except Exception as e:
@@ -301,9 +301,70 @@ async def handle_new_goal(session: AsyncSession, user_id: str, text: str) -> Gam
         return GameResult(text="🎯 你想達成什麼目標？（例如：學Python、減肥、早起）", intent="goal_prompt")
 
 
+async def handle_checkin(session: AsyncSession, user_id: str, text: str) -> GameResult:
+    """Handler for '簽到' command - daily check-in."""
+    from legacy.services.user_service import user_service
+    from legacy.services.flex_renderer import flex_renderer
+
+    try:
+        user = await user_service.get_or_create_user(session, user_id)
+        # Award check-in bonus
+        user.gold = (user.gold or 0) + 10
+        user.xp = (user.xp or 0) + 5
+        await session.commit()
+
+        # Record to Graph
+        from adapters.persistence.kuzu.adapter import get_kuzu_adapter
+
+        kuzu = get_kuzu_adapter()
+        kuzu.record_user_event(user_id, "CHECKIN", {"gold": 10, "xp": 5})
+
+        return GameResult(
+            text="✅ 簽到成功！+10 金幣 +5 經驗值",
+            intent="checkin",
+            metadata={"gold_gained": 10, "xp_gained": 5},
+        )
+    except Exception as e:
+        logger.error(f"Checkin failed: {e}", exc_info=True)
+        return GameResult(text="⚠️ 簽到失敗，請稍後再試。", intent="checkin_error")
+
+
+async def handle_inventory(session: AsyncSession, user_id: str, text: str) -> GameResult:
+    """Handler for '背包' command - show inventory."""
+    from legacy.services.user_service import user_service
+
+    try:
+        user = await user_service.get_or_create_user(session, user_id)
+        gold = user.gold or 0
+        return GameResult(text=f"🎒 背包：💰 {gold} 金幣", intent="inventory")
+    except Exception as e:
+        logger.error(f"Inventory failed: {e}", exc_info=True)
+        return GameResult(text="⚠️ 背包載入失敗。", intent="inventory_error")
+
+
+async def handle_shop(session: AsyncSession, user_id: str, text: str) -> GameResult:
+    """Handler for '商店' command - show shop."""
+    from legacy.services.shop_service import shop_service
+    from legacy.services.flex_renderer import flex_renderer
+
+    try:
+        items = await shop_service.get_daily_stock(session)
+        if items:
+            flex = flex_renderer.render_shop(items)
+            return GameResult(text="🏪 每日商店", intent="shop", metadata={"flex_message": flex})
+        else:
+            return GameResult(text="🏪 商店補貨中，請稍後再來！", intent="shop")
+    except Exception as e:
+        logger.error(f"Shop failed: {e}", exc_info=True)
+        return GameResult(text="⚠️ 商店載入失敗。", intent="shop_error")
+
+
 # 2. Register Strategies - Chinese Commands FIRST
-dispatcher.register(lambda t: t.strip() in ["狀態", "status", "狀態 "], handle_status)
-dispatcher.register(lambda t: t.strip() in ["任務", "quests", "任務 "], handle_quests)
+dispatcher.register(lambda t: t.strip() in ["狀態", "status"], handle_status)
+dispatcher.register(lambda t: t.strip() in ["任務", "quests"], handle_quests)
+dispatcher.register(lambda t: t.strip() in ["簽到", "checkin"], handle_checkin)
+dispatcher.register(lambda t: t.strip() in ["背包", "inventory"], handle_inventory)
+dispatcher.register(lambda t: t.strip() in ["商店", "shop"], handle_shop)
 dispatcher.register(
     lambda t: "新目標" in t or "設定目標" in t or "設定新目標" in t or t.strip() == "我想設定新目標",
     handle_new_goal,
