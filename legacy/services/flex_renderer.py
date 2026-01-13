@@ -308,6 +308,8 @@ class FlexRenderer:
         return FlexMessage(alt_text=result.to_text_message(), contents=FlexContainer.from_dict(bubble))
 
     def render_status(self, user: User, lore_progress: list = None) -> FlexMessage:
+        if lore_progress is None:
+            lore_progress = []
         from legacy.services.flex.status import status_renderer as sub_renderer
 
         return sub_renderer.render_status(user, lore_progress)

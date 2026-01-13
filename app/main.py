@@ -258,11 +258,27 @@ async def handle_status(session: AsyncSession, user_id: str, text: str) -> GameR
 
     try:
         user = await user_service.get_or_create_user(session, user_id)
-        lore_prog = await lore_service.get_user_progress(session, user_id)
-        flex = flex_renderer.render_status(user, lore_prog)
-        return GameResult(text="📊 玩家狀態", intent="status", metadata={"flex_message": flex})
+
+        # Guard against lore service failure
+        lore_prog = []
+        try:
+            lore_prog = await lore_service.get_user_progress(session, user_id)
+            logger.info(f"Lore progress fetched for {user_id}: {len(lore_prog)} items")
+        except Exception as e:
+            logger.error(f"Failed to fetch lore progress: {e}", exc_info=True)
+            # Proceed with empty lore progress
+
+        # Render status with fallback protection
+        try:
+            flex = flex_renderer.render_status(user, lore_prog)
+            return GameResult(text="📊 玩家狀態", intent="status", metadata={"flex_message": flex})
+        except Exception as render_err:
+            logger.error(f"Render status failed: {render_err}", exc_info=True)
+            return GameResult(text="📊 玩家狀態 (渲染失敗)", intent="status_render_error")
+
     except Exception as e:
-        logger.error(f"Status handler failed: {e}", exc_info=True)
+        logger.error(f"Status handler CRITICAL failure: {e}", exc_info=True)
+        return GameResult(text="⚠️ 系統異常，無法載入狀態。", intent="status_critical_error")
         return GameResult(text="⚠️ 狀態載入失敗，請稍後再試。", intent="status_error")
 
 
@@ -382,8 +398,28 @@ async def handle_boss(session: AsyncSession, user_id: str, text: str) -> GameRes
     return GameResult(text="👹 首領挑戰開發中，敬請期待！", intent="boss_wip")
 
 
+async def handle_help(session: AsyncSession, user_id: str, text: str) -> GameResult:
+    """Handler for '指令'/'help' command - list available commands."""
+    help_text = (
+        "📜 **戰術系統指令清單**\n"
+        "------------------\n"
+        "📊 **狀態** - 查看屬性與故事進度\n"
+        "⚔️ **任務** - 查看今日任務清單\n"
+        "✅ **簽到** - 每日領取獎勵\n"
+        "🎒 **背包** - 查看金幣與物資\n"
+        "🏪 **商店** - 每日隨機商品\n"
+        "🎯 **新目標** - 設定新的人生目標\n"
+        "🔧 **合成** - (開發中)\n"
+        "👹 **首領** - (開發中)\n"
+        "------------------\n"
+        "💡 直接輸入你想做的事，AI 也會協助你！"
+    )
+    return GameResult(text=help_text, intent="help")
+
+
 dispatcher.register(lambda t: t.strip() in ["合成", "craft"], handle_craft)
 dispatcher.register(lambda t: t.strip() in ["首領", "boss"], handle_boss)
+dispatcher.register(lambda t: t.strip() in ["指令", "help", "說明", "commands"], handle_help)
 
 # Legacy (keep for compatibility)
 dispatcher.register(lambda t: t.lower().strip() == "attack", handle_attack)
