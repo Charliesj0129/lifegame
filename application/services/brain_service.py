@@ -82,19 +82,17 @@ class BrainService:
         # 2. Flow Physics (The "Thermostat")
         # Fetch real tier from user state or default to C
         current_tier = user_state.get("current_tier", "C")
-        
+
         # TODO: Parse recent_performance from short_term_history or add to ContextService
-        recent_performance = [] 
+        recent_performance = []
 
         flow_target: FlowState = flow_controller.calculate_next_state(
-            current_tier, 
-            recent_performance, 
-            churn_risk=churn_risk
+            current_tier, recent_performance, churn_risk=churn_risk
         )
 
         # 3. System Prompt Engineering (The "Addiction Script")
         system_prompt = self._construct_system_prompt(memory, flow_target)
-        
+
         raw_plan = {}
 
         try:
@@ -142,15 +140,15 @@ Core Directive: You are NOT a generic chatbot. You are the user's "External Pref
 Your goal is to align their actions with their VALUES ({values}) and IDENTITY ({self_perception}).
 
 # Context
-User Level: {memory['user_state'].get('level')}
-Time: {memory['time_context']}
-Churn Risk: {memory['user_state'].get('churn_risk')}
+User Level: {memory["user_state"].get("level")}
+Time: {memory["time_context"]}
+Churn Risk: {memory["user_state"].get("churn_risk")}
 
 # Recent History
-{memory['short_term_history']}
+{memory["short_term_history"]}
 
 # Graph Memory (Deep Context)
-{json.dumps(memory.get('long_term_context', []), ensure_ascii=False)}
+{json.dumps(memory.get("long_term_context", []), ensure_ascii=False)}
 
 # Operational Directive (Flow State)
 Target Difficulty: {flow.difficulty_tier}

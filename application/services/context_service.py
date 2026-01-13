@@ -43,7 +43,7 @@ class ContextService:
             "long_term_context": long_term_data,
             "user_state": user_state,
             "identity_context": identity,
-            "time_context": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+            "time_context": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"),
         }
 
     async def _get_recent_actions(self, session: AsyncSession, user_id: str, limit: int = 5) -> List[ActionLog]:
@@ -86,11 +86,9 @@ class ContextService:
         """
         try:
             # Placeholder: In future, use self.kuzu.query(...) to find (User)-[:VALUES]->(Value)
-            return {
-                "core_values": ["Growth", "Autonomy"],
-                "identity_tags": ["Seeker", "Architect"]
-            }
+            return {"core_values": ["Growth", "Autonomy"], "identity_tags": ["Seeker", "Architect"]}
         except Exception:
             return {}
+
 
 context_service = ContextService()
