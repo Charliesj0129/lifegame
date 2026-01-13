@@ -921,6 +921,64 @@ class FlexRenderer:
         }
         return FlexMessage(alt_text="用戶設定", contents=FlexContainer.from_dict(bubble))
 
+    def render_help_card(self, help_data: dict) -> FlexMessage:
+        COLOR_BG = "#0B0F14"
+        COLOR_ACCENT = "#7DF9FF"
+        COLOR_TEXT = "#E6EDF3"
+        COLOR_MUTED = "#8B949E"
+
+        # help_data: {title, message, suggestion, action_label, action_data}
+
+        title = help_data.get("title", "💡 提示")
+        message = help_data.get("message", "")
+        suggestion = help_data.get("suggestion", "")
+        action_label = help_data.get("action_label", "查看")
+        action_data = help_data.get("action_data", "action=menu")
+
+        bubble = {
+            "type": "bubble",
+            "size": "kilo",  # Smaller card
+            "header": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [{"type": "text", "text": title, "weight": "bold", "color": COLOR_ACCENT, "size": "md"}],
+                "backgroundColor": COLOR_BG,
+                "paddingAll": "lg",
+            },
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {"type": "text", "text": message, "color": COLOR_TEXT, "size": "sm", "wrap": True},
+                    {
+                        "type": "text",
+                        "text": suggestion,
+                        "color": COLOR_MUTED,
+                        "size": "xs",
+                        "wrap": True,
+                        "margin": "md",
+                    },
+                ],
+                "backgroundColor": COLOR_BG,
+                "paddingAll": "lg",
+            },
+            "footer": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {
+                        "type": "button",
+                        "action": {"type": "postback", "label": action_label, "data": action_data},
+                        "style": "secondary",
+                        "height": "sm",
+                    }
+                ],
+                "backgroundColor": COLOR_BG,
+                "paddingAll": "md",
+            },
+        }
+        return FlexMessage(alt_text="提示", contents=FlexContainer.from_dict(bubble))
+
     def render_push_briefing(
         self,
         title: str,
