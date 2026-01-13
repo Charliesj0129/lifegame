@@ -7,10 +7,10 @@ on:
   workflow_dispatch:
 
 env:
-  AZURE_WEBAPP_NAME: app-lifgame-bot
+  AZURE_WEBAPP_NAME: app-lifgame-2026
   AZURE_RESOURCE_GROUP: rg-lifgame
-  ACR_NAME: acrlifgame1802
-  ACR_LOGIN_SERVER: acrlifgame1802.azurecr.io
+  ACR_NAME: acrlifgame2026
+  ACR_LOGIN_SERVER: acrlifgame2026.azurecr.io
   IMAGE_NAME: lifgame
 
 jobs:
