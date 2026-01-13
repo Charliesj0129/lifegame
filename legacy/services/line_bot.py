@@ -65,9 +65,7 @@ def get_messaging_api() -> AsyncMessagingApi:
             logger.warning("LINE_CHANNEL_ACCESS_TOKEN is not set. Replies will fail.")
             configuration = Configuration(access_token="dummy")
         else:
-            configuration = Configuration(
-                access_token=settings.LINE_CHANNEL_ACCESS_TOKEN
-            )
+            configuration = Configuration(access_token=settings.LINE_CHANNEL_ACCESS_TOKEN)
 
         async_api_client = AsyncApiClient(configuration)
         messaging_api = AsyncMessagingApi(async_api_client)

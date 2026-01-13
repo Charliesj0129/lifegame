@@ -40,26 +40,20 @@ class DungeonService:
                 if dungeon.deadline.tzinfo is None
                 else dungeon.deadline
             )
-            < datetime.datetime.now(
-                (dungeon.deadline.tzinfo or datetime.timezone.utc)
-            )
+            < datetime.datetime.now((dungeon.deadline.tzinfo or datetime.timezone.utc))
         ):
             dungeon.status = DungeonStatus.FAILED.value
             await session.commit()
             return None
         return dungeon
 
-    async def open_dungeon(
-        self, session: AsyncSession, user_id: str, dungeon_type: str
-    ) -> tuple[Dungeon | None, str]:
+    async def open_dungeon(self, session: AsyncSession, user_id: str, dungeon_type: str) -> tuple[Dungeon | None, str]:
         active = await self.get_active_dungeon(session, user_id)
         if active:
             return None, "已經在副本中，無法重複開啟。"
 
         dtype = (dungeon_type or "").upper()
-        template = DUNGEON_TEMPLATES.get(
-            dtype, DUNGEON_TEMPLATES[DungeonType.FOCUS.value]
-        )
+        template = DUNGEON_TEMPLATES.get(dtype, DUNGEON_TEMPLATES[DungeonType.FOCUS.value])
 
         dungeon_id = str(uuid.uuid4())
         deadline = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(
@@ -95,17 +89,11 @@ class DungeonService:
         )
 
     async def get_dungeon_stages(self, session: AsyncSession, dungeon_id: str):
-        stmt = (
-            select(DungeonStage)
-            .where(DungeonStage.dungeon_id == dungeon_id)
-            .order_by(DungeonStage.order)
-        )
+        stmt = select(DungeonStage).where(DungeonStage.dungeon_id == dungeon_id).order_by(DungeonStage.order)
         result = await session.execute(stmt)
         return result.scalars().all()
 
-    async def complete_stage(
-        self, session: AsyncSession, user_id: str
-    ) -> tuple[bool, str]:
+    async def complete_stage(self, session: AsyncSession, user_id: str) -> tuple[bool, str]:
         dungeon = await self.get_active_dungeon(session, user_id)
         if not dungeon:
             return False, "沒有進行中的副本。"
@@ -143,9 +131,7 @@ class DungeonService:
                             trigger_rescue=False,
                         )
 
-            loot_item = await loot_service.grant_guaranteed_drop(
-                session, user_id, min_rarity=ItemRarity.RARE
-            )
+            loot_item = await loot_service.grant_guaranteed_drop(session, user_id, min_rarity=ItemRarity.RARE)
             loot_text = f"戰利品：{loot_item.name}" if loot_item else "戰利品：無"
             return True, f"🏆 副本通關！{loot_text}"
 
@@ -154,9 +140,7 @@ class DungeonService:
             f"✅ 階段完成：{target.title}（進度：{completed_count}/{len(stages)}）",
         )
 
-    async def abandon_dungeon(
-        self, session: AsyncSession, user_id: str
-    ) -> tuple[bool, str]:
+    async def abandon_dungeon(self, session: AsyncSession, user_id: str) -> tuple[bool, str]:
         dungeon = await self.get_active_dungeon(session, user_id)
         if not dungeon:
             return False, "沒有進行中的副本。"
@@ -185,9 +169,7 @@ class DungeonService:
         duration_minutes: int = 60,
     ):
         dtype = (dungeon_type or "FOCUS").upper()
-        template = DUNGEON_TEMPLATES.get(
-            dtype, DUNGEON_TEMPLATES[DungeonType.FOCUS.value]
-        )
+        template = DUNGEON_TEMPLATES.get(dtype, DUNGEON_TEMPLATES[DungeonType.FOCUS.value])
         template = {**template, "duration_minutes": duration_minutes}
         DUNGEON_TEMPLATES[dtype] = template
         dungeon, msg = await self.open_dungeon(session, user_id, dtype)

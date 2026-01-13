@@ -20,9 +20,7 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     op.add_column(
         "users",
-        sa.Column(
-            "streak_count", sa.Integer(), server_default=sa.text("0"), nullable=False
-        ),
+        sa.Column("streak_count", sa.Integer(), server_default=sa.text("0"), nullable=False),
     )
     op.add_column(
         "users",
@@ -50,9 +48,7 @@ def upgrade() -> None:
         sa.Column("description", sa.String(), nullable=True),
         sa.Column("status", sa.String(), nullable=True),
         sa.Column("decomposition_json", sa.JSON(), nullable=True),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=True),
     )
     op.create_index(op.f("ix_goals_user_id"), "goals", ["user_id"], unique=False)
@@ -70,9 +66,7 @@ def upgrade() -> None:
         sa.Column("xp_reward", sa.Integer(), nullable=True),
         sa.Column("scheduled_date", sa.Date(), nullable=True),
         sa.Column("is_redemption", sa.Boolean(), nullable=True),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
     op.create_index(op.f("ix_quests_user_id"), "quests", ["user_id"], unique=False)
     op.create_index(op.f("ix_quests_goal_id"), "quests", ["goal_id"], unique=False)
@@ -84,9 +78,7 @@ def upgrade() -> None:
         sa.Column("name", sa.String(), nullable=True),
         sa.Column("level", sa.Integer(), nullable=True),
         sa.Column("xp", sa.Integer(), nullable=True),
-        sa.Column(
-            "last_updated", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("last_updated", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
     op.create_index(op.f("ix_rivals_user_id"), "rivals", ["user_id"], unique=False)
 
@@ -96,9 +88,7 @@ def upgrade() -> None:
         sa.Column("user_id", sa.String(), sa.ForeignKey("users.id"), nullable=True),
         sa.Column("role", sa.String(), nullable=False),
         sa.Column("content", sa.Text(), nullable=False),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
     op.create_index(
         op.f("ix_conversation_logs_user_id"),

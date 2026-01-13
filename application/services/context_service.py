@@ -10,6 +10,7 @@ from app.models.user import User
 
 logger = logging.getLogger(__name__)
 
+
 class ContextService:
     def __init__(self):
         self.kuzu = get_kuzu_adapter()
@@ -34,7 +35,6 @@ class ContextService:
 
         # 3. User State & Time
         user_state = await self._get_user_state(session, user_id)
-        
         # 4. Identity Context (Semantic Self)
         identity = self._get_identity_context(user_id)
 
@@ -48,7 +48,9 @@ class ContextService:
 
     async def _get_recent_actions(self, session: AsyncSession, user_id: str, limit: int = 5) -> List[ActionLog]:
         try:
-            stmt = select(ActionLog).where(ActionLog.user_id == user_id).order_by(desc(ActionLog.timestamp)).limit(limit)
+            stmt = (
+                select(ActionLog).where(ActionLog.user_id == user_id).order_by(desc(ActionLog.timestamp)).limit(limit)
+            )
             result = await session.execute(stmt)
             return result.scalars().all()
         except Exception as e:
@@ -62,17 +64,17 @@ class ContextService:
             user = (await session.execute(stmt)).scalars().first()
             if not user:
                 return {}
-            
+
             # Simple Churn Heuristic: Inactive > 2 days
             last_active = user.last_active_date or datetime.now(timezone.utc)
             days_inactive = (datetime.now(timezone.utc) - last_active).days
             churn_risk = "HIGH" if days_inactive > 2 else "LOW"
-            
+
             return {
                 "level": user.level,
                 "current_hp": user.hp,
                 "streak": user.streak_count or 0,
-                "churn_risk": churn_risk
+                "churn_risk": churn_risk,
             }
         except Exception as e:
             logger.error(f"Failed to fetch User State: {e}")

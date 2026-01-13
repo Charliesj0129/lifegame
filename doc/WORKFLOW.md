@@ -44,3 +44,53 @@ Format: `<type>(<scope>): <subject>`
 ## 4. Task Management
 - Update `task.md` frequently to reflect progress.
 - Mark items as `[/]` (In Progress) and `[x]` (Done).
+
+## 5. CI/CD Standards & Troubleshooting
+
+### Critical Rules
+1.  **NO Absolute Paths**: Never use `/home/charlie/...` in tests. Use `os.getcwd()` or generic paths.
+2.  **Formatter Mandatory**: CI runs `ruff format --check`. You MUST run `uv run ruff format .` before pushing.
+3.  **Mock Safely**: Mock databases/paths with care. Ensure `NamedTemporaryFile` or `tmp_path` are cleaned up correctly.
+
+### Troubleshooting Guide
+If CI fails:
+1.  **List Runs**: `gh run list --limit 5`
+2.  **Watch Logs**: `gh run watch <RUN_ID> --exit-status`
+3.  **View Errors**: `gh run view <RUN_ID> --log-failed`
+
+### Emergency Fix Protocol
+If `main` is broken:
+1.  Create `fix/<issue>` branch.
+2.  Apply fix.
+3.  Run local verification with CI flags: `TESTING=1 SQLALCHEMY_DATABASE_URI="sqlite+aiosqlite:///:memory:" KUZU_DATABASE_PATH=":memory:" uv run pytest tests/unit`
+4.  Merge immediately if local tests pass.
+
+## 6. Enhanced Protocols
+
+### 6.1 Local Guardrails (Pre-commit)
+
+Developers MUST ensure code quality *before* committing.
+
+- **Requirement**: Zero lint errors locally.
+- **Tooling**: Use `pre-commit` or run `uv run ruff check --fix && uv run ruff format` manually.
+- **Impact**: Prevents "lint nitpick" CI failures.
+
+### 6.2 Test Strategy Segregation
+
+Tests are strictly categorized to optimize CI speed and reliability.
+
+- **Unit Tests (`@pytest.mark.unit`)**:
+  - Must be fast (<0.1s).
+  - Must NOT touch disk/network/DB (use mocks).
+  - CI Job: `Run Unit Tests` (Runs on every push).
+- **Integration Tests (`@pytest.mark.integration`)**:
+  - Can touch DB/Docker.
+  - CI Job: `Run Integration Tests` (Runs on PR merge or nightly).
+
+### 6.3 Dependency Hygiene
+
+We stop "It works on my machine" bugs by enforcing strict versioning.
+
+- **Lockfile**: `uv.lock` is the source of truth.
+- **CI Command**: MUST use `uv sync --locked`.
+- **Update Protocol**: Explicitly run `uv lock --upgrade` to update dependencies, do not let CI auto-resolve new versions.

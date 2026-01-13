@@ -28,9 +28,7 @@ class DDAService:
         idx = max(0, min(len(self.TIERS) - 1, idx + delta))
         return self.TIERS[idx]
 
-    async def get_or_create_habit_state(
-        self, session: AsyncSession, user_id: str, habit_tag: str
-    ) -> HabitState:
+    async def get_or_create_habit_state(self, session: AsyncSession, user_id: str, habit_tag: str) -> HabitState:
         stmt = select(HabitState).where(
             HabitState.user_id == user_id,
             HabitState.habit_tag == habit_tag,
@@ -53,9 +51,7 @@ class DDAService:
         await session.commit()
         return state
 
-    async def apply_missed_days(
-        self, session: AsyncSession, user_id: str, habit_tag: str
-    ) -> HabitState | None:
+    async def apply_missed_days(self, session: AsyncSession, user_id: str, habit_tag: str) -> HabitState | None:
         state = await self.get_or_create_habit_state(session, user_id, habit_tag)
         if not state.last_outcome_date:
             return state

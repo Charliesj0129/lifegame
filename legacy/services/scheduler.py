@@ -63,6 +63,15 @@ class DDAScheduler:
             misfire_grace_time=300,
         )
 
+        # Executive System Tick (Hourly)
+        self.scheduler.add_job(
+            self._executive_tick,
+            IntervalTrigger(minutes=60),
+            id="executive_tick",
+            replace_existing=True,
+            misfire_grace_time=300,
+        )
+
         self.scheduler.start()
         self._is_running = True
         logger.info("DDA Scheduler started with interval job (%ss)", interval)
@@ -93,20 +102,34 @@ class DDAScheduler:
                 for user in users:
                     try:
                         if not user.push_enabled:
-                            logger.info(
-                                "Push skipped: user preference user=%s", user.id
-                            )
+                            logger.info("Push skipped: user preference user=%s", user.id)
                             continue
                         await self._process_user(session, user)
                     except Exception as e:
                         logger.error("Push tick failed for %s: %s", user.id, e)
 
-    async def _get_or_create_profile(
-        self, session: AsyncSession, user_id: str
-    ) -> PushProfile:
-        result = await session.execute(
-            select(PushProfile).where(PushProfile.user_id == user_id)
-        )
+    async def _executive_tick(self):
+        """
+        Runs the Executive System Logic for all users.
+        """
+        if self._lock.locked():
+            return
+
+        from application.services.brain_service import brain_service
+
+        async with self._lock:
+            async with AsyncSessionLocal() as session:
+                users = await self._get_all_users(session)
+                for user in users:
+                    try:
+                        action = await brain_service.execute_system_judgment(session, user.id)
+                        if action:
+                            logger.info(f"EXECUTIVE ACTION for {user.id}: {action.action_type} - {action.reason}")
+                    except Exception as e:
+                        logger.error(f"Executive tick failed for {user.id}: {e}")
+
+    async def _get_or_create_profile(self, session: AsyncSession, user_id: str) -> PushProfile:
+        result = await session.execute(select(PushProfile).where(PushProfile.user_id == user_id))
         profile = result.scalars().first()
         if profile:
             return profile
@@ -153,9 +176,7 @@ class DDAScheduler:
             ]
         )
 
-    async def _maybe_refresh_shop(
-        self, session: AsyncSession, users: list[User]
-    ) -> None:
+    async def _maybe_refresh_shop(self, session: AsyncSession, users: list[User]) -> None:
         now = datetime.datetime.utcnow().date()
         if self._last_shop_refresh_date == now:
             return
@@ -173,9 +194,7 @@ class DDAScheduler:
                     await api.push_message(
                         PushMessageRequest(
                             to=user.id,
-                            messages=[
-                                TextMessage(text="🛒 黑市已更新，稀有貨物已上架。")
-                            ],
+                            messages=[TextMessage(text="🛒 黑市已更新，稀有貨物已上架。")],
                         )
                     )
                 except Exception as exc:
@@ -197,15 +216,11 @@ class DDAScheduler:
             return
 
         if self._should_send(now_local, morning_time, profile.last_morning_date):
-            await quest_service.trigger_push_quests(
-                session, user.id, time_block="Morning"
-            )
+            await quest_service.trigger_push_quests(session, user.id, time_block="Morning")
             quests = await quest_service.get_daily_quests(session, user.id)
             habits = await quest_service.get_daily_habits(session, user.id)
             dda_hint = await self._daily_hint(session, user.id)
-            flex = flex_renderer.render_push_briefing(
-                "🌅 早安任務", quests, habits, dda_hint
-            )
+            flex = flex_renderer.render_push_briefing("🌅 早安任務", quests, habits, dda_hint)
             flex.quick_reply = self._build_quick_reply()
             await api.push_message(PushMessageRequest(to=user.id, messages=[flex]))
             profile.last_morning_date = now_local.date()
@@ -213,9 +228,7 @@ class DDAScheduler:
             return
 
         if self._should_send(now_local, midday_time, profile.last_midday_date):
-            await quest_service.trigger_push_quests(
-                session, user.id, time_block="Midday"
-            )
+            await quest_service.trigger_push_quests(session, user.id, time_block="Midday")
             quests = await quest_service.get_daily_quests(session, user.id)
             habits = await quest_service.get_daily_habits(session, user.id)
             incomplete = [q for q in quests if q.status != "DONE"]
@@ -224,9 +237,7 @@ class DDAScheduler:
                 reminder = "中午提醒：尚有未完成任務，先完成最小一步。"
             else:
                 reminder = "中午提醒：今日任務已完成，保持節奏。"
-            flex = flex_renderer.render_push_briefing(
-                "🧠 中午提醒", incomplete or quests, habits, reminder
-            )
+            flex = flex_renderer.render_push_briefing("🧠 中午提醒", incomplete or quests, habits, reminder)
             await api.push_message(PushMessageRequest(to=user.id, messages=[flex]))
             profile.last_midday_date = now_local.date()
             await session.commit()
@@ -277,9 +288,7 @@ class DDAScheduler:
             return "偵測到能量低落：今日任務已降階，先穩住連勝。"
         return None
 
-    async def _update_daily_outcome(
-        self, session: AsyncSession, user_id: str, done: bool, has_quests: bool
-    ) -> None:
+    async def _update_daily_outcome(self, session: AsyncSession, user_id: str, done: bool, has_quests: bool) -> None:
         today = datetime.date.today()
         stmt = select(DailyOutcome).where(
             DailyOutcome.user_id == user_id,

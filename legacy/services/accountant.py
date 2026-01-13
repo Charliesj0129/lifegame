@@ -97,10 +97,7 @@ class AccountantService:
     def apply_buffs(self, xp_amount: int, buffs: list, attribute: str) -> int:
         multiplier = 1.0
         for buff in buffs:
-            if (
-                buff.target_attribute == "ALL"
-                or buff.target_attribute.upper() == attribute.upper()
-            ):
+            if buff.target_attribute == "ALL" or buff.target_attribute.upper() == attribute.upper():
                 multiplier *= float(buff.multiplier or 1.0)
 
         return int(xp_amount * multiplier)

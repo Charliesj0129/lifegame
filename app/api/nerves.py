@@ -14,6 +14,7 @@ router = APIRouter()
 from typing import List
 from pydantic import BaseModel, Field
 
+
 # --- Response Models ---
 class NPCPublicResponse(BaseModel):
     name: str
@@ -21,18 +22,16 @@ class NPCPublicResponse(BaseModel):
     mood: str
     # Exclude internal_id, memory_pointers, etc.
 
+
 async def verify_token(x_lifegame_token: str = Header(...)):
     if not ha_adapter.validate_token(x_lifegame_token):
         logger.warning(f"Invalid Token Attempt: {x_lifegame_token}")
         raise HTTPException(status_code=401, detail="Unauthorized")
     return True
 
+
 @router.post("/nerves/perceive")
-async def perceive_event(
-    request: Request,
-    auth: bool = Depends(verify_token),
-    db: AsyncSession = Depends(deps.get_db)
-):
+async def perceive_event(request: Request, auth: bool = Depends(verify_token), db: AsyncSession = Depends(deps.get_db)):
     """
     Home Assistant Webhook Ingress.
     Receives HA events, converts to GameEvents, and processes through perception layer.
@@ -40,13 +39,13 @@ async def perceive_event(
     try:
         # 2. Parse Payload
         payload = await request.json()
-        
+
         # 3. Adapt to GameEvent
         game_event = ha_adapter.to_game_event(payload)
-        
+
         # 4. Resolve User
         user_id = payload.get("user_id", "U_DEFAULT_CHARLIE")
-        
+
         # 5. Record event to Graph Memory
         try:
             graph_service.record_event(
@@ -56,18 +55,18 @@ async def perceive_event(
                     "source": game_event.source,
                     "source_id": game_event.source_id,
                     "impact": ha_adapter.get_event_impact(payload.get("event_type", "manual_trigger")),
-                }
+                },
             )
         except Exception as e:
             logger.warning(f"Failed to record event to graph: {e}")
-        
+
         # 6. Get interested NPCs for this event
         event_type = payload.get("event_type", payload.get("trigger", "manual_trigger"))
         interested_npcs = ha_adapter.get_interested_npcs(event_type)
-        
+
         # 7. Process through PerceptionService with NPC context
         result = await perception_service.process_event(game_event, db)
-        
+
         # 8. Enrich response with NPC info
         npc_contexts = []
         for npc_name in interested_npcs[:2]:  # Limit to 2 NPCs
@@ -76,7 +75,7 @@ async def perceive_event(
                 npc_contexts.append(npc_ctx)
             except Exception:
                 pass
-        
+
         return {
             "status": "processed",
             "narrative": result.text,
@@ -112,4 +111,3 @@ async def get_user_history(user_id: str, limit: int = 10):
     except Exception as e:
         logger.error(f"Failed to get user history: {e}")
         return {"user_id": user_id, "events": [], "error": str(e)}
-

@@ -37,13 +37,9 @@ def upgrade() -> None:
                 sa.Column("last_morning_date", sa.Date(), nullable=True),
             )
         if not _has_column("push_profiles", "last_midday_date"):
-            op.add_column(
-                "push_profiles", sa.Column("last_midday_date", sa.Date(), nullable=True)
-            )
+            op.add_column("push_profiles", sa.Column("last_midday_date", sa.Date(), nullable=True))
         if not _has_column("push_profiles", "last_night_date"):
-            op.add_column(
-                "push_profiles", sa.Column("last_night_date", sa.Date(), nullable=True)
-            )
+            op.add_column("push_profiles", sa.Column("last_night_date", sa.Date(), nullable=True))
 
 
 def downgrade() -> None:

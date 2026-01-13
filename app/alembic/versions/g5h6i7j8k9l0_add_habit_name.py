@@ -29,12 +29,8 @@ def _has_column(table: str, column: str) -> bool:
 
 def upgrade() -> None:
     if not _has_column("habit_states", "habit_name"):
-        op.add_column(
-            "habit_states", sa.Column("habit_name", sa.String(), nullable=True)
-        )
-    op.execute(
-        "UPDATE habit_states SET habit_name = habit_tag WHERE habit_name IS NULL"
-    )
+        op.add_column("habit_states", sa.Column("habit_name", sa.String(), nullable=True))
+    op.execute("UPDATE habit_states SET habit_name = habit_tag WHERE habit_name IS NULL")
 
 
 def downgrade() -> None:

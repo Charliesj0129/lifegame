@@ -31,9 +31,7 @@ def upgrade() -> None:
         sa.Column("description", sa.Text(), nullable=True),
         sa.Column("description_zh", sa.Text(), nullable=True),
         sa.Column("effect_meta", sa.JSON(), nullable=False),
-        sa.Column(
-            "parent_id", sa.String(), sa.ForeignKey("talent_trees.id"), nullable=True
-        ),
+        sa.Column("parent_id", sa.String(), sa.ForeignKey("talent_trees.id"), nullable=True),
         sa.Column("max_rank", sa.Integer(), default=1),
         sa.Column("cost", sa.Integer(), default=1),
     )
@@ -42,17 +40,11 @@ def upgrade() -> None:
         "user_talents",
         sa.Column("id", sa.String(), primary_key=True),
         sa.Column("user_id", sa.String(), sa.ForeignKey("users.id"), nullable=False),
-        sa.Column(
-            "talent_id", sa.String(), sa.ForeignKey("talent_trees.id"), nullable=False
-        ),
+        sa.Column("talent_id", sa.String(), sa.ForeignKey("talent_trees.id"), nullable=False),
         sa.Column("current_rank", sa.Integer(), default=1),
-        sa.Column(
-            "is_active", sa.Boolean(), server_default=sa.text("TRUE"), nullable=True
-        ),
+        sa.Column("is_active", sa.Boolean(), server_default=sa.text("TRUE"), nullable=True),
     )
-    op.create_index(
-        op.f("ix_user_talents_user_id"), "user_talents", ["user_id"], unique=False
-    )
+    op.create_index(op.f("ix_user_talents_user_id"), "user_talents", ["user_id"], unique=False)
 
     # Dungeon Tables
     op.create_table(
@@ -71,24 +63,18 @@ def upgrade() -> None:
             server_default=sa.text("FALSE"),
             nullable=True,
         ),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
     )
 
     op.create_table(
         "dungeon_stages",
         sa.Column("id", sa.String(), primary_key=True),
-        sa.Column(
-            "dungeon_id", sa.String(), sa.ForeignKey("dungeons.id"), nullable=False
-        ),
+        sa.Column("dungeon_id", sa.String(), sa.ForeignKey("dungeons.id"), nullable=False),
         sa.Column("title", sa.String(), nullable=False),
         sa.Column("description", sa.String(), nullable=True),
         sa.Column("order", sa.Integer(), default=1),
-        sa.Column(
-            "is_complete", sa.Boolean(), server_default=sa.text("FALSE"), nullable=True
-        ),
+        sa.Column("is_complete", sa.Boolean(), server_default=sa.text("FALSE"), nullable=True),
         sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
     )
 

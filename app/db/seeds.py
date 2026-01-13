@@ -128,17 +128,13 @@ async def seed_recipes():
                 session.add(recipe)
 
         ingredients = [
-            RecipeIngredient(
-                recipe_id="RECIPE_FOCUS_POTION", item_id="MAT_HERB", quantity_required=2
-            ),
+            RecipeIngredient(recipe_id="RECIPE_FOCUS_POTION", item_id="MAT_HERB", quantity_required=2),
             RecipeIngredient(
                 recipe_id="RECIPE_FOCUS_POTION",
                 item_id="MAT_METAL",
                 quantity_required=1,
             ),
-            RecipeIngredient(
-                recipe_id="RECIPE_VITAL_POTION", item_id="MAT_HERB", quantity_required=1
-            ),
+            RecipeIngredient(recipe_id="RECIPE_VITAL_POTION", item_id="MAT_HERB", quantity_required=1),
         ]
 
         for ing in ingredients:

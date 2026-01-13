@@ -27,9 +27,7 @@ class TalentService:
 
         tree = []
         for talent in talents:
-            unlocked = talent.tier == 1 or (
-                talent.parent_id and talent.parent_id in learned_ids
-            )
+            unlocked = talent.tier == 1 or (talent.parent_id and talent.parent_id in learned_ids)
             tree.append(
                 {
                     "id": talent.id,
@@ -46,15 +44,11 @@ class TalentService:
 
     async def get_user_talents(self, session: AsyncSession, user_id: str):
         """Fetches all talents unlocked by the user."""
-        stmt = select(UserTalent).where(
-            UserTalent.user_id == user_id, UserTalent.is_active
-        )
+        stmt = select(UserTalent).where(UserTalent.user_id == user_id, UserTalent.is_active)
         result = await session.execute(stmt)
         return result.scalars().all()
 
-    async def learn_talent(
-        self, session: AsyncSession, user_id: str, talent_id: str
-    ) -> tuple[bool, str]:
+    async def learn_talent(self, session: AsyncSession, user_id: str, talent_id: str) -> tuple[bool, str]:
         """Learn a talent by spending points, respecting prerequisites."""
         user_stmt = select(User).where(User.id == user_id)
         user = (await session.execute(user_stmt)).scalars().first()
@@ -78,9 +72,7 @@ class TalentService:
             if not has_parent:
                 return False, "需要前置天賦。"
 
-        existing_stmt = select(UserTalent).where(
-            UserTalent.user_id == user_id, UserTalent.talent_id == talent_id
-        )
+        existing_stmt = select(UserTalent).where(UserTalent.user_id == user_id, UserTalent.talent_id == talent_id)
         existing = (await session.execute(existing_stmt)).scalars().first()
 
         if existing:
@@ -141,9 +133,7 @@ class TalentService:
                 }
 
         # 4. Check Current Rank
-        existing_stmt = select(UserTalent).where(
-            UserTalent.user_id == user_id, UserTalent.talent_id == talent_id
-        )
+        existing_stmt = select(UserTalent).where(UserTalent.user_id == user_id, UserTalent.talent_id == talent_id)
         existing = (await session.execute(existing_stmt)).scalars().first()
 
         if existing:
@@ -197,9 +187,7 @@ class TalentService:
 
         return multiplier
 
-    async def get_player_class(
-        self, session: AsyncSession, user_id: str
-    ) -> tuple[ClassType | None, str, str]:
+    async def get_player_class(self, session: AsyncSession, user_id: str) -> tuple[ClassType | None, str, str]:
         stmt = (
             select(UserTalent)
             .where(UserTalent.user_id == user_id, UserTalent.is_active.is_(True))
@@ -246,9 +234,7 @@ class TalentService:
             "keywords": keywords,
         }
 
-    async def check_penalty_evasion(
-        self, session: AsyncSession, user_id: str
-    ) -> tuple[bool, str]:
+    async def check_penalty_evasion(self, session: AsyncSession, user_id: str) -> tuple[bool, str]:
         stmt = (
             select(UserTalent)
             .where(UserTalent.user_id == user_id, UserTalent.is_active.is_(True))
@@ -256,11 +242,7 @@ class TalentService:
         )
         learned = (await session.execute(stmt)).scalars().all()
         evasion = next(
-            (
-                ut.talent
-                for ut in learned
-                if ut.talent and ut.talent.id == "LCK_01_EVASION"
-            ),
+            (ut.talent for ut in learned if ut.talent and ut.talent.id == "LCK_01_EVASION"),
             None,
         )
         if not evasion:

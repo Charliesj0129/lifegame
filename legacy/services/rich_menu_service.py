@@ -23,15 +23,11 @@ RICH_MENU_DATA_PATH = Path("data/rich_menus.json")
 class RichMenuService:
     def __init__(self):
         if not settings.LINE_CHANNEL_ACCESS_TOKEN:
-            logger.warning(
-                "LINE_CHANNEL_ACCESS_TOKEN not set. RichMenuService disabled."
-            )
+            logger.warning("LINE_CHANNEL_ACCESS_TOKEN not set. RichMenuService disabled.")
             self.api = None
             self.blob_api = None
         else:
-            configuration = Configuration(
-                access_token=settings.LINE_CHANNEL_ACCESS_TOKEN
-            )
+            configuration = Configuration(access_token=settings.LINE_CHANNEL_ACCESS_TOKEN)
             self.api_client = ApiClient(configuration)
             self.api = MessagingApi(self.api_client)
             self.blob_api = MessagingApiBlob(self.api_client)
@@ -78,9 +74,7 @@ class RichMenuService:
         # 1. Idempotency Check
         existing_id = self.get_menu_id_by_name(name)
         if existing_id:
-            logger.info(
-                f"Rich Menu '{name}' already exists ({existing_id}). Skipping creation."
-            )
+            logger.info(f"Rich Menu '{name}' already exists ({existing_id}). Skipping creation.")
             return existing_id
 
         # 2. Create Object
@@ -106,9 +100,7 @@ class RichMenuService:
                         )
                     logger.info(f"Uploaded image for '{name}'")
                 except FileNotFoundError:
-                    logger.warning(
-                        f"Image path {image_path} not found. Menu created without image."
-                    )
+                    logger.warning(f"Image path {image_path} not found. Menu created without image.")
 
             return rich_menu_id
 

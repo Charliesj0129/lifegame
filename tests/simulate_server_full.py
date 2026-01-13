@@ -43,16 +43,11 @@ async def simulate_flow():
 
     with (
         patch("app.api.webhook.get_messaging_api") as mock_get_api,
-        patch(
-            "legacy.services.ai_engine.ai_engine.generate_json", new_callable=AsyncMock
-        ) as mock_ai,
+        patch("legacy.services.ai_engine.ai_engine.generate_json", new_callable=AsyncMock) as mock_ai,
     ):
-
         # Setup AI Mock
         mock_ai.return_value = {
-            "milestones": [
-                {"title": "Simulated Milestone", "difficulty": "B", "desc": "Big Step"}
-            ],
+            "milestones": [{"title": "Simulated Milestone", "difficulty": "B", "desc": "Big Step"}],
             "daily_habits": [{"title": "Daily Habit", "desc": "Do it"}],
             "quests": [
                 {"title": "AI Task 1", "desc": "Do this", "diff": "D", "xp": 20},
@@ -92,9 +87,7 @@ async def simulate_flow():
 
         # --- SCENARIO 2: NEW GOAL ---
         print("\n👤 USER: '/new_goal Become a local legend'")
-        event.message = TextMessageContent(
-            id="msg_2", text="/new_goal Become a local legend", quoteToken="qt_2"
-        )
+        event.message = TextMessageContent(id="msg_2", text="/new_goal Become a local legend", quoteToken="qt_2")
         event.reply_token = "tk_goal"
         await handle_message(event)
 
@@ -111,9 +104,7 @@ async def simulate_flow():
         from app.core.database import AsyncSessionLocal
 
         async with AsyncSessionLocal() as session:
-            result = await session.execute(
-                select(Quest).where(Quest.user_id == "U_SIM")
-            )
+            result = await session.execute(select(Quest).where(Quest.user_id == "U_SIM"))
             quests = result.scalars().all()
             if quests:
                 q = quests[0]
@@ -121,9 +112,7 @@ async def simulate_flow():
                 pb_event = PostbackEvent(
                     source=UserSource(userId="U_SIM"),
                     replyToken="tk_pb",
-                    postback=PostbackContent(
-                        data=f"action=complete_quest&quest_id={q.id}"
-                    ),
+                    postback=PostbackContent(data=f"action=complete_quest&quest_id={q.id}"),
                     mode="active",
                     timestamp=1234567890,
                     webhookEventId="id_2",
@@ -134,12 +123,8 @@ async def simulate_flow():
                 print("⚠️ No quests found in DB to complete.")
 
         # --- SCENARIO 5: MORNING ROUTINE (From Rich Menu) ---
-        print(
-            "\n👤 USER: [MENU] 'Start Morning Routine' (Payload: 'Start Morning Routine')"
-        )
-        event.message = TextMessageContent(
-            id="msg_4", text="Start Morning Routine", quoteToken="qt_4"
-        )
+        print("\n👤 USER: [MENU] 'Start Morning Routine' (Payload: 'Start Morning Routine')")
+        event.message = TextMessageContent(id="msg_4", text="Start Morning Routine", quoteToken="qt_4")
         event.reply_token = "tk_morning"
         await handle_message(event)
 

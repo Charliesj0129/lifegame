@@ -77,9 +77,7 @@ async def db_session():
 @pytest.mark.asyncio
 async def test_get_verifiable_quests(db_session):
     """Test fetching verifiable quests."""
-    quests = await verification_service.get_verifiable_quests(
-        db_session, "test_verify_user"
-    )
+    quests = await verification_service.get_verifiable_quests(db_session, "test_verify_user")
 
     assert len(quests) == 3
     types = {q.verification_type for q in quests}
@@ -89,9 +87,7 @@ async def test_get_verifiable_quests(db_session):
 @pytest.mark.asyncio
 async def test_auto_match_quest_text(db_session):
     """Test auto-matching text content to quest."""
-    quest = await verification_service.auto_match_quest(
-        db_session, "test_verify_user", "我今天早上跑步了", "TEXT"
-    )
+    quest = await verification_service.auto_match_quest(db_session, "test_verify_user", "我今天早上跑步了", "TEXT")
 
     assert quest is not None
     assert quest.id == "QUEST_TEXT_001"
@@ -100,9 +96,7 @@ async def test_auto_match_quest_text(db_session):
 @pytest.mark.asyncio
 async def test_auto_match_quest_image(db_session):
     """Test auto-matching image to IMAGE type quest."""
-    quest = await verification_service.auto_match_quest(
-        db_session, "test_verify_user", b"fake_image_bytes", "IMAGE"
-    )
+    quest = await verification_service.auto_match_quest(db_session, "test_verify_user", b"fake_image_bytes", "IMAGE")
 
     assert quest is not None
     assert quest.verification_type == "IMAGE"
@@ -113,14 +107,10 @@ async def test_verify_location_approved(db_session):
     """Test location verification within radius."""
     from sqlalchemy import select
 
-    quest = (
-        await db_session.execute(select(Quest).where(Quest.id == "QUEST_LOC_001"))
-    ).scalar_one()
+    quest = (await db_session.execute(select(Quest).where(Quest.id == "QUEST_LOC_001"))).scalar_one()
 
     # Location within 100m radius
-    result = await verification_service.verify_location(
-        db_session, quest, 25.033, 121.565
-    )
+    result = await verification_service.verify_location(db_session, quest, 25.033, 121.565)
 
     assert result["verdict"] == Verdict.APPROVED
     assert result["meta"]["distance_m"] < 100
@@ -131,14 +121,10 @@ async def test_verify_location_rejected(db_session):
     """Test location verification outside radius."""
     from sqlalchemy import select
 
-    quest = (
-        await db_session.execute(select(Quest).where(Quest.id == "QUEST_LOC_001"))
-    ).scalar_one()
+    quest = (await db_session.execute(select(Quest).where(Quest.id == "QUEST_LOC_001"))).scalar_one()
 
     # Location far away (Taipei vs Kaohsiung)
-    result = await verification_service.verify_location(
-        db_session, quest, 22.627, 120.301
-    )
+    result = await verification_service.verify_location(db_session, quest, 22.627, 120.301)
 
     assert result["verdict"] == Verdict.REJECTED
     assert result["meta"]["distance_m"] > 200000  # More than 200km
@@ -149,9 +135,7 @@ async def test_verify_text_with_mock_ai(db_session):
     """Test text verification with mocked AI response."""
     from sqlalchemy import select
 
-    quest = (
-        await db_session.execute(select(Quest).where(Quest.id == "QUEST_TEXT_001"))
-    ).scalar_one()
+    quest = (await db_session.execute(select(Quest).where(Quest.id == "QUEST_TEXT_001"))).scalar_one()
 
     mock_response = {
         "verdict": "APPROVED",
@@ -160,14 +144,10 @@ async def test_verify_text_with_mock_ai(db_session):
         "detected_labels": ["跑步", "運動"],
     }
 
-    with patch(
-        "legacy.services.ai_engine.ai_engine.verify_multimodal", new_callable=AsyncMock
-    ) as mock_verify:
+    with patch("legacy.services.ai_engine.ai_engine.verify_multimodal", new_callable=AsyncMock) as mock_verify:
         mock_verify.return_value = mock_response
 
-        result = await verification_service.verify_text(
-            db_session, quest, "我剛跑完 5 公里，流了一身汗"
-        )
+        result = await verification_service.verify_text(db_session, quest, "我剛跑完 5 公里，流了一身汗")
 
         assert result["verdict"] == Verdict.APPROVED
         assert "跑步" in result["reason"]
@@ -178,9 +158,7 @@ async def test_verify_image_with_mock_ai(db_session):
     """Test image verification with mocked AI response."""
     from sqlalchemy import select
 
-    quest = (
-        await db_session.execute(select(Quest).where(Quest.id == "QUEST_IMAGE_001"))
-    ).scalar_one()
+    quest = (await db_session.execute(select(Quest).where(Quest.id == "QUEST_IMAGE_001"))).scalar_one()
 
     mock_response = {
         "verdict": "APPROVED",
@@ -188,14 +166,10 @@ async def test_verify_image_with_mock_ai(db_session):
         "detected_labels": ["gym", "weights", "treadmill"],
     }
 
-    with patch(
-        "legacy.services.ai_engine.ai_engine.verify_multimodal", new_callable=AsyncMock
-    ) as mock_verify:
+    with patch("legacy.services.ai_engine.ai_engine.verify_multimodal", new_callable=AsyncMock) as mock_verify:
         mock_verify.return_value = mock_response
 
-        result = await verification_service.verify_image(
-            db_session, quest, b"fake_gym_image_bytes"
-        )
+        result = await verification_service.verify_image(db_session, quest, b"fake_gym_image_bytes")
 
         assert result["verdict"] == Verdict.APPROVED
         assert "gym" in result["meta"]["labels"]
@@ -204,9 +178,7 @@ async def test_verify_image_with_mock_ai(db_session):
 @pytest.mark.asyncio
 async def test_process_verification_no_quest(db_session):
     """Test verification when no matching quest exists."""
-    response = await verification_service.process_verification(
-        db_session, "nonexistent_user", "some text", "TEXT"
-    )
+    response = await verification_service.process_verification(db_session, "nonexistent_user", "some text", "TEXT")
 
     assert response["quest"] is None
     assert response["verdict"] == Verdict.UNCERTAIN
@@ -218,7 +190,10 @@ async def test_haversine_distance():
     """Test haversine distance calculation."""
     # Taipei 101 to Taipei Main Station (~5km)
     distance = verification_service._haversine(
-        25.0339, 121.5645, 25.0478, 121.5170  # Taipei 101  # Taipei Main Station
+        25.0339,
+        121.5645,
+        25.0478,
+        121.5170,  # Taipei 101  # Taipei Main Station
     )
 
     assert 4000 < distance < 6000  # Approximately 5km

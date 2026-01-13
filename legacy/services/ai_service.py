@@ -39,9 +39,7 @@ class AIService:
             result = await session.execute(stmt)
             logs = result.scalars().all()
             # Reverse to chronological order
-            history_text = "\n".join(
-                [f"{log.role}: {log.content}" for log in reversed(logs)]
-            )
+            history_text = "\n".join([f"{log.role}: {log.content}" for log in reversed(logs)])
             return history_text if history_text else "No recent history."
         except Exception as e:
             logger.error(f"Failed to fetch history: {e}")
@@ -64,7 +62,7 @@ class AIService:
         context_str = f"""
 Current User State:
 - Level: {user.level} (Streak: {user.streak_count})
-- Rival: Lv.{rival.level} ({'Active' if rival.level >= user.level else 'Dormant'})
+- Rival: Lv.{rival.level} ({"Active" if rival.level >= user.level else "Dormant"})
 - HP: {user.hp}/{user.max_hp}
 
 Recent History:
@@ -142,14 +140,10 @@ Schema (Chain):
                     data, msg = await tool_registry.get_quests(session, user_id)
                     results.append(msg)
                 elif tool == "use_item":
-                    data, msg = await tool_registry.use_item(
-                        session, user_id, args.get("item_name", "unknown")
-                    )
+                    data, msg = await tool_registry.use_item(session, user_id, args.get("item_name", "unknown"))
                     results.append(msg)
                 elif tool == "set_goal":
-                    data, msg = await tool_registry.set_goal(
-                        session, user_id, args.get("goal_text", user_text)
-                    )
+                    data, msg = await tool_registry.set_goal(session, user_id, args.get("goal_text", user_text))
                     results.append(msg)
                 elif tool == "give_advice":
                     # Special Tool: Just return text advice? Or use a renderer?
@@ -230,14 +224,10 @@ Schema (Chain):
             logger.error(f"Router Fail: {e}", exc_info=True)
             # Fallback
             try:
-                result_data, msg = await tool_registry.log_action(
-                    session, user_id, user_text
-                )
+                result_data, msg = await tool_registry.log_action(session, user_id, user_text)
                 return msg, "fallback_log", result_data
             except Exception as fallback_error:
-                logger.error(
-                    f"Fallback log_action failed: {fallback_error}", exc_info=True
-                )
+                logger.error(f"Fallback log_action failed: {fallback_error}", exc_info=True)
                 return (
                     TextMessage(text="⚠️ 系統異常：行動未記錄，請查看日誌。"),
                     "fallback_error",

@@ -57,17 +57,13 @@ class User(Base):
     hp = Column(Integer, default=100)
     max_hp = Column(Integer, default=100)
     is_hollowed = Column(Boolean, default=False)
-    hp_status = Column(
-        String, default="HEALTHY"
-    )  # HEALTHY, CRITICAL, HOLLOWED, RECOVERING
+    hp_status = Column(String, default="HEALTHY")  # HEALTHY, CRITICAL, HOLLOWED, RECOVERING
     hollowed_at = Column(DateTime(timezone=True), nullable=True)
     talent_points = Column(Integer, default=3, nullable=False)
 
     # M6: Habit Streaks
     streak_count = Column(Integer, default=0)
-    last_active_date = Column(
-        DateTime(timezone=True), nullable=True
-    )  # Tracks the *day* of last activity
+    last_active_date = Column(DateTime(timezone=True), nullable=True)  # Tracks the *day* of last activity
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

@@ -52,9 +52,9 @@ async def run_migrations_online() -> None:
 
 def do_run_migrations(connection):
     context.configure(
-        connection=connection, 
+        connection=connection,
         target_metadata=target_metadata,
-        render_as_batch=True  # Required for SQLite ALTER
+        render_as_batch=True,  # Required for SQLite ALTER
     )
 
     with context.begin_transaction():

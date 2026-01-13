@@ -13,6 +13,7 @@ from application.services.action_service import action_service
 
 logger = logging.getLogger(__name__)
 
+
 class PerceptionService(PerceptionPort):
     def __init__(self):
         # Dependencies (Services)
@@ -31,37 +32,33 @@ class PerceptionService(PerceptionPort):
         4. Execute Actions
         """
         logger.info(f"Processing Event: {event.type} from {event.source}")
-        
+
         # 1. Graph Query
         npcs = self._query_interested_npcs(event)
-        
+
         # 2. Vector Recall
         memory_context = await self._recall_memories(event)
-        
+
         # 3. Brain Think
         narrative_context = f"Event: {event.type}. Metadata: {event.metadata}. Memory: {memory_context}"
         npc_name = npcs[0] if npcs else "System"
-        
+
         llm_response = await self.brain.think(
             context=narrative_context,
-            prompt=f"Narrate this event as if the NPC '{npc_name}' is observing it. Decide consequences."
+            prompt=f"Narrate this event as if the NPC '{npc_name}' is observing it. Decide consequences.",
         )
-        
+
         brain_output = self._parse_brain_response(llm_response)
-        
+
         # 4. Execute Actions (Side Effects)
         executed_actions = []
         if db_session:
             executed_actions = await self.actions.execute_actions(brain_output.get("actions", []), db_session)
-        
+
         # Return Result
         return GameResult(
             text=brain_output.get("narrative", ""),
-            metadata={
-                "actions_taken": executed_actions,
-                "npcs_involved": npcs,
-                "source_event_id": event.id
-            }
+            metadata={"actions_taken": executed_actions, "npcs_involved": npcs, "source_event_id": event.id},
         )
 
     def _query_interested_npcs(self, event: GameEvent) -> List[str]:
@@ -74,7 +71,7 @@ class PerceptionService(PerceptionPort):
             while result.has_next():
                 row = result.get_next()
                 if row:
-                     npcs.append(f"{row[0]} ({row[1]})")
+                    npcs.append(f"{row[0]} ({row[1]})")
             return npcs
         except Exception as e:
             logger.error(f"Graph Query Failed: {e}")
@@ -91,5 +88,6 @@ class PerceptionService(PerceptionPort):
             return json.loads(clean_json)
         except json.JSONDecodeError:
             return {"narrative": text, "actions": []}
+
 
 perception_service = PerceptionService()

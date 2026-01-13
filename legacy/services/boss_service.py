@@ -8,9 +8,7 @@ import random
 
 class BossService:
     async def get_active_boss(self, session: AsyncSession, user_id: str) -> Boss:
-        stmt = select(Boss).where(
-            Boss.user_id == user_id, Boss.status == BossStatus.ACTIVE
-        )
+        stmt = select(Boss).where(Boss.user_id == user_id, Boss.status == BossStatus.ACTIVE)
         result = await session.execute(stmt)
         return result.scalars().first()
 
@@ -25,9 +23,7 @@ class BossService:
             if rival:
                 # Proactive Nuance: Generate Boss Name based on Rival
                 prompt = f"對手等級 {rival.level}。生成一個與拖延或惰性相關的 RPG 首領名稱。"
-                json_resp = await ai_engine.generate_json(
-                    "你是遊戲主宰。輸出 JSON: {'boss_name': 'str'}", prompt
-                )
+                json_resp = await ai_engine.generate_json("你是遊戲主宰。輸出 JSON: {'boss_name': 'str'}", prompt)
                 boss_name = json_resp.get("boss_name", "惰性之影")
             else:
                 boss_name = "惰性之影"

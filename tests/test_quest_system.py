@@ -38,17 +38,10 @@ async def test_quest_generation(db_session):
     await db_session.commit()
 
     with (
-        patch(
-            "legacy.services.ai_engine.ai_engine.generate_json", new_callable=AsyncMock
-        ) as mock_ai,
-        patch(
-            "legacy.services.rival_service.RivalService.get_rival", new_callable=AsyncMock
-        ) as mock_get_rival,
-        patch(
-            "legacy.services.user_service.UserService.get_user", new_callable=AsyncMock
-        ) as mock_get_user,
+        patch("legacy.services.ai_engine.ai_engine.generate_json", new_callable=AsyncMock) as mock_ai,
+        patch("legacy.services.rival_service.RivalService.get_rival", new_callable=AsyncMock) as mock_get_rival,
+        patch("legacy.services.user_service.UserService.get_user", new_callable=AsyncMock) as mock_get_user,
     ):
-
         mock_ai.return_value = {
             "quests": [
                 {"title": "Q1", "diff": "C", "xp": 10},
@@ -153,17 +146,10 @@ async def test_reroll_logic(db_session):
     await db_session.commit()
 
     with (
-        patch(
-            "legacy.services.ai_engine.ai_engine.generate_json", new_callable=AsyncMock
-        ) as mock_ai,
-        patch(
-            "legacy.services.rival_service.RivalService.get_rival", new_callable=AsyncMock
-        ) as mock_get_rival,
-        patch(
-            "legacy.services.user_service.UserService.get_user", new_callable=AsyncMock
-        ) as mock_get_user,
+        patch("legacy.services.ai_engine.ai_engine.generate_json", new_callable=AsyncMock) as mock_ai,
+        patch("legacy.services.rival_service.RivalService.get_rival", new_callable=AsyncMock) as mock_get_rival,
+        patch("legacy.services.user_service.UserService.get_user", new_callable=AsyncMock) as mock_get_user,
     ):
-
         # side_effect for multiple calls: 1. Taunt (due to failed q1), 2. New Batch
         mock_ai.side_effect = [
             {"taunt": "太弱了。"},  # Taunt
@@ -223,9 +209,7 @@ async def test_create_new_goal_with_ai(db_session):
         ]
     }
 
-    with patch(
-        "legacy.services.ai_engine.ai_engine.generate_json", new_callable=AsyncMock
-    ) as mock_ai:
+    with patch("legacy.services.ai_engine.ai_engine.generate_json", new_callable=AsyncMock) as mock_ai:
         mock_ai.return_value = mock_plan
 
         user_id = "U_AI_TEST"
@@ -261,17 +245,10 @@ async def test_generate_daily_quests_with_active_goal(db_session):
     await db_session.commit()
 
     with (
-        patch(
-            "legacy.services.ai_engine.ai_engine.generate_json", new_callable=AsyncMock
-        ) as mock_ai,
-        patch(
-            "legacy.services.rival_service.RivalService.get_rival", new_callable=AsyncMock
-        ) as mock_get_rival,
-        patch(
-            "legacy.services.user_service.UserService.get_user", new_callable=AsyncMock
-        ) as mock_get_user,
+        patch("legacy.services.ai_engine.ai_engine.generate_json", new_callable=AsyncMock) as mock_ai,
+        patch("legacy.services.rival_service.RivalService.get_rival", new_callable=AsyncMock) as mock_get_rival,
+        patch("legacy.services.user_service.UserService.get_user", new_callable=AsyncMock) as mock_get_user,
     ):
-
         mock_ai.return_value = {
             "quests": [
                 {
@@ -311,9 +288,7 @@ async def slow_ai_response(*args, **kwargs):
     return {
         "img_url": "http://fake",
         "text": "Fail",
-        "quests": [
-            {"title": "System Reboot", "desc": "Fallback", "diff": "A", "xp": 100}
-        ],
+        "quests": [{"title": "System Reboot", "desc": "Fallback", "diff": "A", "xp": 100}],
     }
 
 
@@ -338,11 +313,8 @@ async def test_ai_timeout_fallback(db_session):
                 "legacy.services.rival_service.RivalService.get_rival",
                 new_callable=AsyncMock,
             ) as m1,
-            patch(
-                "legacy.services.user_service.UserService.get_user", new_callable=AsyncMock
-            ) as m2,
+            patch("legacy.services.user_service.UserService.get_user", new_callable=AsyncMock) as m2,
         ):
-
             m1.return_value = MagicMock(level=1)
             m2.return_value = MagicMock(level=1)
 

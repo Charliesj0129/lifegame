@@ -42,9 +42,7 @@ class ShopService:
         if effect == "clear_penalty":
             user.penalty_pending = False
             session.add(user)
-        stmt_inv = select(UserItem).where(
-            UserItem.user_id == user_id, UserItem.item_id == item_id
-        )
+        stmt_inv = select(UserItem).where(UserItem.user_id == user_id, UserItem.item_id == item_id)
         result_inv = await session.execute(stmt_inv)
         user_item = result_inv.scalars().first()
 
@@ -71,11 +69,7 @@ class ShopService:
 
         import random
 
-        rare_pool = [
-            i
-            for i in items
-            if i.rarity in {ItemRarity.RARE, ItemRarity.EPIC, ItemRarity.LEGENDARY}
-        ]
+        rare_pool = [i for i in items if i.rarity in {ItemRarity.RARE, ItemRarity.EPIC, ItemRarity.LEGENDARY}]
         [i for i in items if i not in rare_pool]
 
         selected = []

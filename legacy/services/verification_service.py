@@ -53,9 +53,7 @@ class VerificationService:
         "F": 1,
     }
 
-    async def get_verifiable_quests(
-        self, session, user_id: str, verification_type: str | None = None
-    ) -> list[Quest]:
+    async def get_verifiable_quests(self, session, user_id: str, verification_type: str | None = None) -> list[Quest]:
         stmt = select(Quest).where(
             Quest.user_id == user_id,
             Quest.status.in_([QuestStatus.ACTIVE.value, QuestStatus.PENDING.value]),
@@ -96,9 +94,7 @@ class VerificationService:
         lowered = text.lower()
         return sum(1 for k in keywords if k and k.lower() in lowered)
 
-    async def auto_match_quest(
-        self, session, user_id: str, payload: Any, verification_type: str
-    ) -> Quest | None:
+    async def auto_match_quest(self, session, user_id: str, payload: Any, verification_type: str) -> Quest | None:
         quests = await self.get_verifiable_quests(session, user_id, verification_type)
         if not quests:
             return None
@@ -120,9 +116,7 @@ class VerificationService:
         # For IMAGE/LOCATION, we pick the first for now (can be refined later)
         return quests[0]
 
-    async def verify_text(
-        self, session, quest: Quest, user_text: str
-    ) -> VerificationResult:
+    async def verify_text(self, session, quest: Quest, user_text: str) -> VerificationResult:
         keywords = self._normalize_keywords(quest.verification_keywords)
         # match_score = self._keyword_match_score(user_text, keywords)
 
@@ -162,9 +156,7 @@ class VerificationService:
         reason = response.get("reason") or ""
         return {"verdict": verdict, "reason": reason}
 
-    async def verify_image(
-        self, session, quest: Quest, image_data: bytes
-    ) -> VerificationResult:
+    async def verify_image(self, session, quest: Quest, image_data: bytes) -> VerificationResult:
         keywords = self._normalize_keywords(quest.verification_keywords)
 
         try:
@@ -199,9 +191,7 @@ class VerificationService:
             "tags": response.get("tags", response.get("detected_labels", [])),
         }
 
-    async def verify_location(
-        self, session, quest: Quest, lat: float, lng: float
-    ) -> VerificationResult:
+    async def verify_location(self, session, quest: Quest, lat: float, lng: float) -> VerificationResult:
         target = quest.location_target or {}
         if not target:
             return {
@@ -255,7 +245,7 @@ class VerificationService:
 
         # Feature 4: Epic Feedback (with RPE Flavor)
         from legacy.services.narrative_service import narrative_service
-        
+
         # We assume user is already updated by quest_service (it accesses session and user)
         # But for narrative context we might fetch user?
         user = await user_service.get_or_create_user(session, user_id)
@@ -277,9 +267,7 @@ class VerificationService:
             "message": f"✅ 任務完成！ ({narrative_flavor})",
         }
 
-    async def _generate_hint(
-        self, quest: Quest, verification_type: str, reason: str
-    ) -> str:
+    async def _generate_hint(self, quest: Quest, verification_type: str, reason: str) -> str:
         """Generate AI-powered hint for failed verifications."""
         try:
             response = await ai_engine.generate_json(
@@ -298,9 +286,7 @@ class VerificationService:
         Unified verification processor. Returns VerificationResponse (BDD Spec compliant).
         """
         verification_type = verification_type.upper()
-        quest = await self.auto_match_quest(
-            session, user_id, payload, verification_type
-        )
+        quest = await self.auto_match_quest(session, user_id, payload, verification_type)
 
         # No matching quest found
         if not quest:
@@ -326,9 +312,7 @@ class VerificationService:
             result = await self.verify_image(session, quest, payload)
         elif verification_type == "LOCATION":
             if isinstance(payload, (list, tuple)) and len(payload) == 2:
-                result = await self.verify_location(
-                    session, quest, payload[0], payload[1]
-                )
+                result = await self.verify_location(session, quest, payload[0], payload[1])
 
         verdict = result["verdict"]
         reason = result["reason"]

@@ -9,9 +9,10 @@ sys.path.append(str(Path(__file__).resolve().parents[1]))
 from legacy.services.rich_menu_service import rich_menu_service
 from app.core.config import settings
 
+
 async def main():
     print("🚀 Updating Rich Menu to v2 Control Panel...")
-    
+
     if not settings.LINE_CHANNEL_ACCESS_TOKEN:
         print("❌ Error: LINE_CHANNEL_ACCESS_TOKEN not set.")
         return
@@ -29,18 +30,18 @@ async def main():
     print("✨ Creating new menu...")
     mappings = rich_menu_service.setup_menus()
     new_id = mappings.get("MAIN")
-    
+
     if new_id:
         print(f"✅ Created new menu: {new_id}")
-        
+
         # 3. Set Default
         print("🔗 Setting as Default for all users...")
         try:
             rich_menu_service.blob_api.api_client.call_api(
-                '/v2/bot/user/all/richmenu/{richMenuId}', 
-                'POST',
-                path_params={'richMenuId': new_id},
-                header_params={'Authorization': f"Bearer {settings.LINE_CHANNEL_ACCESS_TOKEN}"}
+                "/v2/bot/user/all/richmenu/{richMenuId}",
+                "POST",
+                path_params={"richMenuId": new_id},
+                header_params={"Authorization": f"Bearer {settings.LINE_CHANNEL_ACCESS_TOKEN}"},
             )
             print("✅ Default menu set successfully!")
         except Exception:
@@ -53,6 +54,7 @@ async def main():
 
     else:
         print("❌ Failed to create menu.")
+
 
 if __name__ == "__main__":
     asyncio.run(main())

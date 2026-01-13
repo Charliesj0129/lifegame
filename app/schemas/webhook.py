@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field
 from typing import Dict, Any, Optional
 from datetime import datetime
 
+
 class HAEventPayload(BaseModel):
     event_type: str = Field(..., description="The type of event (e.g., 'screen_on', 'location_update')")
     entity_id: Optional[str] = Field(None, description="The specific entity involved")

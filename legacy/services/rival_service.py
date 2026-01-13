@@ -12,15 +12,11 @@ logger = logging.getLogger(__name__)
 
 
 class RivalService:
-    async def get_or_create_rival(
-        self, session: AsyncSession, user_id: str, initial_level: int = 1
-    ) -> Rival:
+    async def get_or_create_rival(self, session: AsyncSession, user_id: str, initial_level: int = 1) -> Rival:
         result = await session.execute(select(Rival).where(Rival.user_id == user_id))
         rival = result.scalars().first()
         if not rival:
-            rival = Rival(
-                user_id=user_id, name="Viper", level=max(1, initial_level), xp=0
-            )
+            rival = Rival(user_id=user_id, name="Viper", level=max(1, initial_level), xp=0)
             session.add(rival)
             await session.commit()
         return rival
@@ -57,23 +53,17 @@ class RivalService:
         last_active_date = user.last_active_date.date()
 
         result = RivalRules.calculate_inactivity_penalty(
-            last_active_date, 
-            now_date, 
-            user.xp or 0, 
-            user.gold or 0, 
-            user.level or 1, 
-            rival.level or 1, 
-            rival.xp or 0
+            last_active_date, now_date, user.xp or 0, user.gold or 0, user.level or 1, rival.level or 1, rival.xp or 0
         )
 
         if result.missed_days <= 0:
             return ""
 
         logger.info(f"Viper: User missed {result.missed_days} days.")
-        
+
         # Initialize narrative for building response
         narrative = f"⚠️ Viper 偵測到 {result.missed_days} 日離線。"
-        
+
         # Apply Logic Result
         rival.xp += result.rival_xp_gain
         if result.rival_level_up:
@@ -89,12 +79,10 @@ class RivalService:
         if result.theft_xp > 0 or result.theft_gold > 0:
             user.xp = max(0, (user.xp or 0) - result.theft_xp)
             user.gold = max(0, (user.gold or 0) - result.theft_gold)
-            narrative += (
-                f"\n💸 入侵警報：Viper 竊取 {result.theft_xp} 經驗與 {result.theft_gold} 金幣。"
-            )
+            narrative += f"\n💸 入侵警報：Viper 竊取 {result.theft_xp} 經驗與 {result.theft_gold} 金幣。"
 
         if result.should_debuff:
-             # Apply a random debuff
+            # Apply a random debuff
             target = random.choice(["STR", "VIT", "INT"])
             expires = now + timedelta(hours=24)
             debuff = UserBuff(
@@ -114,9 +102,7 @@ class RivalService:
 
     async def advance_daily_briefing(self, session: AsyncSession, user: User) -> Rival:
         """Daily briefing update for rival progression."""
-        rival = await self.get_or_create_rival(
-            session, user.id, initial_level=user.level
-        )
+        rival = await self.get_or_create_rival(session, user.id, initial_level=user.level)
 
         # Viper Logic: Grows 20-50% of a level per day + some randomness
         growth = random.randint(30, 80)  # XP
@@ -152,9 +138,7 @@ class RivalService:
             # Looking at ai_engine.py (implied), likely it has generate_content or similar.
             # Let's assume generate_json returns a dict, we can ask for {"taunt": "str"}
 
-            response = await ai_engine.generate_json(
-                system_prompt + " Output JSON: {'taunt': 'str'}", user_prompt
-            )
+            response = await ai_engine.generate_json(system_prompt + " Output JSON: {'taunt': 'str'}", user_prompt)
 
             taunt = response.get("taunt", "我正在進化。")
             return f"Viper：「{taunt}」"

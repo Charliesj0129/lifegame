@@ -42,9 +42,7 @@ class DailyBriefingService:
             result = await session.execute(
                 select(Quest).where(
                     Quest.user_id == user_id,
-                    Quest.status.in_(
-                        [QuestStatus.ACTIVE.value, QuestStatus.PENDING.value]
-                    ),
+                    Quest.status.in_([QuestStatus.ACTIVE.value, QuestStatus.PENDING.value]),
                 )
             )
             scalars = result.scalars()
@@ -74,9 +72,7 @@ class DailyBriefingService:
             except Exception as e:
                 logger.warning("Daily briefing outcome lookup failed: %s", e)
 
-            flex_message = self._create_briefing_flex(
-                user, rival, quests, dda_hint=dda_hint
-            )
+            flex_message = self._create_briefing_flex(user, rival, quests, dda_hint=dda_hint)
 
             # Audio Briefing
             audio_msg = audio_service.get_briefing_audio()
@@ -85,11 +81,7 @@ class DailyBriefingService:
             try:
                 api = get_messaging_api()
                 if api:
-                    await api.push_message(
-                        PushMessageRequest(
-                            to=user_id, messages=[audio_msg, flex_message]
-                        )
-                    )
+                    await api.push_message(PushMessageRequest(to=user_id, messages=[audio_msg, flex_message]))
                     logger.info(f"Daily Briefing pushed to {user_id}")
             except Exception as e:
                 logger.error(f"Failed to push briefing: {e}")
@@ -187,7 +179,7 @@ class DailyBriefingService:
                                 },
                                 {
                                     "type": "text",
-                                    "text": f"領先：+{max(0, (rival.level - user.level)*500 + (rival.xp - (user.xp or 0)))} 經驗",
+                                    "text": f"領先：+{max(0, (rival.level - user.level) * 500 + (rival.xp - (user.xp or 0)))} 經驗",
                                     "size": "xs",
                                     "color": "#aaaaaa",
                                 },

@@ -29,9 +29,7 @@ def upgrade() -> None:
     if not _has_column("recipes", "success_rate"):
         op.add_column(
             "recipes",
-            sa.Column(
-                "success_rate", sa.Float(), server_default=sa.text("1.0"), nullable=True
-            ),
+            sa.Column("success_rate", sa.Float(), server_default=sa.text("1.0"), nullable=True),
         )
 
 

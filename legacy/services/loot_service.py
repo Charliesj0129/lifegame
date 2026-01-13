@@ -40,9 +40,7 @@ class LootService:
         weights = list(self.rarity_weights.values())
         return random.choices(rarities, weights=weights, k=1)[0]
 
-    async def calculate_drop(
-        self, session: AsyncSession, difficulty: str, force_drop: bool = False
-    ) -> Item | None:
+    async def calculate_drop(self, session: AsyncSession, difficulty: str, force_drop: bool = False) -> Item | None:
         if not force_drop and not self._roll_for_drop(difficulty):
             return None
 
@@ -51,10 +49,7 @@ class LootService:
         # Fetch items of this rarity
         # In production this should be cached. MVP: Query DB.
         result = await session.execute(
-            select(Item)
-            .where(Item.rarity == target_rarity)
-            .order_by(func.random())
-            .limit(1)
+            select(Item).where(Item.rarity == target_rarity).order_by(func.random()).limit(1)
         )
         item = result.scalars().first()
 
@@ -62,24 +57,15 @@ class LootService:
         if not item:
             # Fallback to Common
             result = await session.execute(
-                select(Item)
-                .where(Item.rarity == ItemRarity.COMMON)
-                .order_by(func.random())
-                .limit(1)
+                select(Item).where(Item.rarity == ItemRarity.COMMON).order_by(func.random()).limit(1)
             )
             item = result.scalars().first()
 
         return item
 
-    async def grant_item(
-        self, session: AsyncSession, user_id: str, item: Item
-    ) -> UserItem:
+    async def grant_item(self, session: AsyncSession, user_id: str, item: Item) -> UserItem:
         # Check if user already has item
-        result = await session.execute(
-            select(UserItem).where(
-                UserItem.user_id == user_id, UserItem.item_id == item.id
-            )
-        )
+        result = await session.execute(select(UserItem).where(UserItem.user_id == user_id, UserItem.item_id == item.id))
         user_item = result.scalars().first()
 
         if user_item:
@@ -111,12 +97,7 @@ class LootService:
             min_index = order.index(ItemRarity.RARE)
 
         eligible = order[min_index:]
-        result = await session.execute(
-            select(Item)
-            .where(Item.rarity.in_(eligible))
-            .order_by(func.random())
-            .limit(1)
-        )
+        result = await session.execute(select(Item).where(Item.rarity.in_(eligible)).order_by(func.random()).limit(1))
         item = result.scalars().first()
         if not item:
             return None

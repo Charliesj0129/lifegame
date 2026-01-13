@@ -49,7 +49,6 @@ def test_create_menu_new(mock_service):
         patch("builtins.open", mock_open(read_data=b"image_data")),
         patch("os.path.exists", return_value=True),
     ):
-
         mid = mock_service.create_menu("LIFGAME_MAIN", [], "path/to/img.jpg")
 
         assert mid == "new_id_789"

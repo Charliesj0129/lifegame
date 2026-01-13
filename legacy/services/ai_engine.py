@@ -38,9 +38,7 @@ class AIEngine:
             self.client = genai.Client(api_key=settings.GOOGLE_API_KEY)
             self.model_name = settings.GEMINI_MODEL
             self.provider = "google"
-            logger.info(
-                f"AI Engine initialized with Google GenAI ({self.model_name})"
-            )
+            logger.info(f"AI Engine initialized with Google GenAI ({self.model_name})")
         else:
             logger.warning("No AI API Keys set. AI Engine disabled.")
 
@@ -83,15 +81,13 @@ class AIEngine:
     def _log_latency(self, event: str, elapsed_ms: float) -> None:
         if not settings.ENABLE_LATENCY_LOGS:
             return
-        logger.debug(
-            "event=%s duration_ms=%.2f model=%s", event, elapsed_ms, self.model_name
-        )
+        logger.debug("event=%s duration_ms=%.2f model=%s", event, elapsed_ms, self.model_name)
 
     @retry(
-        stop=stop_after_attempt(3), 
+        stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
-        retry=retry_if_exception_type(Exception), # Catch generic for now, ideally specific network errors
-        reraise=True # Let the outer try/except handle the final fallback
+        retry=retry_if_exception_type(Exception),  # Catch generic for now, ideally specific network errors
+        reraise=True,  # Let the outer try/except handle the final fallback
     )
     async def analyze_action(self, user_text: str) -> dict:
         import time
@@ -159,10 +155,7 @@ Output Schema:
             elif self.provider == "google":
                 full_prompt = system_prompt + " " + user_prompt
                 # new SDK async call
-                response = await self.client.aio.models.generate_content(
-                    model=self.model_name,
-                    contents=full_prompt
-                )
+                response = await self.client.aio.models.generate_content(model=self.model_name, contents=full_prompt)
                 content = response.text
 
             if start_time is not None:
@@ -188,9 +181,7 @@ Output Schema:
                 "feedback_tone": "WARNING",
             }
 
-    async def analyze_image(
-        self, image_bytes: bytes, mime_type: str, prompt: str
-    ) -> dict:
+    async def analyze_image(self, image_bytes: bytes, mime_type: str, prompt: str) -> dict:
         """
         Analyzes an image using Vision Model (Gemini).
         Returns JSON verification result.
@@ -212,21 +203,20 @@ Output Schema:
                 # Google GenAI SDK (v0.2+) handles bytes/images differently.
                 # Assuming we pass parts.
                 from google.genai import types
-                
+
                 # Construct parts
                 # Note: System prompt is usually separate config, but here we append.
                 # Or we use 'system_instruction' config. Keeping simple:
-                
+
                 # The SDK expects 'contents' to be a list of parts or a single string.
                 # To mix text and image:
-                
+
                 # Creating an image part using types.Part.from_bytes is the clean way
                 image_part = types.Part.from_bytes(data=image_bytes, mime_type=mime_type)
-                
+
                 # Call
                 response = await self.client.aio.models.generate_content(
-                    model=self.model_name,
-                    contents=[system_prompt, f"Quest Requirement: {prompt}", image_part]
+                    model=self.model_name, contents=[system_prompt, f"Quest Requirement: {prompt}", image_part]
                 )
                 content = response.text
 
@@ -249,9 +239,7 @@ Output Schema:
                                 {"type": "text", "text": f"Requirement: {prompt}"},
                                 {
                                     "type": "image_url",
-                                    "image_url": {
-                                        "url": f"data:{mime_type};base64,{b64}"
-                                    },
+                                    "image_url": {"url": f"data:{mime_type};base64,{b64}"},
                                 },
                             ],
                         },
@@ -282,11 +270,7 @@ Output Schema:
                 "tags": [],
             }
 
-    @retry(
-        stop=stop_after_attempt(3), 
-        wait=wait_exponential(multiplier=1, min=2, max=10),
-        reraise=True
-    )
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10), reraise=True)
     async def generate_json(self, system_prompt: str, user_prompt: str) -> dict:
         """
         Generic method to generate JSON from AI.
@@ -313,8 +297,7 @@ Output Schema:
                 if self.provider == "google":
                     full_prompt = f"{prompt_system}\n\nUSER INPUT: {prompt_user}\n\nIMPORTANT: OUTPUT JSON ONLY."
                     response = await self.client.aio.models.generate_content(
-                        model=self.model_name,
-                        contents=full_prompt
+                        model=self.model_name, contents=full_prompt
                     )
                     return response.text
 
@@ -388,11 +371,7 @@ Output Schema:
                 "Output JSON: { 'verdict': 'APPROVED'|'REJECTED'|'UNCERTAIN', "
                 "'reason': 'str', 'follow_up': 'str|null', 'detected_labels': ['str'] }"
             )
-            user_prompt = (
-                f"Quest: {quest_title}\n"
-                f"Keywords: {', '.join(keywords)}\n"
-                f"User Report: {user_text or ''}"
-            )
+            user_prompt = f"Quest: {quest_title}\nKeywords: {', '.join(keywords)}\nUser Report: {user_text or ''}"
             return await self.generate_json(system_prompt, user_prompt)
 
         if mode == "IMAGE":
@@ -409,14 +388,11 @@ Output Schema:
             if self.provider == "google" and image_bytes:
                 try:
                     from google.genai import types
+
                     image_part = types.Part.from_bytes(data=image_bytes, mime_type=mime_type or "image/jpeg")
-                    
+
                     response = await self.client.aio.models.generate_content(
-                        model=self.model_name,
-                        contents=[
-                            system_prompt + "\n" + user_prompt,
-                            image_part
-                        ]
+                        model=self.model_name, contents=[system_prompt + "\n" + user_prompt, image_part]
                     )
                     content = response.text
                     if "```json" in content:
@@ -447,13 +423,7 @@ Output Schema:
             "detected_labels": [],
         }
 
-
-    async def generate_npc_response(
-        self, 
-        persona: dict, 
-        context: list, 
-        user_input: str
-    ) -> dict:
+    async def generate_npc_response(self, persona: dict, context: list, user_input: str) -> dict:
         """
         Generates a role-played response from an NPC.
         Persona: {name, role, personality}
@@ -461,11 +431,12 @@ Output Schema:
         Returns: { 'text': str, 'intimacy_change': int, 'can_visualize': bool }
         """
         import time
+
         start = time.time() if settings.ENABLE_LATENCY_LOGS else None
-        
+
         # Build Context String
         context_str = "\n".join([f"- {c}" for c in context]) if context else "None"
-        
+
         system_prompt = (
             f"Role: You are {persona.get('name', 'NPC')}, a {persona.get('role', 'Character')}. "
             f"Personality: {persona.get('personality', 'neutral')}. "
@@ -474,29 +445,22 @@ Output Schema:
             "Mechanic: Determine if this interaction changes your intimacy with the user (-10 to +10). "
             "Output JSON: { 'text': 'str', 'intimacy_change': int, 'can_visualize': bool }"
         )
-        
-        user_prompt = (
-            f"Context (Memories):\n{context_str}\n\n"
-            f"User Says: {user_input}"
-        )
-        
+
+        user_prompt = f"Context (Memories):\n{context_str}\n\nUser Says: {user_input}"
+
         try:
             result = await self.generate_json(system_prompt, user_prompt)
             if "text" not in result:
                 result["text"] = "..."
-            
+
             if start is not None:
                 elapsed = (time.time() - start) * 1000
                 self._log_latency("ai_npc_chat_latency", elapsed)
-                
+
             return result
         except Exception as e:
             logger.error(f"NPC Chat Failed: {e}", exc_info=True)
-            return {
-                "text": "（對方似乎陷入了沉思...）",
-                "intimacy_change": 0,
-                "can_visualize": False
-            }
+            return {"text": "（對方似乎陷入了沉思...）", "intimacy_change": 0, "can_visualize": False}
 
 
 # Global instance

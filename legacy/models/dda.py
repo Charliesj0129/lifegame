@@ -44,12 +44,8 @@ class DailyOutcome(Base):
     habit_tag = Column(String, nullable=True)
     date = Column(Date, default=datetime.date.today)
     done = Column(Boolean, server_default=text("FALSE"), default=False, nullable=False)
-    is_global = Column(
-        Boolean, server_default=text("FALSE"), default=False, nullable=False
-    )
-    rescue_used = Column(
-        Boolean, server_default=text("FALSE"), default=False, nullable=False
-    )
+    is_global = Column(Boolean, server_default=text("FALSE"), default=False, nullable=False)
+    rescue_used = Column(Boolean, server_default=text("FALSE"), default=False, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 

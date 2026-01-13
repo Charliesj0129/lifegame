@@ -3,11 +3,12 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 class VectorService:
     def __init__(self):
         # Use Adapter instead of direct Client
         self.adapter = ChromaAdapter(collection_name="memories")
-        
+
     async def add_memory(self, text: str, metadata: dict = None):
         """
         Stores a memory into the vector database.
@@ -30,5 +31,6 @@ class VectorService:
         except Exception as e:
             logger.error(f"Vector Retrieval Error: {e}")
             return []
+
 
 vector_service = VectorService()
