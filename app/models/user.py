@@ -62,6 +62,10 @@ class User(Base):
     talent_points = Column(Integer, default=3, nullable=False)
 
     # M6: Habit Streaks
+    settings = Column(
+        JSON,
+        default=lambda: {"theme": "cyberpunk", "notifications": True, "language": "zh-TW"},
+    )
     streak_count = Column(Integer, default=0)
     last_active_date = Column(DateTime(timezone=True), nullable=True)  # Tracks the *day* of last activity
 

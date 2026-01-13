@@ -324,5 +324,30 @@ class UserService:
             user_title=title,
         )
 
+    async def get_settings(self, session: AsyncSession, user_id: str) -> dict:
+        user = await self.get_user(session, user_id)
+        if not user or not user.settings:
+            return {"theme": "cyberpunk", "notifications": True, "language": "zh-TW"}
+        return user.settings
+
+    async def update_setting(self, session: AsyncSession, user_id: str, key: str, value: any):
+        user = await self.get_user(session, user_id)
+        if not user:
+            return None
+
+        current = dict(user.settings) if user.settings else {}
+        current[key] = value
+
+        # Merge defaults if missing
+        defaults = {"theme": "cyberpunk", "notifications": True, "language": "zh-TW"}
+        for k, v in defaults.items():
+            if k not in current:
+                current[k] = v
+
+        user.settings = current
+        session.add(user)
+        await session.commit()
+        return current
+
 
 user_service = UserService()
