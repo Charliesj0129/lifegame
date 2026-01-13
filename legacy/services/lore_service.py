@@ -88,5 +88,11 @@ class LoreService:
         stmt = select(LoreEntry).where(LoreEntry.series == f"User:{user_id}").order_by(LoreEntry.chapter)
         return (await session.execute(stmt)).scalars().all()
 
+    async def get_user_progress(self, session: AsyncSession, user_id: str) -> list[LoreProgress]:
+        """Returns user's lore progress records (for Status card display)."""
+        stmt = select(LoreProgress).where(LoreProgress.user_id == user_id).order_by(LoreProgress.series)
+        result = await session.execute(stmt)
+        return result.scalars().all()
+
 
 lore_service = LoreService()
