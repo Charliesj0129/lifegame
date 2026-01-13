@@ -126,6 +126,20 @@ class BrainService:
                 raw_plan["stat_update"] = None
 
             plan = AgentPlan(**raw_plan)
+
+            # Phase 6: Post-process AI narrative
+            if plan.narrative:
+                # Strip [無操作] suffix
+                plan.narrative = plan.narrative.replace("[無操作]", "").replace("[ 無操作]", "").strip()
+                # Strip other noise patterns
+                plan.narrative = plan.narrative.replace("。。", "。").strip()
+                # Truncate if too long (max 60 chars for concise UX)
+                if len(plan.narrative) > 80:
+                    plan.narrative = plan.narrative[:77] + "..."
+                # Fallback if empty after cleanup
+                if not plan.narrative:
+                    plan.narrative = "🤔 有什麼需要幫忙的嗎？"
+
             plan.flow_state = {
                 "tier": flow_target.difficulty_tier,
                 "tone": flow_target.narrative_tone,

@@ -370,6 +370,21 @@ dispatcher.register(
     handle_new_goal,
 )
 
+
+# Placeholder handlers for未實現 features
+async def handle_craft(session: AsyncSession, user_id: str, text: str) -> GameResult:
+    """Handler for '合成' command - placeholder."""
+    return GameResult(text="🔧 合成系統開發中，敬請期待！", intent="craft_wip")
+
+
+async def handle_boss(session: AsyncSession, user_id: str, text: str) -> GameResult:
+    """Handler for '首領' command - placeholder."""
+    return GameResult(text="👹 首領挑戰開發中，敬請期待！", intent="boss_wip")
+
+
+dispatcher.register(lambda t: t.strip() in ["合成", "craft"], handle_craft)
+dispatcher.register(lambda t: t.strip() in ["首領", "boss"], handle_boss)
+
 # Legacy (keep for compatibility)
 dispatcher.register(lambda t: t.lower().strip() == "attack", handle_attack)
 dispatcher.register(lambda t: t.lower().strip() == "defend", handle_defend)
