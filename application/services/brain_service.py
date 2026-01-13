@@ -79,6 +79,23 @@ class BrainService:
 
         churn_risk = user_state.get("churn_risk", "LOW")
 
+        # F9: Enrich context with Graph history (recent AI actions)
+        try:
+            from adapters.persistence.kuzu.adapter import get_kuzu_adapter
+
+            kuzu = get_kuzu_adapter()
+            graph_history = kuzu.get_user_history(user_id, limit=5)
+            # Format for prompt injection
+            recent_actions = []
+            for event in graph_history:
+                if event.get("event_type") == "AI_TOOL_CALL":
+                    meta = event.get("metadata", {})
+                    recent_actions.append(f"[TOOL] {meta.get('tool')}: {meta.get('title', 'N/A')}")
+            if recent_actions:
+                memory["recent_ai_actions"] = recent_actions
+        except Exception as e:
+            logger.warning(f"Graph context enrichment failed: {e}")
+
         # 2. Flow Physics (The "Thermostat")
         # Fetch real tier from user state or default to C
         current_tier = user_state.get("current_tier", "C")
@@ -154,6 +171,9 @@ Churn Risk: {memory["user_state"].get("churn_risk")}
 
 # Graph Memory (Deep Context)
 {json.dumps(memory.get("long_term_context", []), ensure_ascii=False)}
+
+# Recent AI Actions (F9: Graph Sync)
+{chr(10).join(memory.get("recent_ai_actions", ["No recent AI actions"]))}
 
 # Operational Directive (Flow State)
 Target Difficulty: {flow.difficulty_tier}

@@ -198,6 +198,11 @@ async def handle_ai_analysis(session, user_id: str, text: str) -> GameResult:
                 flex_msg = flex_renderer.render_goal_card(title=title, category=category)
                 tool_flex_messages.append(flex_msg)
 
+                # F4: Record to Graph
+                kuzu_adapter.record_user_event(
+                    user_id, "AI_TOOL_CALL", {"tool": "create_goal", "title": title, "category": category}
+                )
+
             elif tool_name == "start_challenge":
                 # AI Arg Mapping
                 title = args.get("title", "Challenge")
@@ -210,6 +215,11 @@ async def handle_ai_analysis(session, user_id: str, text: str) -> GameResult:
                 xp = getattr(quest, "xp_reward", 50)
                 flex_msg = flex_renderer.render_quest_brief(title=title, difficulty=difficulty, xp_reward=xp)
                 tool_flex_messages.append(flex_msg)
+
+                # F4: Record to Graph
+                kuzu_adapter.record_user_event(
+                    user_id, "AI_TOOL_CALL", {"tool": "start_challenge", "title": title, "difficulty": difficulty}
+                )
 
         except Exception as e:
             logger.error(f"Tool Execution Failed ({tool_name}): {e}", exc_info=True)
@@ -244,10 +254,16 @@ async def handle_status(session: AsyncSession, user_id: str, text: str) -> GameR
     """Handler for '狀態' command - returns user status Flex card."""
     from legacy.services.user_service import user_service
     from legacy.services.flex_renderer import flex_renderer
+    from legacy.services.lore_service import lore_service
 
-    user = await user_service.get_or_create_user(session, user_id)
-    flex = flex_renderer.render_status(user)
-    return GameResult(text="📊 玩家狀態", intent="status", metadata={"flex_message": flex})
+    try:
+        user = await user_service.get_or_create_user(session, user_id)
+        lore_prog = await lore_service.get_progress(session, user_id)
+        flex = flex_renderer.render_status(user, lore_prog)
+        return GameResult(text="📊 玩家狀態", intent="status", metadata={"flex_message": flex})
+    except Exception as e:
+        logger.error(f"Status handler failed: {e}", exc_info=True)
+        return GameResult(text="⚠️ 狀態載入失敗，請稍後再試。", intent="status_error")
 
 
 async def handle_quests(session: AsyncSession, user_id: str, text: str) -> GameResult:
