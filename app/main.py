@@ -218,6 +218,19 @@ async def handle_ai_analysis(session, user_id: str, text: str) -> GameResult:
     result_meta = {"plan": plan.model_dump()}
     if tool_flex_messages:
         result_meta["flex_messages"] = tool_flex_messages
+        logger.info(f"Generated {len(tool_flex_messages)} Flex messages")
+
+    # Fix #5: Add Quick Reply buttons for common actions
+    from linebot.v3.messaging import QuickReply, QuickReplyItem, MessageAction
+
+    quick_reply = QuickReply(
+        items=[
+            QuickReplyItem(action=MessageAction(label="📊 狀態", text="狀態")),
+            QuickReplyItem(action=MessageAction(label="📋 任務", text="任務")),
+            QuickReplyItem(action=MessageAction(label="🎯 新目標", text="我想設定新目標")),
+        ]
+    )
+    result_meta["quick_reply"] = quick_reply
 
     return GameResult(text=plan.narrative, intent="ai_response", metadata=result_meta)
 

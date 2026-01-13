@@ -101,9 +101,11 @@ class LineClient:
             if result.text != "Flex Message":
                 messages.append(TextMessage(text=result.text))
 
-        # 3. Quick Replies (Attach to LAST message)
-        # TODO: Line allows QuickReply on any message type.
-        # Ensure last message exists.
+        # 3. Quick Replies (Attach to LAST message) - Fix #5
+        if meta.get("quick_reply") and messages:
+            last_msg = messages[-1]
+            if hasattr(last_msg, "quick_reply"):
+                last_msg.quick_reply = meta["quick_reply"]
 
         # 4. Audio Message (Fanfare)
         if meta.get("audio_message"):
