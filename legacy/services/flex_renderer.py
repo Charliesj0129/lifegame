@@ -749,6 +749,178 @@ class FlexRenderer:
 
         return FlexMessage(alt_text="今日任務", contents=FlexContainer.from_dict(bubble))
 
+    def render_profile(self, user) -> FlexMessage:
+        COLOR_BG = "#0B0F14"
+        COLOR_PANEL = "#111827"
+        COLOR_ACCENT = "#7DF9FF"
+        COLOR_TEXT = "#E6EDF3"
+        COLOR_MUTED = "#8B949E"
+
+        settings = user.settings or {"theme": "cyberpunk", "notifications": True}
+
+        # Toggles
+        is_notif_on = settings.get("notifications", True)
+        notif_text = "開啟" if is_notif_on else "靜音"
+        notif_color = "#20D6C7" if is_notif_on else "#FF5555"
+        notif_val = "false" if is_notif_on else "true"
+
+        theme_current = settings.get("theme", "cyberpunk")
+        theme_next = "classic" if theme_current == "cyberpunk" else "cyberpunk"
+        theme_text = "賽博龐克" if theme_current == "cyberpunk" else "經典簡約"
+
+        bubble = {
+            "type": "bubble",
+            "size": "mega",
+            "header": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {"type": "text", "text": "⚙️ 用戶設定", "weight": "bold", "color": COLOR_ACCENT, "size": "xl"},
+                    {
+                        "type": "text",
+                        "text": f"{user.name} (Lv.{user.level})",
+                        "color": COLOR_MUTED,
+                        "size": "sm",
+                        "margin": "xs",
+                    },
+                ],
+                "backgroundColor": COLOR_BG,
+                "paddingAll": "lg",
+            },
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    # Stats Summary
+                    {
+                        "type": "box",
+                        "layout": "vertical",
+                        "contents": [
+                            {
+                                "type": "text",
+                                "text": "📊 核心屬性",
+                                "color": COLOR_TEXT,
+                                "weight": "bold",
+                                "size": "sm",
+                            },
+                            {
+                                "type": "text",
+                                "text": f"STR: {user.str} | INT: {user.int} | VIT: {user.vit}",
+                                "color": COLOR_MUTED,
+                                "size": "xs",
+                                "margin": "sm",
+                            },
+                            {
+                                "type": "text",
+                                "text": f"WIS: {user.wis} | CHA: {user.cha}",
+                                "color": COLOR_MUTED,
+                                "size": "xs",
+                            },
+                        ],
+                        "backgroundColor": COLOR_PANEL,
+                        "paddingAll": "md",
+                        "cornerRadius": "md",
+                        "margin": "md",
+                    },
+                    # Settings Section
+                    {
+                        "type": "text",
+                        "text": "偏好設定",
+                        "color": COLOR_TEXT,
+                        "weight": "bold",
+                        "size": "sm",
+                        "margin": "xl",
+                    },
+                    {"type": "separator", "margin": "md", "color": "#30363D"},
+                    # Theme Row
+                    {
+                        "type": "box",
+                        "layout": "horizontal",
+                        "contents": [
+                            {
+                                "type": "text",
+                                "text": "介面風格",
+                                "color": COLOR_TEXT,
+                                "size": "sm",
+                                "gravity": "center",
+                                "flex": 1,
+                            },
+                            {
+                                "type": "button",
+                                "style": "secondary",
+                                "height": "sm",
+                                "action": {
+                                    "type": "postback",
+                                    "label": theme_text,
+                                    "data": f"action=toggle_setting&key=theme&value={theme_next}",
+                                    "displayText": f"切換風格至 {theme_next}",
+                                },
+                            },
+                        ],
+                        "margin": "md",
+                        "alignItems": "center",
+                    },
+                    # Notif Row
+                    {
+                        "type": "box",
+                        "layout": "horizontal",
+                        "contents": [
+                            {
+                                "type": "text",
+                                "text": "推播通知",
+                                "color": COLOR_TEXT,
+                                "size": "sm",
+                                "gravity": "center",
+                                "flex": 1,
+                            },
+                            {
+                                "type": "button",
+                                "style": "primary",
+                                "color": notif_color,
+                                "height": "sm",
+                                "action": {
+                                    "type": "postback",
+                                    "label": notif_text,
+                                    "data": f"action=toggle_setting&key=notifications&value={notif_val}",
+                                    "displayText": f"切換通知: {notif_val}",
+                                },
+                            },
+                        ],
+                        "margin": "md",
+                        "alignItems": "center",
+                    },
+                    # Language (Static)
+                    {
+                        "type": "box",
+                        "layout": "horizontal",
+                        "contents": [
+                            {
+                                "type": "text",
+                                "text": "語言區域",
+                                "color": COLOR_TEXT,
+                                "size": "sm",
+                                "gravity": "center",
+                                "flex": 1,
+                            },
+                            {
+                                "type": "text",
+                                "text": "繁體中文 (TW)",
+                                "color": COLOR_MUTED,
+                                "size": "sm",
+                                "align": "end",
+                                "flex": 1,
+                            },
+                        ],
+                        "margin": "md",
+                        "alignItems": "center",
+                    },
+                ],
+                "backgroundColor": COLOR_BG,
+                "paddingAll": "lg",
+            },
+        }
+        return FlexMessage(alt_text="用戶設定", contents=FlexContainer.from_dict(bubble))
+
     def render_push_briefing(
         self,
         title: str,

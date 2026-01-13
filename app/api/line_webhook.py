@@ -309,6 +309,43 @@ if webhook_handler:
                     else:
                         result = GameResult(text="⚠️ 沒有活躍的首領")
 
+                elif action == "profile":
+                    from legacy.services.flex_renderer import flex_renderer
+                    from legacy.services.user_service import user_service
+
+                    user = await user_service.get_user(session, user_id)
+                    if user:
+                        flex = flex_renderer.render_profile(user)
+                        result = GameResult(text="用戶設定", intent="profile", metadata={"flex_message": flex})
+                    else:
+                        result = GameResult(text="⚠️ 找不到用戶")
+
+                elif action == "toggle_setting":
+                    from legacy.services.user_service import user_service
+
+                    key = params.get("key")
+                    value_str = params.get("value")
+                    # Parse value (simple bool/string)
+                    final_val = value_str
+                    if value_str.lower() == "true":
+                        final_val = True
+                    elif value_str.lower() == "false":
+                        final_val = False
+
+                    if key:
+                        await user_service.update_setting(session, user_id, key, final_val)
+
+                        # Re-render profile
+                        from legacy.services.flex_renderer import flex_renderer
+
+                        user = await user_service.get_user(session, user_id)
+                        flex = flex_renderer.render_profile(user)
+                        result = GameResult(
+                            text=f"設定已更新: {key}", intent="profile", metadata={"flex_message": flex}
+                        )
+                    else:
+                        result = GameResult(text="⚠️ 缺少設定鍵值")
+
                 elif action == "buy_item":
                     item_id = params.get("item_id")
                     if item_id:
