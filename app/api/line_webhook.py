@@ -143,6 +143,35 @@ if webhook_handler:
                     await api.show_loading_animation(ShowLoadingAnimationRequest(chat_id=user_id, loading_seconds=10))
             except Exception as e:
                 logger.warning(f"Loading animation failed: {e}")
+                logger.warning(f"Loading animation failed: {e}")
+
+        # Check for Help/Manual (Legacy Intercept)
+        if user_text.lower() in ["help", "manual", "menu", "幫助", "說明", "選單"]:
+            try:
+                from legacy.services.help_service import help_service
+                from legacy.services.flex_renderer import flex_renderer
+                from legacy.services.user_service import user_service
+                from adapters.perception.line_client import line_client
+                from linebot.v3.messaging import ReplyMessageRequest, FlexMessage  # FIX IMPORTS
+
+                async with app.core.database.AsyncSessionLocal() as session:
+                    # Get user context
+                    user = await user_service.get_or_create_user(session, user_id)
+                    help_data = await help_service.get_dynamic_help(session, user)
+                    flex = flex_renderer.render_help_card(help_data)
+
+                    # Direct Reply
+                    api = get_messaging_api()
+                    if api:
+                        await api.reply_message(
+                            ReplyMessageRequest(
+                                reply_token=reply_token, messages=[FlexMessage(alt_text="提示", contents=flex)]
+                            )
+                        )
+                return
+            except Exception as e:
+                logger.error(f"Help command failed: {e}")
+                # Fallthrough to GameLoop if fail
 
         # Process through GameLoop
         try:
