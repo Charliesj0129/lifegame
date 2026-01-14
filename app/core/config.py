@@ -19,15 +19,19 @@ class Settings(BaseSettings):
     @field_validator("SQLALCHEMY_DATABASE_URI", mode="before")
     @classmethod
     def assemble_db_connection(cls, v: Optional[str], info) -> Any:
-        if isinstance(v, str):
+        # If explicitly set (e.g., via env var), use it directly
+        if isinstance(v, str) and v:
             return v
-        # If any Postgres vars are missing, we might default to SQLite if intended,
-        # but for now let's just avoid crashing if they are missing and URI is not set.
+        # Otherwise, check if we have proper Postgres config
         data = info.data if hasattr(info, "data") else {}
-        if not data.get("POSTGRES_SERVER"):
+        pg_server = data.get("POSTGRES_SERVER", "localhost")
+
+        # Default to SQLite if POSTGRES_SERVER is localhost or missing
+        # (Assumes production should explicitly set DATABASE_URL or POSTGRES_SERVER)
+        if pg_server in (None, "", "localhost", "127.0.0.1"):
             return "sqlite+aiosqlite:///./data/game.db"
 
-        return f"postgresql+asyncpg://{data.get('POSTGRES_USER')}:{data.get('POSTGRES_PASSWORD')}@{data.get('POSTGRES_SERVER')}:{data.get('POSTGRES_PORT')}/{data.get('POSTGRES_DB') or ''}"
+        return f"postgresql+asyncpg://{data.get('POSTGRES_USER')}:{data.get('POSTGRES_PASSWORD')}@{pg_server}:{data.get('POSTGRES_PORT')}/{data.get('POSTGRES_DB') or ''}"
 
     # Kuzu Graph DB
     KUZU_DATABASE_PATH: str = "./data/lifegame_graph"
