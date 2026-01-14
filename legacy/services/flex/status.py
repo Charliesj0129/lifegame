@@ -90,6 +90,7 @@ class FlexStatusRenderer:
                                         "height": "6px",
                                         "backgroundColor": hp_color,
                                         "cornerRadius": "3px",
+                                        "contents": [],
                                     }
                                 ],
                             },
