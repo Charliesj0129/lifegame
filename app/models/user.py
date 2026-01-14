@@ -11,6 +11,7 @@ class User(Base):
 
     # Progression
     level = Column(Integer, default=1)
+    job_class = Column(String, default="Novice")
 
     # Attributes
     str = Column(Integer, default=1)

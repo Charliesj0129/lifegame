@@ -7,6 +7,7 @@ from app.core.logging_middleware import LoggingMiddleware
 # from app.api import webhook
 # from app.services.scheduler import dda_scheduler
 import asyncio
+import inspect
 import logging
 import os
 
@@ -115,6 +116,20 @@ async def handle_ai_analysis(session, user_id: str, text: str) -> GameResult:
     from legacy.services.hp_service import hp_service
     from legacy.services.quest_service import quest_service
 
+    # Fast-path: if the text matches a known command, short-circuit to local handler to avoid LLM call
+    normalized = text.strip()
+    quick_routes = {
+        ("狀態", "status"): handle_status,
+        ("任務", "quests"): handle_quests,
+        ("簽到", "checkin"): handle_checkin,
+        ("背包", "inventory"): handle_inventory,
+        ("商店", "shop"): handle_shop,
+        ("新目標",): handle_new_goal,
+    }
+    for keys, handler in quick_routes.items():
+        if normalized in keys:
+            return await handler(session, user_id, text)
+
     # --- PHASE 4: THE PULSE (LAZY EVALUATION) ---
     # Trigger "Wake Up" protocols based on user returning
     user = await user_service.get_or_create_user(session, user_id)
@@ -123,7 +138,11 @@ async def handle_ai_analysis(session, user_id: str, text: str) -> GameResult:
     drain_amount = await hp_service.calculate_daily_drain(session, user)
 
     # 2. Viper/Quest Push
-    pushed_quests = await quest_service.trigger_push_quests(session, user_id)
+    pushed_quests = quest_service.trigger_push_quests(session, user_id)
+    if inspect.isawaitable(pushed_quests):
+        pushed_quests = await pushed_quests
+    else:
+        pushed_quests = pushed_quests or []
 
     pulsed_events = {
         "drain_amount": drain_amount,
@@ -182,7 +201,11 @@ async def handle_ai_analysis(session, user_id: str, text: str) -> GameResult:
         logger.info(f"Tool Calls: {plan.tool_calls}")
 
     tool_flex_messages = []
-    for tool_call in plan.tool_calls:
+    tool_calls = plan.tool_calls if isinstance(plan.tool_calls, list) else []
+    for tool_call in tool_calls:
+        if not isinstance(tool_call, dict):
+            logger.warning(f"Skipping malformed tool_call: {tool_call}")
+            continue
         try:
             tool_name = tool_call.get("tool")
             args = tool_call.get("args", {})

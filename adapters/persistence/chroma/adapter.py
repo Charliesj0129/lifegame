@@ -1,5 +1,6 @@
 from typing import List, Dict, Any, Tuple
 import chromadb
+from chromadb.config import Settings
 from chromadb.utils import embedding_functions
 from domain.ports.vector_port import VectorPort
 import uuid
@@ -7,7 +8,11 @@ import uuid
 
 class ChromaAdapter(VectorPort):
     def __init__(self, collection_name: str = "lifgame_memory", persist_path: str = "./data/chroma_db"):
-        self.client = chromadb.PersistentClient(path=persist_path)
+        # Explicitly disable telemetry to prevent PostHog callbacks
+        self.client = chromadb.PersistentClient(
+            path=persist_path,
+            settings=Settings(anonymized_telemetry=False),
+        )
 
         # Use default embedding function for now (SentenceTransformer)
         self.ef = embedding_functions.DefaultEmbeddingFunction()

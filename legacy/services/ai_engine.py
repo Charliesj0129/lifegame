@@ -2,6 +2,7 @@ from google import genai
 from openai import AsyncOpenAI
 from app.core.config import settings
 import logging
+import re
 
 # Resilience: Rate Limit Retry
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
@@ -56,6 +57,37 @@ class AIEngine:
             return content
         cleaned = content.replace("```json", "").replace("```", "")
         return cleaned.strip()
+
+    def _sanitize_prompt(self, content: str) -> str:
+        """
+        Mask obvious PII/secrets before sending to external LLMs.
+        Keeps prompt structure intact while redacting sensitive tokens.
+        """
+        if not content:
+            return ""
+
+        sanitized = content
+
+        # Redact known secret-like settings if they accidentally leak into prompts
+        secret_fields = [
+            "LINE_CHANNEL_ACCESS_TOKEN",
+            "LINE_CHANNEL_SECRET",
+            "OPENROUTER_API_KEY",
+            "GOOGLE_API_KEY",
+            "HA_WEBHOOK_SECRET",
+        ]
+        for field in secret_fields:
+            value = getattr(settings, field, None)
+            if value:
+                sanitized = sanitized.replace(str(value), "[REDACTED]")
+
+        # Mask LINE-style user IDs or obvious user_id assignments
+        sanitized = re.sub(r"U[a-zA-Z0-9_-]{6,}", "[REDACTED_USER]", sanitized)
+        sanitized = re.sub(
+            r"(user_id|userid)\s*[:=]\s*[a-zA-Z0-9_-]{4,}", r"\1=[REDACTED]", sanitized, flags=re.IGNORECASE
+        )
+
+        return sanitized.strip()
 
     def _extract_json_block(self, content: str) -> str | None:
         if not content:
@@ -137,7 +169,7 @@ Output Schema:
   "feedback_tone": "STRICT"|"SARCASTIC"|"WARNING"|"MANIC"
 }}"""
 
-        user_prompt = f"Action: {user_text}"
+        user_prompt = f"Action: {self._sanitize_prompt(user_text)}"
 
         try:
             content = ""
@@ -306,7 +338,9 @@ Output Schema:
             if self.provider == "none":
                 return {"error": "AI_OFFLINE"}
 
-            content = await _call_model(system_prompt, user_prompt)
+            safe_system = self._sanitize_prompt(system_prompt)
+            safe_user = self._sanitize_prompt(user_prompt)
+            content = await _call_model(safe_system, safe_user)
 
             if start is not None:
                 elapsed = (time.time() - start) * 1000

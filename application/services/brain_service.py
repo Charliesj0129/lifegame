@@ -192,6 +192,17 @@ class BrainService:
         elif intent_hint == "START_CHALLENGE":
             intent_instruction = "\n👉 SYSTEM HINT: User wants to start a challenge. USE `start_challenge` tool."
 
+        identity_ctx = memory.get("identity_context", {}) or {}
+        identity_title = identity_ctx.get("title", "The Socratic Architect")
+        identity_values = ", ".join(identity_ctx.get("core_values", [])) or "Growth, Autonomy"
+        identity_tags = ", ".join(identity_ctx.get("identity_tags", [])) or "Seeker, Architect"
+
+        long_term_context = memory.get("long_term_context", [])
+        try:
+            long_term_json = json.dumps(long_term_context, ensure_ascii=False)
+        except TypeError:
+            long_term_json = json.dumps([str(long_term_context)], ensure_ascii=False)
+
         return f"""
 Role: Grounded Performance Coach (LifeOS AI).
 Language: Traditional Chinese (繁體中文).
@@ -207,10 +218,15 @@ Churn Risk: {memory["user_state"].get("churn_risk")}
 {memory["short_term_history"]}
 
 # Graph Memory (Deep Context)
-{json.dumps(memory.get("long_term_context", []), ensure_ascii=False)}
+{long_term_json}
 
 # Recent AI Actions
 {chr(10).join(memory.get("recent_ai_actions", ["No recent AI actions"]))}
+
+# Identity Context
+Identity: {identity_title}
+Core Values: {identity_values}
+Identity Tags: {identity_tags}
 
 # Operational Directive
 Difficulty: {flow.difficulty_tier} | Tone: {flow.narrative_tone.upper()} | Loot: {flow.loot_multiplier}x

@@ -257,8 +257,18 @@ class KuzuAdapter(GraphPort):
     def add_node(self, label: str, properties: Dict[str, Any]) -> bool:
         """Add a node with given label and properties"""
         try:
-            props_str = ", ".join([f"{k}: '{v}'" for k, v in properties.items()])
-            cypher = f"CREATE (n:{label} {{{props_str}}})"
+            key_field = "id" if "id" in properties else "name"
+            key_val = properties.get(key_field)
+
+            # Prefer MERGE on key to avoid duplicate PK errors; SET the rest of the props
+            if key_val:
+                setters = ", ".join([f"n.{k} = '{v}'" for k, v in properties.items() if k != key_field])
+                cypher = f"MERGE (n:{label} {{{key_field}: '{key_val}'}})"
+                if setters:
+                    cypher += f" SET {setters}"
+            else:
+                props_str = ", ".join([f"{k}: '{v}'" for k, v in properties.items()])
+                cypher = f"CREATE (n:{label} {{{props_str}}})"
             self.conn.execute(cypher)
             return True
         except Exception as e:

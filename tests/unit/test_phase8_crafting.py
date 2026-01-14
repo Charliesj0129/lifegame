@@ -54,9 +54,10 @@ async def test_crafting_flow(db_session):
 
     # 5. Execute Craft
     import unittest.mock
+
     with unittest.mock.patch("legacy.services.crafting_service.random.random", return_value=0.0):
         res = await crafting_service.craft_item(db_session, user_id, recipe.id)
-        
+
     assert res["success"] is True
     assert "獲得" in res["message"]
 

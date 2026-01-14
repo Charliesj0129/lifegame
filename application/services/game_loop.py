@@ -33,6 +33,9 @@ class GameLoop:
         try:
             # 1. Get User
             user = await user_service.get_or_create_user(session, user_id)
+            # Ensure optional fields exist to avoid render crashes
+            if not hasattr(user, "job_class") or getattr(user, "job_class", None) is None:
+                setattr(user, "job_class", "Novice")
 
             # 2. Vitals Check (Hollowed)
             is_hollowed = getattr(user, "is_hollowed", False) is True

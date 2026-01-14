@@ -27,6 +27,9 @@ class UserService:
             user.push_times = {"morning": "08:00", "midday": "12:30", "night": "21:00"}
             session.add(user)
             await session.commit()
+        # Guard optional fields to avoid downstream render errors
+        if getattr(user, "job_class", None) is None:
+            user.job_class = "Novice"
         return user
 
     async def get_user(self, session: AsyncSession, line_user_id: str) -> User | None:

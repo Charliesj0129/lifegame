@@ -101,5 +101,11 @@ class InventoryService:
         session.add_all(items)
         await session.commit()
 
+    async def get_active_buffs(self, session: AsyncSession, user_id: str):
+        """
+        Returns active buffs affecting XP/loot. Placeholder for now (no buffs system wired).
+        """
+        return []
+
 
 inventory_service = InventoryService()
