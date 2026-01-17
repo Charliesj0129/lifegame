@@ -34,7 +34,7 @@ try:
 except ImportError:
     m = MagicMock()
     m.__path__ = []
-    sys.modules["google"] = MagicMock() # Ensure google namespace exists
+    sys.modules["google"] = MagicMock()  # Ensure google namespace exists
     sys.modules["google.genai"] = m
     # specific fix for google.generativeai if needed
     sys.modules["google.generativeai"] = MagicMock()
