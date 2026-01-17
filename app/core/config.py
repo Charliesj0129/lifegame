@@ -9,29 +9,35 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
 
     # Database
-    POSTGRES_SERVER: str = "localhost"
+    DATABASE_URL: Optional[str] = Field(
+        default=None, validation_alias=AliasChoices("DATABASE_URL", "SQLALCHEMY_DATABASE_URI")
+    )
+
+    # Legacy Postgres fields (Deprecated, prefer DATABASE_URL)
+    POSTGRES_SERVER: Optional[str] = None
     POSTGRES_USER: str = "postgres"
     POSTGRES_PASSWORD: str = "changethis"
     POSTGRES_DB: str = "lifgame"
     POSTGRES_PORT: int = 5432
-    SQLALCHEMY_DATABASE_URI: Optional[Union[PostgresDsn, str]] = None
 
-    @field_validator("SQLALCHEMY_DATABASE_URI", mode="before")
+    @field_validator("DATABASE_URL", mode="before")
     @classmethod
     def assemble_db_connection(cls, v: Optional[str], info) -> Any:
-        # If explicitly set (e.g., via env var), use it directly
+        # 1. Trust explicit config
         if isinstance(v, str) and v:
             return v
-        # Otherwise, check if we have proper Postgres config
+
+        # 2. Check for Legacy Postgres Config
         data = info.data if hasattr(info, "data") else {}
-        pg_server = data.get("POSTGRES_SERVER", "localhost")
+        pg_server = data.get("POSTGRES_SERVER")
+        if pg_server and pg_server != "localhost":
+            return f"postgresql+asyncpg://{data.get('POSTGRES_USER')}:{data.get('POSTGRES_PASSWORD')}@{pg_server}:{data.get('POSTGRES_PORT')}/{data.get('POSTGRES_DB')}"
 
-        # Default to SQLite if POSTGRES_SERVER is localhost or missing
-        # (Assumes production should explicitly set DATABASE_URL or POSTGRES_SERVER)
-        if pg_server in (None, "", "localhost", "127.0.0.1"):
-            return "sqlite+aiosqlite:///./data/game.db"
+        # 3. Default to SQLite (Development Mode)
+        import logging
 
-        return f"postgresql+asyncpg://{data.get('POSTGRES_USER')}:{data.get('POSTGRES_PASSWORD')}@{pg_server}:{data.get('POSTGRES_PORT')}/{data.get('POSTGRES_DB') or ''}"
+        logging.warning("⚠️ No DATABASE_URL found using SQLite (dev mode). Persistence NOT guaranteed.")
+        return "sqlite+aiosqlite:///./data/game.db"
 
     # Kuzu Graph DB
     KUZU_DATABASE_PATH: str = "./data/lifegame_graph"

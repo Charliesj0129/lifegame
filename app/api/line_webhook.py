@@ -19,18 +19,22 @@ import uuid
 import json
 
 from app.core.config import settings
-from legacy.services.line_bot import get_messaging_api, get_line_handler
+from app.core.context import get_request_id, set_request_id
+from application.services.line_bot import get_messaging_api, get_line_handler
 import app.core.database
 
 router = APIRouter(prefix="/line", tags=["LINE Webhook"])
 logger = logging.getLogger("lifgame.line")
 
 
-async def process_webhook_background(body_str: str, signature: str):
+async def process_webhook_background(body_str: str, signature: str, request_id: str = None):
     """
     Background Task: Process webhook logic safely.
     Catches all errors to ensure 'Silent Failure' does not happen.
     """
+    if request_id:
+        set_request_id(request_id)
+
     handler = get_line_handler()
     if not handler:
         logger.error("Handler not initialized in background task")
@@ -39,48 +43,47 @@ async def process_webhook_background(body_str: str, signature: str):
     try:
         await handler.handle(body_str, signature)
     except Exception as e:
-        import traceback
-
-        tb = traceback.format_exc()
-        try:
-            with open(
-                "./data/current_error.png", "w"
-            ) as f:  # Use .png to maybe trick webssh if needed, but .log is fine
-                f.write(f"CRITICAL ERROR: {e}\n{tb}")
-        except Exception:
-            pass
         logger.error(f"CRITICAL: Background Webhook Validation/Processing Failed: {e}", exc_info=True)
+
         # Attempt "Last Resort" Reply if possible
-        # We need to parse the body manually to get the replyToken if the handler crashed logic-side
-        # but handled the parsing?
-        # If handler.handle() raises, it means parsing failed OR event handler raised.
-        # Let's try to verify if we can recover a token.
         try:
             data = json.loads(body_str)
             events = data.get("events", [])
             for event in events:
                 reply_token = event.get("replyToken")
                 if reply_token:
-                    await _send_error_reply(reply_token, "CRITICAL_BG_FAIL")
+                    await _send_friendly_error_reply(reply_token, "BG_FAIL")
         except Exception as parse_err:
             logger.error(f"Double Fault: Could not parse body for error reply: {parse_err}")
 
 
-# ... (Handlers remain the same, just showing the end of file fix) ...
-
-
-async def _send_error_reply(reply_token: str, error_code: str = "UNKNOWN"):
-    """Send error message to user (Safety Net)"""
+async def _send_friendly_error_reply(reply_token: str, error_code: str = "UH_OH"):
+    """
+    Send a friendly 'System Hiccup' Flex Message to the user.
+    Includes the Request ID for debugging.
+    """
     try:
         from adapters.perception.line_client import line_client
         from domain.models.game_result import GameResult
+        from application.services.flex_renderer import flex_renderer
 
-        error_hash = uuid.uuid4().hex[:8]
-        msg = f"🔧 系統維護中 ({error_code}-{error_hash})\n\n守護精靈正在修復連結..."
-        result = GameResult(text=msg)
+        req_id = get_request_id()
+        # Fallback to UUID if n/a
+        if not req_id or req_id == "n/a":
+            req_id = uuid.uuid4().hex[:8]
+        else:
+            req_id = req_id[:8]
+
+        # Use Flex Renderer if available for a nice error card
+        # Or just a text message for now
+        msg_text = f"🔧 系統異常 (ID: {req_id})\n守護精靈正在搶修連線... 請稍後再試。"
+
+        # TODO: Create render_error_card in flex_renderer
+        # For now, simple text is safer than risking render error
+        result = GameResult(text=msg_text)
         await line_client.send_reply(reply_token, result)
     except Exception:
-        logger.error("Critical: Failed to send error reply")
+        logger.error("Critical: Failed to send error reply", exc_info=True)
 
 
 @router.post("/callback")
@@ -94,6 +97,9 @@ async def line_callback(request: Request, background_tasks: BackgroundTasks, x_l
     body = await request.body()
     body_str = body.decode("utf-8")
 
+    # Capture Request ID to pass to background task
+    req_id = get_request_id()
+
     # 1. Validation (Fail Fast)
     if x_line_signature is None:
         logger.warning("Missing X-Line-Signature header")
@@ -103,12 +109,6 @@ async def line_callback(request: Request, background_tasks: BackgroundTasks, x_l
     if not handler:
         raise HTTPException(status_code=500, detail="Handler not init")
 
-    # Use parser to validate signature ONLY, without processing events yet?
-    # handler.parser.signature_validator.validate(body_str, x_line_signature)
-    # But AsyncWebhookHandler doesn't expose validator easily without parsing.
-    # However, handler.handle() does validation.
-    # We can trust handler.handle() in background, OR double check signature here.
-    # Ideally check signature here to reject bad requests immediately.
     try:
         if not handler.parser.signature_validator.validate(body_str, x_line_signature):
             raise InvalidSignatureError
@@ -116,8 +116,8 @@ async def line_callback(request: Request, background_tasks: BackgroundTasks, x_l
         logger.warning("Invalid LINE signature")
         raise HTTPException(status_code=400, detail="Invalid signature")
 
-    # 2. Enqueue Background Task
-    background_tasks.add_task(process_webhook_background, body_str, x_line_signature)
+    # 2. Enqueue Background Task with Context
+    background_tasks.add_task(process_webhook_background, body_str, x_line_signature, req_id)
 
     # 3. ACK Immediately
     return {"status": "accepted", "mode": "async_processing"}
@@ -143,20 +143,18 @@ if webhook_handler:
                     await api.show_loading_animation(ShowLoadingAnimationRequest(chat_id=user_id, loading_seconds=10))
             except Exception as e:
                 logger.warning(f"Loading animation failed: {e}")
-                logger.warning(f"Loading animation failed: {e}")
 
         # Check for Help/Manual (Legacy Intercept)
         if user_text.lower() in ["help", "manual", "menu", "幫助", "說明", "選單"]:
             try:
-                from legacy.services.help_service import help_service
-                from legacy.services.flex_renderer import flex_renderer
-                from legacy.services.user_service import user_service
-                from adapters.perception.line_client import line_client
-                from linebot.v3.messaging import ReplyMessageRequest, FlexMessage  # FIX IMPORTS
+                from application.services.help_service import help_service
+                from application.services.flex_renderer import flex_renderer
+                from app.core.container import container
+                from linebot.v3.messaging import ReplyMessageRequest, FlexMessage
 
                 async with app.core.database.AsyncSessionLocal() as session:
                     # Get user context
-                    user = await user_service.get_or_create_user(session, user_id)
+                    user = await container.user_service.get_or_create_user(session, user_id)
                     help_data = await help_service.get_dynamic_help(session, user)
                     flex = flex_renderer.render_help_card(help_data)
 
@@ -190,7 +188,7 @@ if webhook_handler:
 
         except Exception as e:
             logger.error(f"Message handling failed: {e}", exc_info=True)
-            await _send_error_reply(reply_token)
+            await _send_friendly_error_reply(reply_token, "MSG_FAIL")
 
     @webhook_handler.add(MessageEvent, message=ImageMessageContent)
     async def handle_image_message(event: MessageEvent):
@@ -199,7 +197,7 @@ if webhook_handler:
         reply_token = event.reply_token
 
         try:
-            from legacy.services.verification_service import verification_service
+            from application.services.verification_service import verification_service
             from adapters.perception.line_client import line_client
             from domain.models.game_result import GameResult
 
@@ -229,7 +227,7 @@ if webhook_handler:
 
         except Exception as e:
             logger.error(f"Image handling failed: {e}", exc_info=True)
-            await _send_error_reply(reply_token)
+            await _send_friendly_error_reply(reply_token, "IMG_FAIL")
 
     @webhook_handler.add(PostbackEvent)
     async def handle_postback(event: PostbackEvent):
@@ -256,22 +254,28 @@ if webhook_handler:
         try:
             from adapters.perception.line_client import line_client
             from domain.models.game_result import GameResult
-            from legacy.services.quest_service import quest_service
-            from legacy.services.shop_service import shop_service
-            from legacy.services.inventory_service import inventory_service
-            from legacy.services.flex_renderer import flex_renderer
+            from app.core.container import container
+            from application.services.quest_service import quest_service
+            from application.services.shop_service import shop_service
+            from application.services.inventory_service import inventory_service
+            from application.services.flex_renderer import flex_renderer
 
             async with app.core.database.AsyncSessionLocal() as session:
                 response_text = "已收到操作。"
 
                 if action == "reroll_quests":
                     reroll_result = await quest_service.reroll_quests(session, user_id)
-                    if isinstance(reroll_result, tuple) and len(reroll_result) == 2:
-                        quests, viper_taunt = reroll_result
+                    if isinstance(reroll_result, tuple) and len(reroll_result) >= 2:
+                        quests, viper_taunt = reroll_result[:2]
                     else:
                         quests, viper_taunt = reroll_result, None
-                    flex_msg = flex_renderer.render_quest_list(quests)
-                    result = GameResult(text=viper_taunt or "任務已重新生成！", metadata={"flex_message": flex_msg})
+
+                    if quests is None:
+                        # Quests is None means Error or Insufficient funds
+                        result = GameResult(text=viper_taunt or "⚠️ 無法重骰")
+                    else:
+                        flex_msg = flex_renderer.render_quest_list(quests)
+                        result = GameResult(text=viper_taunt or "任務已重新生成！", metadata={"flex_message": flex_msg})
 
                 elif action == "complete_quest":
                     quest_id = params.get("quest_id")
@@ -291,28 +295,11 @@ if webhook_handler:
 
                 elif action == "accept_all_quests":
                     await quest_service.accept_all_pending(session, user_id)
-
-                elif action == "reroll_quests":
-                    new_quests, viper = await quest_service.reroll_quests(session, user_id)
-                    if new_quests is None:
-                        # new_quests is None means Error (viper string contains error msg)
-                        result = GameResult(text=viper)
-                    else:
-                        from legacy.services.flex_renderer import flex_renderer
-
-                        # Re-render quest list
-                        # Need habits too?
-                        habits = await quest_service.get_active_habits(session, user_id)
-                        flex = flex_renderer.render_quest_list(new_quests, habits)
-
-                        msg = "♻️ 任務已重新生成！"
-                        if viper:
-                            msg += f"\n\n🐍 Viper: {viper}"
-                        result = GameResult(text=msg, intent="reroll", metadata={"flex_message": flex})
+                    result = GameResult(text="已接受所有任務！")
 
                 elif action == "craft":
                     recipe_id = params.get("recipe_id")
-                    from legacy.services.crafting_service import crafting_service
+                    from application.services.crafting_service import crafting_service
 
                     if recipe_id:
                         craft_result = await crafting_service.craft_item(session, user_id, recipe_id)
@@ -323,13 +310,13 @@ if webhook_handler:
                         result = GameResult(text="⚠️ 缺少配方ID")
 
                 elif action == "spawn_boss":
-                    from legacy.services.boss_service import boss_service
+                    from application.services.boss_service import boss_service
 
                     spawn_msg = await boss_service.spawn_boss(session, user_id)
                     result = GameResult(text=spawn_msg)
 
                 elif action == "attack_boss":
-                    from legacy.services.boss_service import boss_service
+                    from application.services.boss_service import boss_service
 
                     # Simple MVP: Deal 100 damage
                     dmg_msg = await boss_service.deal_damage(session, user_id, 100)
@@ -339,10 +326,9 @@ if webhook_handler:
                         result = GameResult(text="⚠️ 沒有活躍的首領")
 
                 elif action == "profile":
-                    from legacy.services.flex_renderer import flex_renderer
-                    from legacy.services.user_service import user_service
+                    from application.services.flex_renderer import flex_renderer
 
-                    user = await user_service.get_user(session, user_id)
+                    user = await container.user_service.get_user(session, user_id)
                     if user:
                         flex = flex_renderer.render_profile(user)
                         result = GameResult(text="用戶設定", intent="profile", metadata={"flex_message": flex})
@@ -350,8 +336,6 @@ if webhook_handler:
                         result = GameResult(text="⚠️ 找不到用戶")
 
                 elif action == "toggle_setting":
-                    from legacy.services.user_service import user_service
-
                     key = params.get("key")
                     value_str = params.get("value")
                     # Parse value (simple bool/string)
@@ -362,12 +346,12 @@ if webhook_handler:
                         final_val = False
 
                     if key:
-                        await user_service.update_setting(session, user_id, key, final_val)
+                        await container.user_service.update_setting(session, user_id, key, final_val)
 
                         # Re-render profile
-                        from legacy.services.flex_renderer import flex_renderer
+                        from application.services.flex_renderer import flex_renderer
 
-                        user = await user_service.get_user(session, user_id)
+                        user = await container.user_service.get_user(session, user_id)
                         flex = flex_renderer.render_profile(user)
                         result = GameResult(
                             text=f"設定已更新: {key}", intent="profile", metadata={"flex_message": flex}
@@ -400,7 +384,7 @@ if webhook_handler:
 
         except Exception as e:
             logger.error(f"Postback handling failed: {e}", exc_info=True)
-            await _send_error_reply(reply_token)
+            await _send_friendly_error_reply(reply_token, "PB_FAIL")
 
     @webhook_handler.add(FollowEvent)
     async def handle_follow(event: FollowEvent):
@@ -409,14 +393,14 @@ if webhook_handler:
         reply_token = event.reply_token
 
         try:
-            from legacy.services.rich_menu_service import rich_menu_service
-            from legacy.services.user_service import user_service
+            from application.services.rich_menu_service import rich_menu_service
+            from app.core.container import container
             from adapters.perception.line_client import line_client
             from domain.models.game_result import GameResult
 
             async with app.core.database.AsyncSessionLocal() as session:
                 # Create user if not exists
-                await user_service.get_or_create_user(session, user_id)
+                await container.user_service.get_or_create_user(session, user_id)
 
             # Link user to main rich menu (sync call)
             rich_menu_service.link_user(user_id, "MAIN")
@@ -427,27 +411,3 @@ if webhook_handler:
 
         except Exception as e:
             logger.error(f"Follow handling failed: {e}", exc_info=True)
-
-
-async def _send_system_error_reply(reply_token: str, error_code: str = "UNKNOWN"):
-    """Send error message to user (Safety Net)"""
-    try:
-        from adapters.perception.line_client import line_client
-        from domain.models.game_result import GameResult
-
-        error_hash = uuid.uuid4().hex[:8]
-        msg = f"🔧 系統維護中 ({error_code}-{error_hash})\n\n守護精靈正在修復連結..."
-        result = GameResult(text=msg)
-        await line_client.send_reply(reply_token, result)
-    except Exception:
-        logger.error("Critical: Failed to send error reply")
-    """Send error message to user"""
-    try:
-        from adapters.perception.line_client import line_client
-        from domain.models.game_result import GameResult
-
-        error_hash = uuid.uuid4().hex[:8]
-        result = GameResult(text=f"⚠️ 系統異常 ({error_hash})")
-        await line_client.send_reply(reply_token, result)
-    except Exception:
-        logger.error("Critical: Failed to send error reply")

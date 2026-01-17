@@ -3,8 +3,8 @@ import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from app.models.base import Base
-from legacy.models.gamification import Item, UserItem
-from legacy.services.inventory_service import inventory_service
+from app.models.gamification import Item, UserItem
+from application.services.inventory_service import inventory_service
 
 
 # Setup in-memory DB for test

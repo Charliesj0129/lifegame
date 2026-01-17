@@ -119,9 +119,9 @@ from app.models.base import Base
 
 # Import all models to ensure they are registered with Base
 from app.models.user import User
-from legacy.models.gamification import Item, UserItem, Recipe, Boss
-from legacy.models.quest import Quest
-from legacy.models.dda import HabitState
+from app.models.gamification import Item, UserItem, Recipe, Boss
+from app.models.quest import Quest
+from app.models.dda import HabitState
 # Add other model imports as needed if they are in different modules not imported by above
 
 

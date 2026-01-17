@@ -11,8 +11,8 @@ from unittest.mock import AsyncMock, patch
 
 from app.models.base import Base
 from app.models.user import User
-from legacy.models.quest import Quest, QuestStatus
-from legacy.services.verification_service import verification_service, Verdict
+from app.models.quest import Quest, QuestStatus
+from application.services.verification_service import verification_service, Verdict
 
 
 @pytest_asyncio.fixture
@@ -144,7 +144,7 @@ async def test_verify_text_with_mock_ai(db_session):
         "detected_labels": ["跑步", "運動"],
     }
 
-    with patch("legacy.services.ai_engine.ai_engine.verify_multimodal", new_callable=AsyncMock) as mock_verify:
+    with patch("application.services.ai_engine.ai_engine.verify_multimodal", new_callable=AsyncMock) as mock_verify:
         mock_verify.return_value = mock_response
 
         result = await verification_service.verify_text(db_session, quest, "我剛跑完 5 公里，流了一身汗")
@@ -166,7 +166,7 @@ async def test_verify_image_with_mock_ai(db_session):
         "detected_labels": ["gym", "weights", "treadmill"],
     }
 
-    with patch("legacy.services.ai_engine.ai_engine.verify_multimodal", new_callable=AsyncMock) as mock_verify:
+    with patch("application.services.ai_engine.ai_engine.verify_multimodal", new_callable=AsyncMock) as mock_verify:
         mock_verify.return_value = mock_response
 
         result = await verification_service.verify_image(db_session, quest, b"fake_gym_image_bytes")

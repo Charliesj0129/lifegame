@@ -1,13 +1,13 @@
 import pytest
 import pytest_asyncio
 from unittest.mock import AsyncMock, patch, MagicMock
-from legacy.services.npc_service import npc_service
+from application.services.npc_service import npc_service
 
 
 @pytest.mark.asyncio
 async def test_npc_profiles():
     # 1. Test Kael (Merchant)
-    with patch("legacy.services.ai_engine.ai_engine.generate_json", new_callable=AsyncMock) as mock_ai:
+    with patch("application.services.ai_engine.ai_engine.generate_json", new_callable=AsyncMock) as mock_ai:
         mock_ai.return_value = {"dialogue": "Price goes up tomorrow."}
 
         ctx = {"item_bought": "Potion", "cost": 50, "user_gold_left": 10}
@@ -23,7 +23,7 @@ async def test_npc_profiles():
         assert "Kael" in prompt
 
     # 2. Test Aria (Mentor)
-    with patch("legacy.services.ai_engine.ai_engine.generate_json", new_callable=AsyncMock) as mock_ai:
+    with patch("application.services.ai_engine.ai_engine.generate_json", new_callable=AsyncMock) as mock_ai:
         mock_ai.return_value = {"dialogue": "Discipline is freedom."}
 
         dialogue = await npc_service.get_dialogue("aria", "User reached streak 10.")

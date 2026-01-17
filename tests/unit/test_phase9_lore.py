@@ -4,8 +4,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from app.models.base import Base
-from legacy.models.lore import LoreProgress, LoreEntry
-from legacy.services.lore_service import lore_service
+from app.models.lore import LoreProgress, LoreEntry
+from application.services.lore_service import lore_service
 
 
 # Setup in-memory DB for test
@@ -25,7 +25,7 @@ async def test_lore_unlock_flow(db_session):
     user_id = "u_lore_test"
 
     # Mock AI
-    with patch("legacy.services.ai_engine.ai_engine.generate_json", new_callable=AsyncMock) as mock_ai:
+    with patch("application.services.ai_engine.ai_engine.generate_json", new_callable=AsyncMock) as mock_ai:
         mock_ai.return_value = {"title": "Chapter Title", "body": "Story content."}
 
         # 1. Level 1 -> Unlock Chapter 1

@@ -25,7 +25,7 @@ async def test_cognitive_architecture_flow():
         }
 
         # 2. Mock AI Engine to return valid plan
-        with patch("legacy.services.ai_engine.ai_engine.generate_json", new_callable=AsyncMock) as mock_ai:
+        with patch("application.services.ai_engine.ai_engine.generate_json", new_callable=AsyncMock) as mock_ai:
             mock_ai.return_value = {
                 "narrative": "What is the nature of your request?",
                 "stat_update": {"xp_amount": 20},
@@ -66,7 +66,7 @@ async def test_cognitive_fallback():
         }
 
         # Force AI Failure
-        with patch("legacy.services.ai_engine.ai_engine.generate_json", side_effect=Exception("AI Down")):
+        with patch("application.services.ai_engine.ai_engine.generate_json", side_effect=Exception("AI Down")):
             plan = await brain_service.think_with_session(mock_session, "user", "Hello")
 
             assert "Cipher Interference" in plan.narrative

@@ -5,9 +5,9 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy import select
 from app.models.base import Base
 from app.models.user import User
-from legacy.models.gamification import Item, UserItem, ItemRarity, ItemType
-from legacy.services.shop_service import shop_service
-from legacy.services.inventory_service import inventory_service
+from app.models.gamification import Item, UserItem, ItemRarity, ItemType
+from application.services.shop_service import shop_service
+from application.services.inventory_service import inventory_service
 import uuid
 
 

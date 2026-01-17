@@ -1,8 +1,22 @@
-import pytest
+import sys
 from unittest.mock import MagicMock, AsyncMock, patch
+import pytest
+
+# --- MOCK KUZU BEFORE IMPORTS ---
+mock_kuzu_mod = MagicMock()
+sys.modules["kuzu"] = mock_kuzu_mod
+mock_adapter_mod = MagicMock()
+sys.modules["adapters.persistence.kuzu.adapter"] = mock_adapter_mod
+# --------------------------------
+
+import app.core.container as container_mod
+
+
+# --------------------------------
+
 from application.services.loot_service import loot_service, LootResult
-from legacy.services.quest_service import quest_service
-from legacy.models.quest import Quest, QuestStatus
+from application.services.quest_service import quest_service
+from app.models.quest import Quest, QuestStatus
 
 
 @pytest.mark.asyncio
@@ -66,9 +80,39 @@ async def test_quest_service_complete_integration():
     mock_user.is_hollowed = False
     mock_user.hp_status = "NORMAL"
     # User service get_user
-    with patch("legacy.services.user_service.user_service.get_user", new_callable=AsyncMock) as mock_get_user:
-        mock_get_user.return_value = mock_user
+    mock_user_svc = MagicMock()
+    mock_get_user = AsyncMock(return_value=mock_user)
+    mock_user_svc.get_user = mock_get_user
+    container_mod.container._user_service = mock_user_svc
 
+    # --- SETUP MOCKS LOCALLY ---
+    # Mock Kuzu Adapter Pattern
+    mock_kuzu_instance = MagicMock()
+    mock_kuzu_instance.query_recent_context = AsyncMock(return_value=[])
+    mock_kuzu_instance.record_user_event = AsyncMock()
+
+    # Patch ContextService Singleton
+    from application.services.context_service import context_service
+
+    original_kuzu = context_service.kuzu
+    context_service.kuzu = mock_kuzu_instance
+
+    # Mock GraphService
+    mock_graph_svc = MagicMock()
+    mock_graph_adapter = MagicMock()
+    mock_graph_adapter.add_node = AsyncMock()
+    mock_graph_adapter.add_relationship = AsyncMock()
+    mock_graph_svc.adapter = mock_graph_adapter
+    # Note: sys.modules patching for graph_service is hard to undo cleanly without context manager
+    # We will use patch.dict for sys.modules if needed, or rely on runtime import patching if possible.
+    # But for now, since GraphService is imported by QuestService at RUNTIME inside complete_quest (line 241),
+    # we can patch sys.modules inside the test.
+    graph_patcher = patch.dict(
+        sys.modules, {"application.services.graph_service": MagicMock(graph_service=mock_graph_svc)}
+    )
+    graph_patcher.start()
+
+    try:
         # Fix: Real datetime for days logic
         import datetime
 
@@ -77,9 +121,14 @@ async def test_quest_service_complete_integration():
         # Mock Boss Service (ignore)
         # Mock Boss Service (ignore)
         with (
-            patch("legacy.services.boss_service.boss_service.deal_damage", new_callable=AsyncMock),
-            patch("legacy.services.hp_service.hp_service.restore_by_difficulty", new_callable=AsyncMock),
+            patch("application.services.boss_service.boss_service.deal_damage", new_callable=AsyncMock),
+            patch("application.services.hp_service.hp_service.restore_by_difficulty", new_callable=AsyncMock),
         ):
+            # FORCE PATCH KUZU ON SINGLETON (AIEngine uses it)
+            from application.services.context_service import context_service
+
+            context_service.kuzu.query_recent_context = AsyncMock(return_value=[])
+
             result = await quest_service.complete_quest(mock_session, "u1", "q1")
 
             assert result is not None
@@ -96,3 +145,7 @@ async def test_quest_service_complete_integration():
 
             # Check Quest DONE
             assert mock_quest.status == QuestStatus.DONE.value
+    finally:
+        container_mod.container._user_service = None
+        context_service.kuzu = original_kuzu
+        graph_patcher.stop()

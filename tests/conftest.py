@@ -37,11 +37,11 @@ from app.models.base import Base
 
 # Import all models to ensure metadata is populated
 from app.models.user import User
-from legacy.models.quest import Quest, Goal, Rival
-from legacy.models.dda import DailyOutcome
-from legacy.models.gamification import Item, UserItem
-from legacy.models.action_log import ActionLog
-from legacy.models.conversation_log import ConversationLog
+from app.models.quest import Quest, Goal, Rival
+from app.models.dda import DailyOutcome
+from app.models.gamification import Item, UserItem
+from app.models.action_log import ActionLog
+from app.models.conversation_log import ConversationLog
 
 DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 

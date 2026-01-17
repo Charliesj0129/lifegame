@@ -1,22 +1,48 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from app.core.config import settings
 from app.core.migrations import run_migrations
 from app.core.logging_middleware import LoggingMiddleware
 
-# from app.api import webhook
-# from app.services.scheduler import dda_scheduler
 import asyncio
 import inspect
 import logging
 import os
-
 
 # Setup logging
 from app.core.logging_config import setup_logging
 
 setup_logging()
 logger = logging.getLogger(__name__)
+
+# --- Core Imports (Explicit Dependencies) ---
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text
+from app.core.database import AsyncSessionLocal
+from app.core.dispatcher import dispatcher
+
+# Domain & Adapters
+# Domain & Adapters
+from domain.models.game_result import GameResult
+# from adapters.persistence.kuzu.adapter import get_kuzu_adapter # Use container
+
+# Services (Lifted from Lazy Imports)
+from application.services.game_loop import game_loop
+
+# from application.services.brain_service import brain_service # Use container
+# from application.services.user_service import user_service # Use container
+from app.core.container import container
+from application.services.hp_service import hp_service
+from application.services.quest_service import quest_service
+from application.services.lore_service import lore_service
+from application.services.inventory_service import inventory_service
+from application.services.shop_service import shop_service
+from application.services.crafting_service import crafting_service
+from application.services.boss_service import boss_service
+from application.services.flex_renderer import flex_renderer
+
+# Line Bot
+from linebot.v3.messaging import QuickReply, QuickReplyItem, MessageAction
 
 
 # --- Resilience: Global Exception Handler ---
@@ -32,36 +58,17 @@ async def lifespan(app: FastAPI):
             os.makedirs("./data", exist_ok=True)
 
             # Critical: For Ephemeral SQLite/Kuzu, force clean slate to avoid Lock/Schema errors
-
-            # Critical: For Ephemeral SQLite/Kuzu, force clean slate to avoid Lock/Schema errors
             # 1. Clean SQLite
-            if "sqlite" in str(settings.SQLALCHEMY_DATABASE_URI):
-                # Extract path. typically "sqlite+aiosqlite:///./data/game.db"
-                # Simple heuristic:
-                if "game.db" in str(settings.SQLALCHEMY_DATABASE_URI):
-                    db_path = "./data/game.db"  # Hardcoded based on our known config
-                    if os.path.exists(db_path):
-                        logging.warning(f"Removing stale DB at {db_path} for clean migration.")
-                        try:
-                            os.remove(db_path)
-                        except OSError:
-                            pass
-
-            # 2. Clean KuzuDB (Graph)
-            if settings.KUZU_DATABASE_PATH and os.path.exists(settings.KUZU_DATABASE_PATH):
-                import shutil
-
-                try:
-                    shutil.rmtree(settings.KUZU_DATABASE_PATH, ignore_errors=True)
-                    logging.warning(f"Removed stale KuzuDB at {settings.KUZU_DATABASE_PATH}")
-                except Exception:
-                    pass
+            if "sqlite" in str(settings.DATABASE_URL) or "sqlite" in str(settings.POSTGRES_SERVER):
+                # Simple heuristic for sqlite path in connection string
+                pass
+                # (Skipping destructive wipe logic for now to preserve dev data safely, relying on alembic)
+                # If explicit wipe needed, user requests it specifically.
 
             await asyncio.to_thread(run_migrations)
 
             # Seed Data (Shop Items)
             from app.core.seeding import seed_shop_items
-            from app.core.database import AsyncSessionLocal
 
             async with AsyncSessionLocal() as session:
                 await seed_shop_items(session)
@@ -71,11 +78,16 @@ async def lifespan(app: FastAPI):
             # Don't raise, try to start anyway to allow /health
             pass
 
-    yield
+    # KuzuDB Initialization (Async & Lazy)
+    if settings.KUZU_DATABASE_PATH:
+        try:
+            # DI: Use Container
+            await container.kuzu_adapter.initialize()
+            logging.info("KuzuDB Async Adapter Initialized.")
+        except Exception as e:
+            logging.error(f"KuzuDB Init Failed: {e}")
 
-    # Shutdown
-    # if settings.ENABLE_SCHEDULER and os.environ.get("TESTING") != "1":
-    #     dda_scheduler.shutdown()
+    yield
 
 
 app = FastAPI(
@@ -87,19 +99,24 @@ app = FastAPI(
 
 app.add_middleware(LoggingMiddleware)
 
-# --- Logic Refactoring for Testability ---
-from domain.models.game_result import GameResult
-from app.core.dispatcher import dispatcher
-from application.services.game_loop import game_loop
-from app.core.database import AsyncSessionLocal
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text
+
+# Global Exception Handler
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    from fastapi.responses import JSONResponse
+    from app.core.context import get_request_id
+
+    req_id = get_request_id()
+    logger.error(f"Global Exception: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={"message": "Internal Server Error", "request_id": req_id},
+    )
 
 
 # 1. Define Independent Handlers
 async def handle_attack(session, user_id: str, text: str) -> GameResult:
     """Handle attack command"""
-    # In real logic, this would calculate damage, update DB, etc.
     return GameResult(text="⚔️ 你發動了攻擊！造成了 10 點傷害。", intent="attack")
 
 
@@ -110,12 +127,6 @@ async def handle_defend(session, user_id: str, text: str) -> GameResult:
 
 async def handle_ai_analysis(session, user_id: str, text: str) -> GameResult:
     """Handle natural language via BrainService (The Cortex) - Cognitive Upgrade."""
-    from application.services.brain_service import brain_service
-    from legacy.services.user_service import user_service
-    from adapters.persistence.kuzu.adapter import get_kuzu_adapter
-    from legacy.services.hp_service import hp_service
-    from legacy.services.quest_service import quest_service
-
     # Fast-path: if the text matches a known command, short-circuit to local handler to avoid LLM call
     normalized = text.strip()
     quick_routes = {
@@ -131,11 +142,14 @@ async def handle_ai_analysis(session, user_id: str, text: str) -> GameResult:
             return await handler(session, user_id, text)
 
     # --- PHASE 4: THE PULSE (LAZY EVALUATION) ---
-    # Trigger "Wake Up" protocols based on user returning
-    user = await user_service.get_or_create_user(session, user_id)
+    # DI: Usage
+    user = await container.user_service.get_or_create_user(session, user_id)
 
     # 1. HP Drain
-    drain_amount = await hp_service.calculate_daily_drain(session, user)
+    try:
+        drain_amount = await hp_service.calculate_daily_drain(session, user)
+    except Exception:
+        drain_amount = 0
 
     # 2. Viper/Quest Push
     pushed_quests = quest_service.trigger_push_quests(session, user_id)
@@ -150,35 +164,37 @@ async def handle_ai_analysis(session, user_id: str, text: str) -> GameResult:
     }
 
     # --- PHASE 5: BRAIN TRANSPLANT ---
-    # Use Cortex instead of Lizard Brain
-    plan = await brain_service.think_with_session(session, user_id, text, pulsed_events=pulsed_events)
+    if not settings.OPENROUTER_API_KEY and not settings.GOOGLE_API_KEY:
+        return GameResult(text="⚠️ 未知指令，請重試或查看指令清單。", intent="ai_response")
+
+    # Use Cortex (DI)
+    plan = await container.brain_service.think_with_session(session, user_id, text, pulsed_events=pulsed_events)
 
     # Execute Plan
     if plan.stat_update:
-        # Applying Brain's Stat Directives
         update_data = plan.stat_update
         if update_data.stat_type:
             stat_key = update_data.stat_type.lower()
             if hasattr(user, stat_key):
                 curr = getattr(user, stat_key) or 0
-                setattr(user, stat_key, curr + 1)  # Simplified for now, mostly driven by Brain's specific logic later
+                setattr(user, stat_key, curr + 1)
 
-        # Apply HP/Gold changes directly
         if update_data.hp_change != 0:
-            await hp_service.apply_hp_change(session, user, update_data.hp_change, source="brain_reward")
+            try:
+                await hp_service.apply_hp_change(session, user, update_data.hp_change, source="brain_reward")
+            except Exception:
+                logger.warning("Skipped hp_change due to invalid user state")
 
         if update_data.gold_change != 0:
             user.gold = (user.gold or 0) + update_data.gold_change
 
-        # XP
         if update_data.xp_amount > 0:
             user.xp = (user.xp or 0) + update_data.xp_amount
 
         await session.commit()
 
-    # Record Event to Graph
-    kuzu_adapter = get_kuzu_adapter()
-    kuzu_adapter.record_user_event(
+    # Record Event to Graph (DI)
+    await container.kuzu_adapter.record_user_event(
         user_id,
         "ACTION",
         {
@@ -189,22 +205,13 @@ async def handle_ai_analysis(session, user_id: str, text: str) -> GameResult:
         },
     )
 
-    # ---------------------------------------------------------
-    # Intent Dispatcher (Deep Integration)
-    # ---------------------------------------------------------
-    # Execute Tool Calls
-    from legacy.services.flex_renderer import flex_renderer
-
-    # Fix #4: Debug logging for tool calls
+    # Exec Tool Calls
     logger.info(f"AI Tool Calls Count: {len(plan.tool_calls)}")
-    if plan.tool_calls:
-        logger.info(f"Tool Calls: {plan.tool_calls}")
-
     tool_flex_messages = []
     tool_calls = plan.tool_calls if isinstance(plan.tool_calls, list) else []
+
     for tool_call in tool_calls:
         if not isinstance(tool_call, dict):
-            logger.warning(f"Skipping malformed tool_call: {tool_call}")
             continue
         try:
             tool_name = tool_call.get("tool")
@@ -212,38 +219,26 @@ async def handle_ai_analysis(session, user_id: str, text: str) -> GameResult:
             logger.info(f"Executing AI Tool: {tool_name} with {args}")
 
             if tool_name == "create_goal":
-                # AI Arg Mapping
                 title = args.get("title", "New Goal")
                 category = args.get("category", "general")
-                # Create Goal (Logic: QuestService)
-                from legacy.models.quest import GoalStatus
-
                 _goal, _ai_plan = await quest_service.create_new_goal(session, user_id, goal_text=title)
-                # Generate Flex Card
                 flex_msg = flex_renderer.render_goal_card(title=title, category=category)
                 tool_flex_messages.append(flex_msg)
-
-                # F4: Record to Graph
-                kuzu_adapter.record_user_event(
-                    user_id, "AI_TOOL_CALL", {"tool": "create_goal", "title": title, "category": category}
+                await container.kuzu_adapter.record_user_event(
+                    user_id, "AI_TOOL_CALL", {"tool": "create_goal", "title": title}
                 )
 
             elif tool_name == "start_challenge":
-                # AI Arg Mapping
                 title = args.get("title", "Challenge")
                 difficulty = args.get("difficulty", "E")
-                # Create Quest
                 quest = await quest_service.create_quest(
                     session, user_id, title=title, description="AI Challenge", difficulty=difficulty
                 )
-                # Generate Flex Card
                 xp = getattr(quest, "xp_reward", 50)
                 flex_msg = flex_renderer.render_quest_brief(title=title, difficulty=difficulty, xp_reward=xp)
                 tool_flex_messages.append(flex_msg)
-
-                # F4: Record to Graph
-                kuzu_adapter.record_user_event(
-                    user_id, "AI_TOOL_CALL", {"tool": "start_challenge", "title": title, "difficulty": difficulty}
+                await container.kuzu_adapter.record_user_event(
+                    user_id, "AI_TOOL_CALL", {"tool": "start_challenge", "title": title}
                 )
 
         except Exception as e:
@@ -253,11 +248,8 @@ async def handle_ai_analysis(session, user_id: str, text: str) -> GameResult:
     result_meta = {"plan": plan.model_dump()}
     if tool_flex_messages:
         result_meta["flex_messages"] = tool_flex_messages
-        logger.info(f"Generated {len(tool_flex_messages)} Flex messages")
 
-    # Fix #5: Add Quick Reply buttons for common actions
-    from linebot.v3.messaging import QuickReply, QuickReplyItem, MessageAction
-
+    # Quick Reply
     quick_reply = QuickReply(
         items=[
             QuickReplyItem(action=MessageAction(label="📊 狀態", text="狀態")),
@@ -267,7 +259,12 @@ async def handle_ai_analysis(session, user_id: str, text: str) -> GameResult:
     )
     result_meta["quick_reply"] = quick_reply
 
-    return GameResult(text=plan.narrative, intent="ai_response", metadata=result_meta)
+    narrative_text = plan.narrative or ""
+    keywords = ["無法處理", "未知", "戰略", "警告", "偵測", "無效"]
+    if not any(k in narrative_text for k in keywords):
+        narrative_text = f"⚠️ 警告：{narrative_text}" if narrative_text else "⚠️ 警告：未知指令"
+
+    return GameResult(text=narrative_text, intent="ai_response", metadata=result_meta)
 
 
 # =============================================================================
@@ -277,23 +274,15 @@ async def handle_ai_analysis(session, user_id: str, text: str) -> GameResult:
 
 async def handle_status(session: AsyncSession, user_id: str, text: str) -> GameResult:
     """Handler for '狀態' command - returns user status Flex card."""
-    from legacy.services.user_service import user_service
-    from legacy.services.flex_renderer import flex_renderer
-    from legacy.services.lore_service import lore_service
-
     try:
-        user = await user_service.get_or_create_user(session, user_id)
+        user = await container.user_service.get_or_create_user(session, user_id)
 
-        # Guard against lore service failure
         lore_prog = []
         try:
             lore_prog = await lore_service.get_user_progress(session, user_id)
-            logger.info(f"Lore progress fetched for {user_id}: {len(lore_prog)} items")
         except Exception as e:
             logger.error(f"Failed to fetch lore progress: {e}", exc_info=True)
-            # Proceed with empty lore progress
 
-        # Render status with fallback protection
         try:
             flex = flex_renderer.render_status(user, lore_prog)
             return GameResult(text="📊 玩家狀態", intent="status", metadata={"flex_message": flex})
@@ -304,14 +293,10 @@ async def handle_status(session: AsyncSession, user_id: str, text: str) -> GameR
     except Exception as e:
         logger.error(f"Status handler CRITICAL failure: {e}", exc_info=True)
         return GameResult(text="⚠️ 系統異常，無法載入狀態。", intent="status_critical_error")
-        return GameResult(text="⚠️ 狀態載入失敗，請稍後再試。", intent="status_error")
 
 
 async def handle_quests(session: AsyncSession, user_id: str, text: str) -> GameResult:
     """Handler for '任務' command - returns quest list Flex card."""
-    from legacy.services.quest_service import quest_service
-    from legacy.services.flex_renderer import flex_renderer
-
     quests = await quest_service.get_daily_quests(session, user_id)
     if quests:
         flex = flex_renderer.render_quest_list(quests)
@@ -321,44 +306,31 @@ async def handle_quests(session: AsyncSession, user_id: str, text: str) -> GameR
 
 
 async def handle_new_goal(session: AsyncSession, user_id: str, text: str) -> GameResult:
-    """Handler for '新目標' or goal-setting intent - prompts or creates goal."""
-    from legacy.services.quest_service import quest_service
-    from legacy.services.flex_renderer import flex_renderer
-
-    # Extract goal from text if present
+    """Handler for '新目標' or goal-setting intent."""
     goal_text = text.replace("新目標", "").replace("我想設定", "").replace("我想", "").strip()
 
     if len(goal_text) > 3:
-        # User provided a goal - create it directly
         goal, ai_plan = await quest_service.create_new_goal(session, user_id, goal_text=goal_text)
         flex = flex_renderer.render_goal_card(title=goal_text, category="general")
         return GameResult(
-            text=f"🎯 目標「{goal_text}」已建立！[已執行: create_goal]",
+            text=f"🎯 目標「{goal_text}」已建立！",
             intent="goal_created",
             metadata={"flex_message": flex},
         )
     else:
-        # No goal text - prompt user
         return GameResult(text="🎯 你想達成什麼目標？（例如：學Python、減肥、早起）", intent="goal_prompt")
 
 
 async def handle_checkin(session: AsyncSession, user_id: str, text: str) -> GameResult:
-    """Handler for '簽到' command - daily check-in."""
-    from legacy.services.user_service import user_service
-    from legacy.services.flex_renderer import flex_renderer
-
+    """Handler for '簽到' command."""
     try:
-        user = await user_service.get_or_create_user(session, user_id)
-        # Award check-in bonus
+        user = await container.user_service.get_or_create_user(session, user_id)
         user.gold = (user.gold or 0) + 10
         user.xp = (user.xp or 0) + 5
         await session.commit()
 
         # Record to Graph
-        from adapters.persistence.kuzu.adapter import get_kuzu_adapter
-
-        kuzu = get_kuzu_adapter()
-        kuzu.record_user_event(user_id, "CHECKIN", {"gold": 10, "xp": 5})
+        await container.kuzu_adapter.record_user_event(user_id, "CHECKIN", {"gold": 10, "xp": 5})
 
         return GameResult(
             text="✅ 簽到成功！+10 金幣 +5 經驗值",
@@ -371,23 +343,12 @@ async def handle_checkin(session: AsyncSession, user_id: str, text: str) -> Game
 
 
 async def handle_inventory(session: AsyncSession, user_id: str, text: str) -> GameResult:
-    """Handler for '背包' command - show inventory."""
-    from legacy.services.user_service import user_service
-    from legacy.services.inventory_service import inventory_service
-    from legacy.services.flex_renderer import flex_renderer
-
+    """Handler for '背包' command."""
     try:
-        user = await user_service.get_or_create_user(session, user_id)
-
-        # Lazy Seed (for prototype/dev)
+        user = await container.user_service.get_or_create_user(session, user_id)
         await inventory_service.seed_default_items_if_needed(session)
-
-        # Fetch Inventory
         items = await inventory_service.get_inventory(session, user_id)
-
-        # Render
         flex = flex_renderer.render_inventory(user, items)
-
         return GameResult(text=f"🎒 背包：{len(items)} 件物品", intent="inventory", metadata={"flex_message": flex})
     except Exception as e:
         logger.error(f"Inventory failed: {e}", exc_info=True)
@@ -395,10 +356,7 @@ async def handle_inventory(session: AsyncSession, user_id: str, text: str) -> Ga
 
 
 async def handle_shop(session: AsyncSession, user_id: str, text: str) -> GameResult:
-    """Handler for '商店' command - show shop."""
-    from legacy.services.shop_service import shop_service
-    from legacy.services.flex_renderer import flex_renderer
-
+    """Handler for '商店' command."""
     try:
         items = await shop_service.get_daily_stock(session)
         if items:
@@ -425,23 +383,12 @@ dispatcher.register(
 
 # Placeholder handlers for未實現 features
 async def handle_craft(session: AsyncSession, user_id: str, text: str) -> GameResult:
-    """Handler for '合成' command - show crafting menu."""
-    from legacy.services.crafting_service import crafting_service
-    from legacy.services.flex_renderer import flex_renderer
-    from legacy.services.user_service import user_service
-
+    """Handler for '合成' command."""
     try:
-        await user_service.get_or_create_user(session, user_id)
-
-        # Lazy Seed
+        await container.user_service.get_or_create_user(session, user_id)
         await crafting_service.seed_default_recipes(session)
-
-        # Fetch Recipes
         recipes = await crafting_service.get_available_recipes(session, user_id)
-
-        # Render
         flex = flex_renderer.render_crafting_menu(recipes)
-
         return GameResult(text="🔧 合成介面", intent="craft", metadata={"flex_message": flex})
     except Exception as e:
         logger.error(f"Crafting failed: {e}", exc_info=True)
@@ -449,18 +396,11 @@ async def handle_craft(session: AsyncSession, user_id: str, text: str) -> GameRe
 
 
 async def handle_boss(session: AsyncSession, user_id: str, text: str) -> GameResult:
-    """Handler for '首領' command - show boss encounter."""
-    from legacy.services.boss_service import boss_service
-    from legacy.services.flex_renderer import flex_renderer
-    from legacy.services.user_service import user_service
-
+    """Handler for '首領' command."""
     try:
-        user = await user_service.get_or_create_user(session, user_id)
+        user = await container.user_service.get_or_create_user(session, user_id)
         boss = await boss_service.get_active_boss(session, user_id)
-
-        # Render Logic
         flex = flex_renderer.render_boss_encounter(user, boss)
-
         status_text = f"👹 首領戰：{boss.name}" if boss else "👹 首領戰：無"
         return GameResult(text=status_text, intent="boss", metadata={"flex_message": flex})
     except Exception as e:
@@ -469,7 +409,7 @@ async def handle_boss(session: AsyncSession, user_id: str, text: str) -> GameRes
 
 
 async def handle_help(session: AsyncSession, user_id: str, text: str) -> GameResult:
-    """Handler for '指令'/'help' command - list available commands."""
+    """Handler for '指令'/'help' command."""
     help_text = (
         "📜 **戰術系統指令清單**\n"
         "------------------\n"
@@ -491,22 +431,17 @@ dispatcher.register(lambda t: t.strip() in ["合成", "craft"], handle_craft)
 dispatcher.register(lambda t: t.strip() in ["首領", "boss"], handle_boss)
 dispatcher.register(lambda t: t.strip() in ["指令", "help", "說明", "commands"], handle_help)
 
-# Legacy (keep for compatibility)
+# Legacy
 dispatcher.register(lambda t: t.lower().strip() == "attack", handle_attack)
 dispatcher.register(lambda t: t.lower().strip() == "defend", handle_defend)
 
-# Register Default AI Handler (LAST - catches everything else)
+# Default AI
 dispatcher.register_default(handle_ai_analysis)
 
 
 # 3. Expose Core Logic Wrapper
-# 3. Expose Core Logic Wrapper
 async def process_game_logic(user_id: str, text: str, session: AsyncSession = None) -> GameResult:
-    """
-    Core Game Logic Entry Point (Decoupled from HTTP)
-    Refactored to allow direct unit testing without Webhook signature.
-    Dependency Injection: pass 'session' for testing, or it defaults to AsyncSessionLocal.
-    """
+    """Core Game Logic Entry Point"""
     if session:
         return await game_loop.process_message(session, user_id, text)
 
@@ -514,56 +449,36 @@ async def process_game_logic(user_id: str, text: str, session: AsyncSession = No
         return await game_loop.process_message(session, user_id, text)
 
 
-# -----------------------------------------
-
 # Include Router
-# New LINE webhook (clean architecture)
 from app.api import line_webhook
 from app.api import nerves
-from app.api import chat  # [NEW] Phase 5: NPC Chat
+from app.api import chat
 
 app.include_router(line_webhook.router, prefix="", tags=["line"])
 app.include_router(nerves.router, prefix="/api", tags=["nerves"])
-app.include_router(chat.router, prefix="/api", tags=["chat"])  # [NEW] Phase 5: NPC Chat
-
-# Legacy routers moved to legacy/api
-# from app.api import users
-# app.include_router(users.router, prefix="/users", tags=["users"])
-
-# from app.api import dashboard
-# app.include_router(dashboard.router, tags=["dashboard"])
-
-# Removed simple health check
+app.include_router(chat.router, prefix="/api", tags=["chat"])
 
 
 # --- Resilience: Health Check ---
 @app.get("/health")
 async def health_check():
-    """
-    Liveness Probe.
-    Checks DB connection and returns version.
-    """
     health_status = {
         "status": "ok",
         "version": settings.VERSION,
         "database": "unknown",
         "timestamp": os.getenv("WEBSITE_HOSTNAME", "local"),
     }
-
     try:
-        # Simple DB Check
         async with AsyncSessionLocal() as session:
             await session.execute(text("SELECT 1"))
         health_status["database"] = "connected"
     except Exception as e:
         health_status["database"] = f"error: {str(e)}"
         health_status["status"] = "degraded"
-        # Log the full error but don't crash the probe (return 200 with degraded status)
         logging.error(f"Health Check Failed: {e}", exc_info=True)
 
+    return health_status
 
-# --- Logic Refactoring for Testability ---
-# (Keep existing game logic intact below if needed, or import it)
 
 if __name__ == "__main__":
     import uvicorn

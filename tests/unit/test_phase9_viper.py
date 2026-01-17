@@ -2,8 +2,8 @@ import pytest
 import pytest_asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 from sqlalchemy.ext.asyncio import AsyncSession
-from legacy.services.narrative_service import narrative_service
-from legacy.services.ai_engine import ai_engine
+from application.services.narrative_service import narrative_service
+from application.services.ai_engine import ai_engine
 
 
 # Mock User and Rival classes
@@ -35,8 +35,8 @@ async def test_viper_hostile():
     mock_rival = MockRival(level=50)
 
     with (
-        patch("legacy.services.rival_service.rival_service.get_rival", new_callable=AsyncMock) as mock_get_rival,
-        patch("legacy.services.ai_engine.ai_engine.generate_json", new_callable=AsyncMock) as mock_ai,
+        patch("application.services.rival_service.rival_service.get_rival", new_callable=AsyncMock) as mock_get_rival,
+        patch("application.services.ai_engine.ai_engine.generate_json", new_callable=AsyncMock) as mock_ai,
     ):
         mock_get_rival.return_value = mock_rival
         mock_ai.return_value = {"comment": "You assume I care?"}
@@ -61,8 +61,8 @@ async def test_viper_competitive():
     mock_rival = MockRival(level=12)
 
     with (
-        patch("legacy.services.rival_service.rival_service.get_rival", new_callable=AsyncMock) as mock_get_rival,
-        patch("legacy.services.ai_engine.ai_engine.generate_json", new_callable=AsyncMock) as mock_ai,
+        patch("application.services.rival_service.rival_service.get_rival", new_callable=AsyncMock) as mock_get_rival,
+        patch("application.services.ai_engine.ai_engine.generate_json", new_callable=AsyncMock) as mock_ai,
     ):
         mock_get_rival.return_value = mock_rival
         mock_ai.return_value = {"comment": "Catch me if you can."}
@@ -86,8 +86,8 @@ async def test_viper_respectful():
     mock_rival = MockRival(level=50)
 
     with (
-        patch("legacy.services.rival_service.rival_service.get_rival", new_callable=AsyncMock) as mock_get_rival,
-        patch("legacy.services.ai_engine.ai_engine.generate_json", new_callable=AsyncMock) as mock_ai,
+        patch("application.services.rival_service.rival_service.get_rival", new_callable=AsyncMock) as mock_get_rival,
+        patch("application.services.ai_engine.ai_engine.generate_json", new_callable=AsyncMock) as mock_ai,
     ):
         mock_get_rival.return_value = mock_rival
         mock_ai.return_value = {"comment": "Not bad."}

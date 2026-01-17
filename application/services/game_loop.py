@@ -5,11 +5,11 @@ from typing import Optional, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from domain.models.game_result import GameResult
-from legacy.services.user_service import user_service
-from legacy.services.persona_service import persona_service
-from legacy.services.audio_service import audio_service
-from legacy.services.rival_service import rival_service
-from legacy.services.hp_service import hp_service
+from app.core.container import container
+from application.services.persona_service import persona_service
+from application.services.audio_service import audio_service
+from application.services.rival_service import rival_service
+from application.services.hp_service import hp_service
 
 # Dispatcher is imported inside method to avoid circular imports during refactor?
 # Or just import it. app.core.dispatcher imports services, so check cycles.
@@ -32,7 +32,7 @@ class GameLoop:
     async def process_message(self, session: AsyncSession, user_id: str, text: str) -> GameResult:
         try:
             # 1. Get User
-            user = await user_service.get_or_create_user(session, user_id)
+            user = await container.user_service.get_or_create_user(session, user_id)
             # Ensure optional fields exist to avoid render crashes
             if not hasattr(user, "job_class") or getattr(user, "job_class", None) is None:
                 setattr(user, "job_class", "Novice")
@@ -84,8 +84,8 @@ class GameLoop:
             if intent == "hollowed_rescue":
                 sender = persona_service.SYSTEM
             elif intent == "get_status":
-                from legacy.services.lore_service import lore_service
-                from legacy.services.flex_renderer import flex_renderer
+                from application.services.lore_service import lore_service
+                from application.services.flex_renderer import flex_renderer
 
                 lore_prog = await lore_service.get_user_progress(session, user_id)
                 flex_msg = flex_renderer.render_status(user, lore_prog)
@@ -95,8 +95,8 @@ class GameLoop:
                 sender = persona_service.SYSTEM
 
             elif intent == "get_quests":
-                from legacy.services.quest_service import quest_service
-                from legacy.services.flex_renderer import flex_renderer
+                from application.services.quest_service import quest_service
+                from application.services.flex_renderer import flex_renderer
 
                 quests = await quest_service.get_daily_quests(session, user_id)
                 habits = await quest_service.get_daily_habits(session, user_id)

@@ -1,11 +1,12 @@
 import logging
+import inspect
 from typing import List, Dict, Any, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from datetime import datetime, timezone, timedelta
 
 from adapters.persistence.kuzu.adapter import get_kuzu_adapter
-from legacy.models.action_log import ActionLog
+from app.models.action_log import ActionLog
 from app.models.user import User
 
 logger = logging.getLogger(__name__)
@@ -31,7 +32,7 @@ class ContextService:
         short_term_str = "\n".join([f"- {log.action_text} ({log.timestamp})" for log in short_term_logs])
 
         # 2. Long Term Context (Graph)
-        long_term_data = self.kuzu.query_recent_context(user_id, limit=5)
+        long_term_data = await self.kuzu.query_recent_context(user_id, limit=5)
 
         # 3. User State & Time
         user_state = await self._get_user_state(session, user_id)
@@ -52,7 +53,13 @@ class ContextService:
                 select(ActionLog).where(ActionLog.user_id == user_id).order_by(desc(ActionLog.timestamp)).limit(limit)
             )
             result = await session.execute(stmt)
-            return result.scalars().all()
+            scalars = result.scalars()
+            if inspect.isawaitable(scalars):
+                scalars = await scalars
+            items = scalars.all()
+            if inspect.isawaitable(items):
+                items = await items
+            return items
         except Exception as e:
             logger.error(f"Failed to fetch ActionLog: {e}")
             return []
@@ -61,7 +68,14 @@ class ContextService:
         """Calculate Motivation, Churn Risk (EOMM)."""
         try:
             stmt = select(User).where(User.id == user_id)
-            user = (await session.execute(stmt)).scalars().first()
+            res = await session.execute(stmt)
+            scalars = res.scalars()
+            if inspect.isawaitable(scalars):
+                scalars = await scalars
+            user_obj = scalars.first()
+            if inspect.isawaitable(user_obj):
+                user_obj = await user_obj
+            user = user_obj
             if not user:
                 return {}
 

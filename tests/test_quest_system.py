@@ -5,11 +5,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from app.models.base import Base
-from legacy.models.quest import Quest, QuestStatus, Goal, GoalStatus, QuestType
+from app.models.quest import Quest, QuestStatus, Goal, GoalStatus, QuestType
 from app.models.user import User
-from legacy.services.quest_service import quest_service
-from legacy.services.flex_renderer import flex_renderer
-from legacy.services.ai_engine import ai_engine
+from application.services.quest_service import quest_service
+from application.services.flex_renderer import flex_renderer
+from application.services.ai_engine import ai_engine
 import datetime
 
 DATABASE_URL = "sqlite+aiosqlite:///:memory:"
@@ -38,9 +38,9 @@ async def test_quest_generation(db_session):
     await db_session.commit()
 
     with (
-        patch("legacy.services.ai_engine.ai_engine.generate_json", new_callable=AsyncMock) as mock_ai,
-        patch("legacy.services.rival_service.RivalService.get_rival", new_callable=AsyncMock) as mock_get_rival,
-        patch("legacy.services.user_service.UserService.get_user", new_callable=AsyncMock) as mock_get_user,
+        patch("application.services.ai_engine.ai_engine.generate_json", new_callable=AsyncMock) as mock_ai,
+        patch("application.services.rival_service.RivalService.get_rival", new_callable=AsyncMock) as mock_get_rival,
+        patch("application.services.user_service.UserService.get_user", new_callable=AsyncMock) as mock_get_user,
     ):
         mock_ai.return_value = {
             "quests": [
@@ -146,9 +146,9 @@ async def test_reroll_logic(db_session):
     await db_session.commit()
 
     with (
-        patch("legacy.services.ai_engine.ai_engine.generate_json", new_callable=AsyncMock) as mock_ai,
-        patch("legacy.services.rival_service.RivalService.get_rival", new_callable=AsyncMock) as mock_get_rival,
-        patch("legacy.services.user_service.UserService.get_user", new_callable=AsyncMock) as mock_get_user,
+        patch("application.services.ai_engine.ai_engine.generate_json", new_callable=AsyncMock) as mock_ai,
+        patch("application.services.rival_service.RivalService.get_rival", new_callable=AsyncMock) as mock_get_rival,
+        patch("application.services.user_service.UserService.get_user", new_callable=AsyncMock) as mock_get_user,
     ):
         # side_effect for multiple calls: 1. Taunt (due to failed q1), 2. New Batch
         mock_ai.side_effect = [
@@ -209,7 +209,7 @@ async def test_create_new_goal_with_ai(db_session):
         ]
     }
 
-    with patch("legacy.services.ai_engine.ai_engine.generate_json", new_callable=AsyncMock) as mock_ai:
+    with patch("application.services.ai_engine.ai_engine.generate_json", new_callable=AsyncMock) as mock_ai:
         mock_ai.return_value = mock_plan
 
         user_id = "U_AI_TEST"
@@ -245,9 +245,9 @@ async def test_generate_daily_quests_with_active_goal(db_session):
     await db_session.commit()
 
     with (
-        patch("legacy.services.ai_engine.ai_engine.generate_json", new_callable=AsyncMock) as mock_ai,
-        patch("legacy.services.rival_service.RivalService.get_rival", new_callable=AsyncMock) as mock_get_rival,
-        patch("legacy.services.user_service.UserService.get_user", new_callable=AsyncMock) as mock_get_user,
+        patch("application.services.ai_engine.ai_engine.generate_json", new_callable=AsyncMock) as mock_ai,
+        patch("application.services.rival_service.RivalService.get_rival", new_callable=AsyncMock) as mock_get_rival,
+        patch("application.services.user_service.UserService.get_user", new_callable=AsyncMock) as mock_get_user,
     ):
         mock_ai.return_value = {
             "quests": [
@@ -310,10 +310,10 @@ async def test_ai_timeout_fallback(db_session):
         # Mock dependencies
         with (
             patch(
-                "legacy.services.rival_service.RivalService.get_rival",
+                "application.services.rival_service.RivalService.get_rival",
                 new_callable=AsyncMock,
             ) as m1,
-            patch("legacy.services.user_service.UserService.get_user", new_callable=AsyncMock) as m2,
+            patch("application.services.user_service.UserService.get_user", new_callable=AsyncMock) as m2,
         ):
             m1.return_value = MagicMock(level=1)
             m2.return_value = MagicMock(level=1)
