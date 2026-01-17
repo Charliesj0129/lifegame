@@ -239,6 +239,7 @@ class QuestService:
             try:
                 # Use GraphService adapter property
                 from application.services.graph_service import graph_service
+
                 adapter = graph_service.adapter
 
                 # Create Goal Node
@@ -836,14 +837,18 @@ class QuestService:
         if getattr(delete_result, "rowcount", 0) == 0:
             # Fallback for SQLite rowcount quirks: ensure removal via ORM path
             existing = (
-                await session.execute(
-                    select(Quest).where(
-                        Quest.user_id == user_id,
-                        func.date(Quest.created_at) == today,
-                        Quest.status != QuestStatus.DONE.value,
+                (
+                    await session.execute(
+                        select(Quest).where(
+                            Quest.user_id == user_id,
+                            func.date(Quest.created_at) == today,
+                            Quest.status != QuestStatus.DONE.value,
+                        )
                     )
                 )
-            ).scalars().all()
+                .scalars()
+                .all()
+            )
             for quest in existing:
                 await session.delete(quest)
             await session.flush()

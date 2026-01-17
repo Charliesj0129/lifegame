@@ -11,7 +11,6 @@ sys.modules["adapters.persistence.kuzu.adapter"] = mock_adapter_mod
 # --------------------------------
 
 
-
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from app.models.base import Base
@@ -38,14 +37,15 @@ async def mock_kuzu():
     mock_kuzu_instance = MagicMock()
     mock_kuzu_instance.query_recent_context = AsyncMock(return_value=[])
     mock_kuzu_instance.record_user_event = AsyncMock()
-    
+
     # Patch ContextService
     from application.services.context_service import context_service
+
     original_kuzu = context_service.kuzu
     context_service.kuzu = mock_kuzu_instance
-    
+
     yield mock_kuzu_instance
-    
+
     # Teardown
     context_service.kuzu = original_kuzu
 

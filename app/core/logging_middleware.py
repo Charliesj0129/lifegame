@@ -15,7 +15,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         # 1. Generate & Set Request ID for this context
         request_id = str(uuid.uuid4())
         set_request_id(request_id)
-        
+
         start_time = time.time()
 
         # 2. Process request
@@ -32,7 +32,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             # 3. Log Latency if enabled
             if settings.ENABLE_LATENCY_LOGS:
                 process_time = (time.time() - start_time) * 1000
-                
+
                 # We pass a dict as 'extra' so JSONFormatter can merge it
                 logger.info(
                     "Request finished",
@@ -42,7 +42,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
                         "status_code": status_code,
                         "duration_ms": round(process_time, 2),
                         "client_ip": request.client.host if request.client else None,
-                    }
+                    },
                 )
 
         return response

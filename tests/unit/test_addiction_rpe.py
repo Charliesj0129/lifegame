@@ -12,8 +12,6 @@ sys.modules["adapters.persistence.kuzu.adapter"] = mock_adapter_mod
 import app.core.container as container_mod
 
 
-
-
 # --------------------------------
 
 from application.services.loot_service import loot_service, LootResult
@@ -92,9 +90,10 @@ async def test_quest_service_complete_integration():
     mock_kuzu_instance = MagicMock()
     mock_kuzu_instance.query_recent_context = AsyncMock(return_value=[])
     mock_kuzu_instance.record_user_event = AsyncMock()
-    
+
     # Patch ContextService Singleton
     from application.services.context_service import context_service
+
     original_kuzu = context_service.kuzu
     context_service.kuzu = mock_kuzu_instance
 
@@ -108,9 +107,10 @@ async def test_quest_service_complete_integration():
     # We will use patch.dict for sys.modules if needed, or rely on runtime import patching if possible.
     # But for now, since GraphService is imported by QuestService at RUNTIME inside complete_quest (line 241),
     # we can patch sys.modules inside the test.
-    graph_patcher = patch.dict(sys.modules, {"application.services.graph_service": MagicMock(graph_service=mock_graph_svc)})
+    graph_patcher = patch.dict(
+        sys.modules, {"application.services.graph_service": MagicMock(graph_service=mock_graph_svc)}
+    )
     graph_patcher.start()
-
 
     try:
         # Fix: Real datetime for days logic
@@ -126,6 +126,7 @@ async def test_quest_service_complete_integration():
         ):
             # FORCE PATCH KUZU ON SINGLETON (AIEngine uses it)
             from application.services.context_service import context_service
+
             context_service.kuzu.query_recent_context = AsyncMock(return_value=[])
 
             result = await quest_service.complete_quest(mock_session, "u1", "q1")

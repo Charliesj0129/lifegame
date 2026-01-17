@@ -12,7 +12,7 @@ class JSONFormatter(logging.Formatter):
 
     def format(self, record):
         from app.core.context import get_request_id
-        
+
         log_obj = {
             "timestamp": datetime.fromtimestamp(record.created).isoformat(),
             "level": record.levelname,

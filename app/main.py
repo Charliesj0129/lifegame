@@ -28,6 +28,7 @@ from domain.models.game_result import GameResult
 
 # Services (Lifted from Lazy Imports)
 from application.services.game_loop import game_loop
+
 # from application.services.brain_service import brain_service # Use container
 # from application.services.user_service import user_service # Use container
 from app.core.container import container
@@ -59,15 +60,16 @@ async def lifespan(app: FastAPI):
             # Critical: For Ephemeral SQLite/Kuzu, force clean slate to avoid Lock/Schema errors
             # 1. Clean SQLite
             if "sqlite" in str(settings.DATABASE_URL) or "sqlite" in str(settings.POSTGRES_SERVER):
-                 # Simple heuristic for sqlite path in connection string
-                 pass 
-                 # (Skipping destructive wipe logic for now to preserve dev data safely, relying on alembic)
-                 # If explicit wipe needed, user requests it specifically.
+                # Simple heuristic for sqlite path in connection string
+                pass
+                # (Skipping destructive wipe logic for now to preserve dev data safely, relying on alembic)
+                # If explicit wipe needed, user requests it specifically.
 
             await asyncio.to_thread(run_migrations)
 
             # Seed Data (Shop Items)
             from app.core.seeding import seed_shop_items
+
             async with AsyncSessionLocal() as session:
                 await seed_shop_items(session)
 
@@ -207,7 +209,7 @@ async def handle_ai_analysis(session, user_id: str, text: str) -> GameResult:
     logger.info(f"AI Tool Calls Count: {len(plan.tool_calls)}")
     tool_flex_messages = []
     tool_calls = plan.tool_calls if isinstance(plan.tool_calls, list) else []
-    
+
     for tool_call in tool_calls:
         if not isinstance(tool_call, dict):
             continue
@@ -222,16 +224,22 @@ async def handle_ai_analysis(session, user_id: str, text: str) -> GameResult:
                 _goal, _ai_plan = await quest_service.create_new_goal(session, user_id, goal_text=title)
                 flex_msg = flex_renderer.render_goal_card(title=title, category=category)
                 tool_flex_messages.append(flex_msg)
-                await container.kuzu_adapter.record_user_event(user_id, "AI_TOOL_CALL", {"tool": "create_goal", "title": title})
+                await container.kuzu_adapter.record_user_event(
+                    user_id, "AI_TOOL_CALL", {"tool": "create_goal", "title": title}
+                )
 
             elif tool_name == "start_challenge":
                 title = args.get("title", "Challenge")
                 difficulty = args.get("difficulty", "E")
-                quest = await quest_service.create_quest(session, user_id, title=title, description="AI Challenge", difficulty=difficulty)
+                quest = await quest_service.create_quest(
+                    session, user_id, title=title, description="AI Challenge", difficulty=difficulty
+                )
                 xp = getattr(quest, "xp_reward", 50)
                 flex_msg = flex_renderer.render_quest_brief(title=title, difficulty=difficulty, xp_reward=xp)
                 tool_flex_messages.append(flex_msg)
-                await container.kuzu_adapter.record_user_event(user_id, "AI_TOOL_CALL", {"tool": "start_challenge", "title": title})
+                await container.kuzu_adapter.record_user_event(
+                    user_id, "AI_TOOL_CALL", {"tool": "start_challenge", "title": title}
+                )
 
         except Exception as e:
             logger.error(f"Tool Execution Failed ({tool_name}): {e}", exc_info=True)
@@ -263,11 +271,12 @@ async def handle_ai_analysis(session, user_id: str, text: str) -> GameResult:
 # Phase 3: Chinese Command Handlers (Fixes 1-4)
 # =============================================================================
 
+
 async def handle_status(session: AsyncSession, user_id: str, text: str) -> GameResult:
     """Handler for '狀態' command - returns user status Flex card."""
     try:
         user = await container.user_service.get_or_create_user(session, user_id)
-        
+
         lore_prog = []
         try:
             lore_prog = await lore_service.get_user_progress(session, user_id)
@@ -449,6 +458,7 @@ app.include_router(line_webhook.router, prefix="", tags=["line"])
 app.include_router(nerves.router, prefix="/api", tags=["nerves"])
 app.include_router(chat.router, prefix="/api", tags=["chat"])
 
+
 # --- Resilience: Health Check ---
 @app.get("/health")
 async def health_check():
@@ -469,6 +479,8 @@ async def health_check():
 
     return health_status
 
+
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

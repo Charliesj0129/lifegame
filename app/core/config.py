@@ -9,7 +9,9 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
 
     # Database
-    DATABASE_URL: Optional[str] = Field(default=None, validation_alias=AliasChoices("DATABASE_URL", "SQLALCHEMY_DATABASE_URI"))
+    DATABASE_URL: Optional[str] = Field(
+        default=None, validation_alias=AliasChoices("DATABASE_URL", "SQLALCHEMY_DATABASE_URI")
+    )
 
     # Legacy Postgres fields (Deprecated, prefer DATABASE_URL)
     POSTGRES_SERVER: Optional[str] = None
@@ -24,15 +26,16 @@ class Settings(BaseSettings):
         # 1. Trust explicit config
         if isinstance(v, str) and v:
             return v
-        
+
         # 2. Check for Legacy Postgres Config
         data = info.data if hasattr(info, "data") else {}
         pg_server = data.get("POSTGRES_SERVER")
         if pg_server and pg_server != "localhost":
-             return f"postgresql+asyncpg://{data.get('POSTGRES_USER')}:{data.get('POSTGRES_PASSWORD')}@{pg_server}:{data.get('POSTGRES_PORT')}/{data.get('POSTGRES_DB')}"
+            return f"postgresql+asyncpg://{data.get('POSTGRES_USER')}:{data.get('POSTGRES_PASSWORD')}@{pg_server}:{data.get('POSTGRES_PORT')}/{data.get('POSTGRES_DB')}"
 
         # 3. Default to SQLite (Development Mode)
         import logging
+
         logging.warning("⚠️ No DATABASE_URL found using SQLite (dev mode). Persistence NOT guaranteed.")
         return "sqlite+aiosqlite:///./data/game.db"
 

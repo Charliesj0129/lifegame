@@ -14,14 +14,14 @@ logger = logging.getLogger(__name__)
 class KuzuAdapter(GraphPort):
     def __init__(self, db_path: str = None):
         """
-        Lightweight initialization. 
+        Lightweight initialization.
         Does NOT touch the filesystem or create DB locks yet.
         """
         self.db_path = db_path or settings.KUZU_DATABASE_PATH
         self.db = None
         self.conn = None
         self._initialized = False
-        
+
         # In-memory caches for graph traversal optimization
         self._quest_dependencies: Dict[str, Set[str]] = {}
         self._quest_dependency_nodes: Set[str] = set()
@@ -48,7 +48,7 @@ class KuzuAdapter(GraphPort):
         """Blocking initialization logic (runs in thread)"""
         if os.path.dirname(self.db_path):
             os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
-            
+
         try:
             self.db = kuzu.Database(self.db_path)
             self.conn = kuzu.Connection(self.db)
@@ -80,11 +80,15 @@ class KuzuAdapter(GraphPort):
 
             # Define Schema
             safe_create("CREATE NODE TABLE User(id STRING, name STRING, PRIMARY KEY (id))")
-            safe_create("CREATE NODE TABLE NPC(id STRING, name STRING, role STRING, personality STRING, mood STRING, PRIMARY KEY (id))")
+            safe_create(
+                "CREATE NODE TABLE NPC(id STRING, name STRING, role STRING, personality STRING, mood STRING, PRIMARY KEY (id))"
+            )
             safe_create("CREATE NODE TABLE Concept(name STRING, description STRING, PRIMARY KEY (name))")
             safe_create("CREATE NODE TABLE Quest(id STRING, title STRING, status STRING, PRIMARY KEY (id))")
             safe_create("CREATE NODE TABLE Location(name STRING, description STRING, PRIMARY KEY (name))")
-            safe_create("CREATE NODE TABLE Event(id STRING, type STRING, content STRING, timestamp INT64, metadata STRING, PRIMARY KEY (id))")
+            safe_create(
+                "CREATE NODE TABLE Event(id STRING, type STRING, content STRING, timestamp INT64, metadata STRING, PRIMARY KEY (id))"
+            )
 
             # Relationships
             safe_create("CREATE REL TABLE HATES(FROM NPC TO Concept)")
@@ -244,7 +248,7 @@ class KuzuAdapter(GraphPort):
         except Exception as e:
             logger.error(f"Failed to get user history: {e}")
             return []
-            
+
     # Alias for compatibility (updated to async alias)
     query_recent_context = get_user_history
 
@@ -397,8 +401,8 @@ class KuzuAdapter(GraphPort):
             return {"name": npc_name, "role": "Unknown", "mood": "Neutral", "likes": [], "hates": [], "cares_about": []}
 
 
-
 _kuzu_instance = None
+
 
 def get_kuzu_adapter() -> KuzuAdapter:
     global _kuzu_instance

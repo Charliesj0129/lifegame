@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.sql.expression import func
 
 # TODO: Move these models to application/domain later
-from app.models.gamification import Item, ItemRarity, UserItem 
+from app.models.gamification import Item, ItemRarity, UserItem
 from application.services.brain.flow_controller import flow_controller
 
 logger = logging.getLogger(__name__)
@@ -40,10 +40,15 @@ class LootService:
             ItemRarity.UNCOMMON: 35.0,
             ItemRarity.RARE: 10.0,
             ItemRarity.EPIC: 4.0,
-            ItemRarity.LEGENDARY: 1.0, 
+            ItemRarity.LEGENDARY: 1.0,
         }
         self.diff_multipliers = {
-            "F": 0.5, "E": 1.0, "D": 1.2, "C": 1.5, "B": 2.0, "A": 3.0,
+            "F": 0.5,
+            "E": 1.0,
+            "D": 1.2,
+            "C": 1.5,
+            "B": 2.0,
+            "A": 3.0,
         }
 
     def calculate_reward(self, difficulty: str, current_tier: str, churn_risk: str = "LOW") -> LootResult:
@@ -55,7 +60,7 @@ class LootService:
         # 1. Get Flow Context
         state = flow_controller.calculate_next_state(
             current_tier=current_tier,
-            recent_performance=[], 
+            recent_performance=[],
             churn_risk=churn_risk,
         )
         loot_multiplier = state.loot_multiplier
@@ -74,7 +79,7 @@ class LootService:
 
         # RPE Calculation
         rpe_score = actual_xp - base_xp
-        
+
         flavor = "Standard"
         if is_jackpot:
             flavor = "Jackpot"
@@ -140,7 +145,9 @@ class LootService:
         await session.refresh(user_item)
         return user_item
 
-    async def grant_guaranteed_drop(self, session: AsyncSession, user_id: str, min_rarity: ItemRarity = ItemRarity.RARE) -> Item | None:
+    async def grant_guaranteed_drop(
+        self, session: AsyncSession, user_id: str, min_rarity: ItemRarity = ItemRarity.RARE
+    ) -> Item | None:
         order = [ItemRarity.COMMON, ItemRarity.UNCOMMON, ItemRarity.RARE, ItemRarity.EPIC, ItemRarity.LEGENDARY]
         try:
             min_index = order.index(min_rarity)

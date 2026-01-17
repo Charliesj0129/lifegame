@@ -27,24 +27,27 @@ def mock_sim_kuzu():
     mock_kuzu_instance = MagicMock()
     mock_kuzu_instance.query_recent_context = AsyncMock(return_value=[])
     mock_kuzu_instance.record_user_event = AsyncMock()
-    
+
     # Patch ContextService
     from application.services.context_service import context_service
+
     original_kuzu = context_service.kuzu
     context_service.kuzu = mock_kuzu_instance
-    
+
     # Patch Container
     import app.core.container
+
     original_get_adapter = getattr(app.core.container, "get_kuzu_adapter", None)
     app.core.container.get_kuzu_adapter = MagicMock(return_value=mock_kuzu_instance)
-    
+
     yield
-    
+
     context_service.kuzu = original_kuzu
     if original_get_adapter:
         app.core.container.get_kuzu_adapter = original_get_adapter
     else:
         del app.core.container.get_kuzu_adapter
+
 
 @pytest.mark.asyncio
 async def test_process_game_logic_attack():
@@ -52,7 +55,6 @@ async def test_process_game_logic_attack():
     # Use Container Injection
     mock_user_svc = AsyncMock()
     container._user_service = mock_user_svc
-
 
     with (
         patch("application.services.rival_service.rival_service") as mock_rival_svc,
@@ -62,7 +64,7 @@ async def test_process_game_logic_attack():
     ):
         mock_session = AsyncMock()
         mock_session_cls.return_value.__aenter__.return_value = mock_session
-        
+
         # Helper to ensure session.execute returns an object with scalars().all()
         mock_db_result = MagicMock()
         mock_db_result.scalars.return_value.all.return_value = []
@@ -73,10 +75,9 @@ async def test_process_game_logic_attack():
         mock_user.hp_status = "HEALTHY"
         mock_user.level = 1
 
-
         mock_user_svc.get_or_create_user.return_value = mock_user
         mock_user_svc.get_user = AsyncMock(return_value=mock_user)
-        
+
         # Ensure process_encounter is awaitable
         mock_rival_svc.process_encounter = AsyncMock(return_value="")
 
@@ -104,7 +105,7 @@ async def test_process_game_logic_defend():
     ):
         mock_session = AsyncMock()
         mock_session_cls.return_value.__aenter__.return_value = mock_session
-        
+
         mock_db_result = MagicMock()
         mock_db_result.scalars.return_value.all.return_value = []
         mock_session.execute.return_value = mock_db_result
@@ -118,7 +119,7 @@ async def test_process_game_logic_defend():
 
         assert "防禦姿態" in result.text
         assert result.intent == "defend"
-    
+
     container._user_service = None
 
 
@@ -134,16 +135,16 @@ async def test_process_game_logic_unknown():
     ):
         mock_session = AsyncMock()
         mock_session_cls.return_value.__aenter__.return_value = mock_session
-        
+
         mock_db_result = MagicMock()
         mock_db_result.scalars.return_value.all.return_value = []
         mock_session.execute.return_value = mock_db_result
-        
+
         mock_user = MagicMock(is_hollowed=False, hp_status="HEALTHY", level=1)
         mock_user_svc.get_or_create_user.return_value = mock_user
         mock_user_svc.get_user = AsyncMock(return_value=mock_user)
         mock_rival_svc.process_encounter = AsyncMock(return_value="")
-        
+
         mock_rival = MagicMock(level=1)
         mock_rival_svc.get_rival = AsyncMock(return_value=mock_rival)
 
@@ -152,7 +153,8 @@ async def test_process_game_logic_unknown():
 
         # Check if it returned a response (not crash)
         assert result.text is not None
-        assert any(k in result.text for k in ["無法處理", "未知", "戰略", "警告", "偵測", "無效", "訊號", "丟失", "手動"])
-
+        assert any(
+            k in result.text for k in ["無法處理", "未知", "戰略", "警告", "偵測", "無效", "訊號", "丟失", "手動"]
+        )
 
     container._user_service = None

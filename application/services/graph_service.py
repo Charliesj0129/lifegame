@@ -26,6 +26,7 @@ class GraphService:
     def adapter(self) -> KuzuAdapter:
         if self._adapter is None:
             from adapters.persistence.kuzu.adapter import get_kuzu_adapter
+
             self._adapter = get_kuzu_adapter()
         return self._adapter
 
@@ -35,22 +36,22 @@ class GraphService:
 
     async def get_npc_context(self, npc_name: str) -> Dict[str, Any]:
         """Get full context for an NPC including personality, mood, likes, hates"""
-        # Note: KuzuAdapter implementation might still be sync for this valid? 
+        # Note: KuzuAdapter implementation might still be sync for this valid?
         # No, we wrapped EVERYTHING in adapter.py to return coroutines if they use IO.
         # Wait, I didn't verify if I wrapped get_npc_context in adapter.py?
-        # Let me double check if I missed one method in KuzuAdapter rewrite. 
-        # If so, I should fix adapter first? 
+        # Let me double check if I missed one method in KuzuAdapter rewrite.
+        # If so, I should fix adapter first?
         # I suspect I missed get_npc_context in the rewrite list.
         # If I missed it, calling it as sync on an async method is fine IF it was left sync.
-        # BUT if I deleted it? 
+        # BUT if I deleted it?
         # I'll Assume I need to use query logic here if method is missing.
         # Let's try to assume adapter has it or I can reimplement using query.
-        
-        # Checking my previous write_to_file for adapter.py... 
+
+        # Checking my previous write_to_file for adapter.py...
         # I see `query`, `add_node`, `record_user_event`, `get_user_history`, `add_quest_dependency`, `get_unlockable_templates`.
         # I DID MISS `get_npc_context`!
         # Fix: Re-implement it here using `await self.query(...)`.
-        
+
         try:
             # Re-implementing logic here to be safe and async
             result = await asyncio.to_thread(
@@ -89,7 +90,7 @@ class GraphService:
             )
             for row in hates_result:
                 npc_data["hates"].append(row[0])
-            
+
             # Get cares_about
             cares_result = await asyncio.to_thread(
                 self.adapter.query,
@@ -120,6 +121,7 @@ class GraphService:
 
     async def add_user_npc_interaction(self, user_id: str, npc_name: str) -> bool:
         from datetime import datetime
+
         # Manual query since add_relationship might not be exposed or I want clear async
         # But wait, `add_relationship` was probably missed in adapter too?
         # Checking adapter... I see `add_node`, `record_user_event`, `add_quest_dependency`.

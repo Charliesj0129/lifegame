@@ -44,7 +44,7 @@ async def process_webhook_background(body_str: str, signature: str, request_id: 
         await handler.handle(body_str, signature)
     except Exception as e:
         logger.error(f"CRITICAL: Background Webhook Validation/Processing Failed: {e}", exc_info=True)
-        
+
         # Attempt "Last Resort" Reply if possible
         try:
             data = json.loads(body_str)
@@ -77,7 +77,7 @@ async def _send_friendly_error_reply(reply_token: str, error_code: str = "UH_OH"
         # Use Flex Renderer if available for a nice error card
         # Or just a text message for now
         msg_text = f"🔧 系統異常 (ID: {req_id})\n守護精靈正在搶修連線... 請稍後再試。"
-        
+
         # TODO: Create render_error_card in flex_renderer
         # For now, simple text is safer than risking render error
         result = GameResult(text=msg_text)
@@ -96,7 +96,7 @@ async def line_callback(request: Request, background_tasks: BackgroundTasks, x_l
     """
     body = await request.body()
     body_str = body.decode("utf-8")
-    
+
     # Capture Request ID to pass to background task
     req_id = get_request_id()
 
@@ -269,13 +269,13 @@ if webhook_handler:
                         quests, viper_taunt = reroll_result[:2]
                     else:
                         quests, viper_taunt = reroll_result, None
-                    
+
                     if quests is None:
-                         # Quests is None means Error or Insufficient funds
-                         result = GameResult(text=viper_taunt or "⚠️ 無法重骰")
+                        # Quests is None means Error or Insufficient funds
+                        result = GameResult(text=viper_taunt or "⚠️ 無法重骰")
                     else:
-                         flex_msg = flex_renderer.render_quest_list(quests)
-                         result = GameResult(text=viper_taunt or "任務已重新生成！", metadata={"flex_message": flex_msg})
+                        flex_msg = flex_renderer.render_quest_list(quests)
+                        result = GameResult(text=viper_taunt or "任務已重新生成！", metadata={"flex_message": flex_msg})
 
                 elif action == "complete_quest":
                     quest_id = params.get("quest_id")
@@ -336,7 +336,6 @@ if webhook_handler:
                         result = GameResult(text="⚠️ 找不到用戶")
 
                 elif action == "toggle_setting":
-
                     key = params.get("key")
                     value_str = params.get("value")
                     # Parse value (simple bool/string)

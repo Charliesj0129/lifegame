@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 class AIEngine:
     def __init__(self):
         self.model = None
-        self.client = None # For OpenAI
+        self.client = None  # For OpenAI
         self.model_name = None
         self.provider = "none"
         self.rules_context = ""
@@ -104,6 +104,7 @@ class AIEngine:
 
     def _safe_json_load(self, content: str) -> dict | list | None:
         import json
+
         try:
             return json.loads(content)
         except Exception:
@@ -123,7 +124,7 @@ class AIEngine:
                 if attempt == retries - 1:
                     logger.error(f"Function {func.__name__} failed after {retries} attempts: {e}")
                     raise e
-                wait = 2 * (2 ** attempt)  # Simple exponential backoff
+                wait = 2 * (2**attempt)  # Simple exponential backoff
                 logger.warning(f"Retry {attempt + 1}/{retries} for {func.__name__} due to {e}. Waiting {wait}s...")
                 await asyncio.sleep(wait)
 
@@ -142,6 +143,7 @@ class AIEngine:
 
     async def _analyze_action_logic(self, user_text: str) -> dict:
         import time
+
         start_time = time.time() if settings.ENABLE_LATENCY_LOGS else None
 
         if self.provider == "none":
@@ -209,6 +211,7 @@ Output Schema:
             self._log_latency("ai_request_latency", elapsed)
 
         import json
+
         if "```json" in content:
             content = content.replace("```json", "").replace("```", "")
         elif "```" in content:
@@ -217,6 +220,7 @@ Output Schema:
 
     async def analyze_image(self, image_bytes: bytes, mime_type: str, prompt: str) -> dict:
         import time
+
         start = time.time() if settings.ENABLE_LATENCY_LOGS else None
         system_prompt = (
             "Role: Verification AI (The Arbiter). "
@@ -227,15 +231,12 @@ Output Schema:
         try:
             content = ""
             if self.provider == "google":
-                parts = [
-                    system_prompt,
-                    f"Quest Requirement: {prompt}",
-                    {"mime_type": mime_type, "data": image_bytes}
-                ]
+                parts = [system_prompt, f"Quest Requirement: {prompt}", {"mime_type": mime_type, "data": image_bytes}]
                 response = await self.model.generate_content_async(parts)
                 content = response.text
             elif self.provider == "openrouter":
                 import base64
+
                 b64 = base64.b64encode(image_bytes).decode("utf-8")
                 completion = await self.client.chat.completions.create(
                     model=self.model_name,
@@ -262,6 +263,7 @@ Output Schema:
             elif "```" in content:
                 content = content.replace("```", "")
             import json
+
             return json.loads(content)
         except Exception as e:
             logger.error(f"Image Analysis Failed: {e}")
@@ -280,6 +282,7 @@ Output Schema:
 
     async def _generate_json_logic(self, system_prompt: str, user_prompt: str) -> dict:
         import time
+
         start = time.time() if settings.ENABLE_LATENCY_LOGS else None
 
         async def _call_model(prompt_system: str, prompt_user: str) -> str:
@@ -342,17 +345,17 @@ Output Schema:
     # I replaced up to before verify_multimodal, let's verify that I replaced correctly.
     # The EndLine was 454 which includes verify_multimodal start?
     # Original lines 380-454 is verify_multimodal.
-    
+
     # My replacement ends with generate_json, and then I need to confirm verify_multimodal is handled or if I cut it off.
     # The previous file content shows verify_multimodal starting at 380.
     # My replacement provides analyze_image (line 216) and generate_json (line 306).
     # I should also replace verify_multimodal to use legacy SDK or better, use analyze_image / generate_json logic.
-    
+
     # Wait, the instruction was to replace Upto 454.
     # I should include the rewritten verify_multimodal in my replacement content or if I omit it, I need to make sure I don't break the class.
-    
+
     # To be safe, I will include verify_multimodal in the replacement content using the LEGACY SDK logic.
-    
+
     async def verify_multimodal(
         self,
         mode: str,
@@ -398,12 +401,12 @@ Output Schema:
                 try:
                     parts = [
                         system_prompt + "\n" + user_prompt,
-                        {"mime_type": mime_type or "image/jpeg", "data": image_bytes}
+                        {"mime_type": mime_type or "image/jpeg", "data": image_bytes},
                     ]
-                    
+
                     response = await self.model.generate_content_async(parts)
                     content = response.text
-                    
+
                     if "```json" in content:
                         content = content.replace("```json", "").replace("```", "")
                     elif "```" in content:

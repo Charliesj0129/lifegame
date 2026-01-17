@@ -89,6 +89,7 @@ class CraftingService:
         # --- Graph Sync ---
         try:
             from application.services.graph_service import graph_service
+
             adapter = graph_service.adapter
 
             if adapter:
