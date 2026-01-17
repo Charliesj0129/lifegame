@@ -276,7 +276,7 @@ class KuzuAdapter(GraphPort):
         # Simplified for brevity in this refactor, but essentially same as before
         self._ensure_initialized()
         try:
-            completed = self._completed.get(user_id, set())  # Note: cache might be stale in multi-process, but okay for MVP
+            # completed = self._completed.get(user_id, set())  # Note: cache might be stale in multi-process, but okay for MVP
 
             query = (
                 f"MATCH (q:Quest) "
