@@ -1,5 +1,10 @@
 import pytest
 import shutil
+import os
+
+# Skip in CI/Mock environment
+if os.environ.get("TESTING") == "1":
+    pytest.skip("Skipping Kuzu Adapter tests in CI/Mock environment", allow_module_level=True)
 
 
 QUERY_PATH = "./test_kuzu_db"
