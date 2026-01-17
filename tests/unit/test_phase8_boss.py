@@ -4,8 +4,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from app.models.base import Base
 from app.models.user import User
-from legacy.models.gamification import Boss, BossStatus
-from legacy.services.boss_service import boss_service
+from app.models.gamification import Boss, BossStatus
+from application.services.boss_service import boss_service
 
 
 # Setup in-memory DB for test

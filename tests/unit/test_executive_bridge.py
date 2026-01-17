@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from application.services.brain_service import BrainService, AgentSystemAction
-from legacy.models.quest import Quest, QuestStatus, Goal, GoalStatus
+from app.models.quest import Quest, QuestStatus, Goal, GoalStatus
 import datetime
 
 
@@ -55,7 +55,7 @@ async def test_executive_bridge_stagnation(mock_session):
 
     # Mock QuestService
     with patch(
-        "legacy.services.quest_service.quest_service.create_bridge_quest", new_callable=AsyncMock
+        "application.services.quest_service.quest_service.create_bridge_quest", new_callable=AsyncMock
     ) as mock_bridge:
         mock_bridge.return_value = Quest(title="Install Rust", goal_id="g1")
 

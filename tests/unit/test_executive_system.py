@@ -1,8 +1,8 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from application.services.brain_service import BrainService, AgentSystemAction
-from legacy.services.quest_service import QuestService
-from legacy.models.quest import Quest, QuestStatus
+from application.services.quest_service import QuestService
+from app.models.quest import Quest, QuestStatus
 import datetime
 
 
@@ -46,7 +46,7 @@ async def test_executive_judgment_overwhelm(mock_session):
 
     # Mock QuestService
     with patch(
-        "legacy.services.quest_service.quest_service.bulk_adjust_difficulty", new_callable=AsyncMock
+        "application.services.quest_service.quest_service.bulk_adjust_difficulty", new_callable=AsyncMock
     ) as mock_adjust:
         mock_adjust.return_value = 2  # 2 quests updated
 
@@ -87,7 +87,7 @@ async def test_executive_judgment_normal(mock_session):
     mock_session.execute.side_effect = [mock_quests_result, mock_goals_result]
 
     with patch(
-        "legacy.services.quest_service.quest_service.bulk_adjust_difficulty", new_callable=AsyncMock
+        "application.services.quest_service.quest_service.bulk_adjust_difficulty", new_callable=AsyncMock
     ) as mock_adjust:
         action = await brain_service.execute_system_judgment(mock_session, user_id)
         assert action is None

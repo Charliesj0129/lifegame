@@ -5,7 +5,7 @@ from typing import Dict, Any, List, Optional
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
-from legacy.services.ai_engine import ai_engine
+from application.services.ai_engine import ai_engine
 from application.services.context_service import context_service
 from application.services.brain.flow_controller import flow_controller, FlowState
 
@@ -84,7 +84,7 @@ class BrainService:
             from adapters.persistence.kuzu.adapter import get_kuzu_adapter
 
             kuzu = get_kuzu_adapter()
-            graph_history = kuzu.get_user_history(user_id, limit=5)
+            graph_history = await kuzu.get_user_history(user_id, limit=5)
             # Format for prompt injection
             recent_actions = []
             for event in graph_history:
@@ -262,8 +262,8 @@ Detected Intent: {intent_hint} {intent_instruction}
         Analyzes performance metrics and decides on system-level interventions.
         Does NOT generate text. It generates RULES.
         """
-        from legacy.services.quest_service import quest_service
-        from legacy.models.quest import Quest, QuestStatus, Goal, GoalStatus
+        from application.services.quest_service import quest_service
+        from app.models.quest import Quest, QuestStatus, Goal, GoalStatus
 
         # 1. Gather Metrics (Last 3 Days)
         # Using a simple heuristic for now: Active Quests Age
@@ -371,7 +371,7 @@ Detected Intent: {intent_hint} {intent_instruction}
         F5: Generates a weekly performance review.
         Returns: {"grade": "S-F", "summary": str, "xp_total": int, "suggestions": list}
         """
-        from legacy.services.quest_service import quest_service
+        from application.services.quest_service import quest_service
 
         # Fetch week's completed quests
         quests = await quest_service.get_completed_quests_this_week(session, user_id)
@@ -450,7 +450,7 @@ Examples of INVALID: "I don't feel like it", "Too tired", "Lazy"
         F9: AI analyzes habit logs and suggests stacking optimizations.
         Returns a suggestion string.
         """
-        from legacy.services.quest_service import quest_service
+        from application.services.quest_service import quest_service
 
         # Fetch recent habit completions
         habits = await quest_service.get_daily_habits(session, user_id)

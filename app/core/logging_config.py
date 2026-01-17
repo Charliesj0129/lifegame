@@ -11,6 +11,8 @@ class JSONFormatter(logging.Formatter):
     """
 
     def format(self, record):
+        from app.core.context import get_request_id
+        
         log_obj = {
             "timestamp": datetime.fromtimestamp(record.created).isoformat(),
             "level": record.levelname,
@@ -18,6 +20,7 @@ class JSONFormatter(logging.Formatter):
             "module": record.module,
             "funcName": record.funcName,
             "lineNo": record.lineno,
+            "requestId": get_request_id(),
         }
 
         # Include exception info if present

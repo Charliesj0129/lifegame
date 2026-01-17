@@ -3,8 +3,8 @@ import os
 import datetime
 from unittest.mock import MagicMock, AsyncMock, patch
 from sqlalchemy import select
-from legacy.models.quest import Quest, QuestStatus
-from legacy.services.quest_service import quest_service
+from app.models.quest import Quest, QuestStatus
+from application.services.quest_service import quest_service
 from adapters.persistence.kuzu.adapter import KuzuAdapter
 from application.services.graph_service import graph_service
 
@@ -64,7 +64,7 @@ async def test_quest_graph_cycle(db_session, test_graph_adapter):
     # QuestService will try to inject Graph Quest if count >= 2.
     # So we need AI to return at least 1-2 generic quests or we mock the response.
 
-    with patch("legacy.services.quest_service.ai_engine.generate_json", new_callable=AsyncMock) as mock_ai:
+    with patch("application.services.quest_service.ai_engine.generate_json", new_callable=AsyncMock) as mock_ai:
         # AI returns 1 generic quest
         mock_ai.return_value = [{"title": "Generic Task", "desc": "Do things", "diff": "D", "xp": 10}]
 
@@ -120,7 +120,7 @@ async def test_quest_graph_cycle(db_session, test_graph_adapter):
     # If we call _generate_daily_batch directly, it ignores existing check (it just gens).
     # We will call _generate directly.
 
-    with patch("legacy.services.quest_service.ai_engine.generate_json", new_callable=AsyncMock) as mock_ai:
+    with patch("application.services.quest_service.ai_engine.generate_json", new_callable=AsyncMock) as mock_ai:
         mock_ai.return_value = [{"title": "Generic Task 2", "desc": "Do things", "diff": "D", "xp": 10}]
 
         generated_2 = await quest_service._generate_daily_batch(db_session, user_id, time_context="Daily")

@@ -4,9 +4,9 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import select
 from app.models.base import Base
-from legacy.models.gamification import Item, UserItem, Recipe, RecipeIngredient
-from legacy.services.crafting_service import crafting_service
-from legacy.services.inventory_service import inventory_service
+from app.models.gamification import Item, UserItem, Recipe, RecipeIngredient
+from application.services.crafting_service import crafting_service
+from application.services.inventory_service import inventory_service
 
 
 # Setup in-memory DB for test
@@ -55,7 +55,7 @@ async def test_crafting_flow(db_session):
     # 5. Execute Craft
     import unittest.mock
 
-    with unittest.mock.patch("legacy.services.crafting_service.random.random", return_value=0.0):
+    with unittest.mock.patch("application.services.crafting_service.random.random", return_value=0.0):
         res = await crafting_service.craft_item(db_session, user_id, recipe.id)
 
     assert res["success"] is True

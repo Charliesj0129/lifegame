@@ -11,7 +11,7 @@ from app.models.base import Base
 # Import models to ensure they are registered
 # Import models to ensure they are registered
 from app.models.user import User
-# from app.models import * # Avoid wildcard imports of legacy models
+# from app.models import * # Avoid wildcard imports of app.models
 
 config = context.config
 

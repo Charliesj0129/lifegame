@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from application.services.brain_service import BrainService, AgentSystemAction
-from legacy.models.quest import Quest, QuestStatus, Goal, GoalStatus
+from app.models.quest import Quest, QuestStatus, Goal, GoalStatus
 import datetime
 
 
@@ -64,7 +64,7 @@ async def test_reality_sync_overload(mock_session):
         mock_load.return_value = 0.9
 
         with patch(
-            "legacy.services.quest_service.quest_service.bulk_adjust_difficulty", new_callable=AsyncMock
+            "application.services.quest_service.quest_service.bulk_adjust_difficulty", new_callable=AsyncMock
         ) as mock_adjust:
             mock_adjust.return_value = 5
 

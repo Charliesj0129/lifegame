@@ -1,11 +1,11 @@
 import pytest
 from unittest.mock import MagicMock, patch, mock_open
-from legacy.services.rich_menu_service import RichMenuService
+from application.services.rich_menu_service import RichMenuService
 
 
 @pytest.fixture
 def mock_service():
-    with patch("legacy.services.rich_menu_service.settings") as mock_settings:
+    with patch("application.services.rich_menu_service.settings") as mock_settings:
         mock_settings.LINE_CHANNEL_ACCESS_TOKEN = "fake_token"
         service = RichMenuService()
         service.api = MagicMock()

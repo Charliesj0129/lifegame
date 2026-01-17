@@ -13,7 +13,7 @@ from linebot.v3.messaging import (
 from linebot.v3.webhooks import MessageEvent, TextMessageContent
 
 from domain.models.game_result import GameResult
-from legacy.services.line_bot import get_messaging_api  # Legacy helper for now
+from application.services.line_bot import get_messaging_api  # Legacy helper for now
 
 logger = logging.getLogger(__name__)
 
@@ -126,7 +126,7 @@ class LineClient:
             # Let's import persona_service here? Coupling risk.
             # Or assume it was resolved to Name/Icon in GameResult?
             # For Phase 1, import service or helper.
-            from legacy.services.persona_service import persona_service
+            from application.services.persona_service import persona_service
 
             sender_obj = persona_service.get_sender_object(sender_persona)
 

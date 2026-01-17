@@ -1,8 +1,8 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from legacy.services.loot_service import LootService
-from legacy.services.user_service import UserService
-from legacy.models.gamification import ItemRarity
+from application.services.loot_service import LootService
+from application.services.user_service import UserService
+from app.models.gamification import ItemRarity
 from app.models.user import User
 from datetime import datetime, timedelta, timezone
 

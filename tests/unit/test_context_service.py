@@ -3,7 +3,7 @@ import pytest_asyncio
 from datetime import datetime
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from application.services.context_service import ContextService
-from legacy.models.action_log import ActionLog
+from app.models.action_log import ActionLog
 from app.models.user import User
 from app.models.base import Base
 

@@ -5,8 +5,8 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy import select
 from app.models.base import Base
 from app.models.user import User
-from legacy.models.quest import Quest, QuestStatus
-from legacy.services.quest_service import quest_service
+from app.models.quest import Quest, QuestStatus
+from application.services.quest_service import quest_service
 
 
 # Setup in-memory DB for test
