@@ -3,6 +3,43 @@ import sys
 import pytest
 from unittest.mock import MagicMock, patch
 
+# Mock kuzu globally if it fails to import (e.g. in CI or non-compatible env)
+try:
+    import kuzu
+except ImportError:
+    m = MagicMock()
+    m.__path__ = []
+    sys.modules["kuzu"] = m
+
+try:
+    import deepdiff
+except ImportError:
+    m = MagicMock()
+    m.__path__ = []
+    sys.modules["deepdiff"] = m
+
+try:
+    import chromadb
+    import chromadb.config
+except ImportError:
+    m = MagicMock()
+    m.__path__ = []
+    sys.modules["chromadb"] = m
+    sys.modules["chromadb.config"] = MagicMock()
+    sys.modules["chromadb.utils"] = MagicMock()
+    sys.modules["chromadb.api"] = MagicMock()
+
+try:
+    import google.genai
+except ImportError:
+    m = MagicMock()
+    m.__path__ = []
+    sys.modules["google"] = MagicMock() # Ensure google namespace exists
+    sys.modules["google.genai"] = m
+    # specific fix for google.generativeai if needed
+    sys.modules["google.generativeai"] = MagicMock()
+
+
 # Set test environment variables BEFORE any app imports
 os.environ.setdefault("SQLALCHEMY_DATABASE_URI", "sqlite+aiosqlite:///:memory:")
 os.environ.setdefault("TESTING", "1")
