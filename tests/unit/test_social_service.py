@@ -6,8 +6,7 @@ from application.services.social_service import SocialService
 @pytest.fixture
 def mock_kuzu():
     kuzu = MagicMock()
-    kuzu.conn = MagicMock()
-    kuzu.conn.execute = MagicMock()
+    kuzu.query = AsyncMock()  # Must be async
     return kuzu
 
 
@@ -51,11 +50,11 @@ async def test_interact_flow(social_service, mock_kuzu, mock_ai_engine):
     assert call_args.kwargs["persona"]["name"] == "Viper"
 
     # Verify Graph Update (Relationship)
-    mock_kuzu.conn.execute.assert_called()
+    mock_kuzu.query.assert_called()
     # Check if cypher query contains MERGE (u)-[r:KNOWS]->(n)
-    cypher_call = mock_kuzu.conn.execute.call_args[0][0]
-    assert "MERGE (u:User {id: $uid})" in cypher_call
-    assert "MERGE (n:NPC {id: $nid})" in cypher_call
+    cypher_call = mock_kuzu.query.call_args[0][0]
+    assert "MERGE (u:User {id: '" + user_id + "'})" in cypher_call
+    assert "MERGE (n:NPC {id: '" + npc_id + "'})" in cypher_call
     assert "MERGE (u)-[r:KNOWS]->(n)" in cypher_call
 
 
@@ -71,6 +70,9 @@ async def test_interact_neutral(social_service, mock_kuzu, mock_ai_engine):
     await social_service.interact("u1", "viper", "Hello")
 
     # Assert execute called even with delta 0
-    mock_kuzu.conn.execute.assert_called()
-    call_args = mock_kuzu.conn.execute.call_args
-    assert call_args[0][1]["delta"] == 0
+    mock_kuzu.query.assert_called()
+    call_args = mock_kuzu.query.call_args
+    assert "delta 0" not in str(call_args)  # Delta is merged into cypher query string
+    # Just check query structure
+    cypher_call = call_args[0][0]
+    assert "+ 0" in cypher_call or "intimacy = r.intimacy + 0" in cypher_call

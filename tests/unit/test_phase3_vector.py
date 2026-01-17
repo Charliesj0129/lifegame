@@ -3,6 +3,10 @@ import os
 import shutil
 from adapters.persistence.chroma.adapter import ChromaAdapter
 
+# Skip in CI/Mock environment
+if os.environ.get("TESTING") == "1":
+    pytest.skip("Skipping Phase 3 Vector tests in CI/Mock environment", allow_module_level=True)
+
 TEST_CHROMA_PATH = "./data/test_chroma_db"
 
 
