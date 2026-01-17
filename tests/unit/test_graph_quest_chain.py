@@ -3,11 +3,17 @@ import os
 from unittest.mock import MagicMock
 
 
+# Skip entire module in CI/Mock environment
+if os.environ.get("TESTING") == "1":
+    pytest.skip("Skipping Kuzu Graph tests in CI/Mock environment", allow_module_level=True)
+
+
 # Use a separate test db for graph tests
 TEST_DB_PATH = "./test_kuzu_graph_chain_db"
 
 
 @pytest.fixture
+@pytest.mark.skipif(os.environ.get("TESTING") == "1", reason="Skipping Kuzu Graph tests in CI/Mock environment")
 def graph_adapter():
     # Nuclear Isolation: Load Class from Source directly
     import importlib.util

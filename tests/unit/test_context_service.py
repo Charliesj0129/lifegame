@@ -40,6 +40,10 @@ async def test_context_aggregation(db_session):
     db_session.add(log)
     await db_session.commit()
 
+    # Mock Kuzu Async Method
+    from unittest.mock import AsyncMock
+    svc.kuzu.query_recent_context = AsyncMock(return_value=[])
+
     # Execute
     context = await svc.get_working_memory(db_session, "test_u1")
 

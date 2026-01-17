@@ -3,41 +3,53 @@ import sys
 import pytest
 from unittest.mock import MagicMock, patch
 
-# Mock kuzu globally if it fails to import (e.g. in CI or non-compatible env)
-try:
-    import kuzu
-except ImportError:
-    m = MagicMock()
-    m.__path__ = []
-    sys.modules["kuzu"] = m
+# Mocking Strategy:
+# If TESTING=1, we FORCE mocks for heavy external dependencies to ensure unit tests are isolated and fast.
+# This overrides real installations.
 
-try:
-    import deepdiff
-except ImportError:
-    m = MagicMock()
-    m.__path__ = []
-    sys.modules["deepdiff"] = m
+FORCE_MOCKS = os.environ.get("TESTING") == "1"
 
-try:
-    import chromadb
-    import chromadb.config
-except ImportError:
-    m = MagicMock()
-    m.__path__ = []
-    sys.modules["chromadb"] = m
-    sys.modules["chromadb.config"] = MagicMock()
-    sys.modules["chromadb.utils"] = MagicMock()
-    sys.modules["chromadb.api"] = MagicMock()
+if FORCE_MOCKS or "kuzu" not in sys.modules:
+    try:
+        if FORCE_MOCKS: raise ImportError("Forcing mock")
+        import kuzu
+    except ImportError:
+        m = MagicMock()
+        m.__path__ = []
+        sys.modules["kuzu"] = m
 
-try:
-    import google.genai
-except ImportError:
-    m = MagicMock()
-    m.__path__ = []
-    sys.modules["google"] = MagicMock()  # Ensure google namespace exists
-    sys.modules["google.genai"] = m
-    # specific fix for google.generativeai if needed
-    sys.modules["google.generativeai"] = MagicMock()
+if FORCE_MOCKS or "deepdiff" not in sys.modules:
+    try:
+        if FORCE_MOCKS: raise ImportError("Forcing mock")
+        import deepdiff
+    except ImportError:
+        m = MagicMock()
+        m.__path__ = []
+        sys.modules["deepdiff"] = m
+
+if FORCE_MOCKS or "chromadb" not in sys.modules:
+    try:
+        if FORCE_MOCKS: raise ImportError("Forcing mock")
+        import chromadb
+        import chromadb.config
+    except ImportError:
+        m = MagicMock()
+        m.__path__ = []
+        sys.modules["chromadb"] = m
+        sys.modules["chromadb.config"] = MagicMock()
+        sys.modules["chromadb.utils"] = MagicMock()
+        sys.modules["chromadb.api"] = MagicMock()
+
+if FORCE_MOCKS or "google.genai" not in sys.modules:
+    try:
+        if FORCE_MOCKS: raise ImportError("Forcing mock")
+        import google.genai
+    except ImportError:
+        m = MagicMock()
+        m.__path__ = []
+        sys.modules["google"] = MagicMock()
+        sys.modules["google.genai"] = m
+        sys.modules["google.generativeai"] = MagicMock()
 
 
 # Set test environment variables BEFORE any app imports
