@@ -42,6 +42,7 @@ async def test_context_aggregation(db_session):
 
     # Mock Kuzu Async Method
     from unittest.mock import AsyncMock
+
     svc.kuzu.query_recent_context = AsyncMock(return_value=[])
 
     # Execute

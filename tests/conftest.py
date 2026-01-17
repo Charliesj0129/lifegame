@@ -11,7 +11,8 @@ FORCE_MOCKS = os.environ.get("TESTING") == "1"
 
 if FORCE_MOCKS or "kuzu" not in sys.modules:
     try:
-        if FORCE_MOCKS: raise ImportError("Forcing mock")
+        if FORCE_MOCKS:
+            raise ImportError("Forcing mock")
         import kuzu
     except ImportError:
         m = MagicMock()
@@ -20,7 +21,8 @@ if FORCE_MOCKS or "kuzu" not in sys.modules:
 
 if FORCE_MOCKS or "deepdiff" not in sys.modules:
     try:
-        if FORCE_MOCKS: raise ImportError("Forcing mock")
+        if FORCE_MOCKS:
+            raise ImportError("Forcing mock")
         import deepdiff
     except ImportError:
         m = MagicMock()
@@ -29,7 +31,8 @@ if FORCE_MOCKS or "deepdiff" not in sys.modules:
 
 if FORCE_MOCKS or "chromadb" not in sys.modules:
     try:
-        if FORCE_MOCKS: raise ImportError("Forcing mock")
+        if FORCE_MOCKS:
+            raise ImportError("Forcing mock")
         import chromadb
         import chromadb.config
     except ImportError:
@@ -42,7 +45,8 @@ if FORCE_MOCKS or "chromadb" not in sys.modules:
 
 if FORCE_MOCKS or "google.genai" not in sys.modules:
     try:
-        if FORCE_MOCKS: raise ImportError("Forcing mock")
+        if FORCE_MOCKS:
+            raise ImportError("Forcing mock")
         import google.genai
     except ImportError:
         m = MagicMock()
