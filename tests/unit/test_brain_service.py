@@ -40,10 +40,10 @@ def mock_ai_engine():
 
 @pytest.mark.asyncio
 async def test_brain_think_with_pulse(mock_context_service, mock_flow_controller, mock_ai_engine, monkeypatch):
-    # Mock Dependencies
-    monkeypatch.setattr("application.services.brain_service.context_service", mock_context_service)
-    monkeypatch.setattr("application.services.brain_service.flow_controller", mock_flow_controller)
-    monkeypatch.setattr("application.services.brain_service.ai_engine", mock_ai_engine)
+    # Mock Dependencies (Patched on NarratorService)
+    monkeypatch.setattr("application.services.brain.narrator_service.context_service", mock_context_service)
+    monkeypatch.setattr("application.services.brain.narrator_service.flow_controller", mock_flow_controller)
+    monkeypatch.setattr("application.services.brain.narrator_service.ai_engine", mock_ai_engine)
 
     bs = BrainService()
     session = AsyncMock()

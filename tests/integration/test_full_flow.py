@@ -8,7 +8,8 @@ os.environ["SQLALCHEMY_DATABASE_URI"] = "sqlite+aiosqlite:///./test_e2e.db"
 os.environ["TESTING"] = "1"
 
 from app.main import app
-from application.services.graph_service import graph_service
+from app.core.container import container
+# from application.services.graph_service import graph_service
 from application.services.vector_service import vector_service
 
 # Setup Test Client
@@ -24,8 +25,9 @@ def setup_databases(tmp_path_factory):
     from adapters.persistence.kuzu.adapter import KuzuAdapter
     from adapters.persistence.chroma.adapter import ChromaAdapter
 
-    # Monkeypatch global services with Test DBs
-    graph_service._adapter = KuzuAdapter(db_path=str(kuzu_path))
+    # Monkeypatch global services with Test DBs - VIA CONTAINER
+    # graph_service._adapter = KuzuAdapter(db_path=str(kuzu_path))
+    container.graph_service.adapter = KuzuAdapter(db_path=str(kuzu_path))
     vector_service.adapter = ChromaAdapter(collection_name="test_e2e_memories", persist_path=str(chroma_path))
 
     # Initialize SQL DB Schema

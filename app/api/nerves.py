@@ -3,7 +3,8 @@ from typing import Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api import deps
 from adapters.perception.ha_adapter import ha_adapter
-from application.services.graph_service import graph_service
+from app.core.container import container
+# from application.services.graph_service import graph_service
 from application.services.perception_service import perception_service
 from logging import getLogger
 
@@ -48,7 +49,7 @@ async def perceive_event(request: Request, auth: bool = Depends(verify_token), d
 
         # 5. Record event to Graph Memory
         try:
-            await graph_service.record_event(
+            await container.graph_service.record_event(
                 user_id=user_id,
                 event_type=game_event.type,
                 metadata={
@@ -71,7 +72,7 @@ async def perceive_event(request: Request, auth: bool = Depends(verify_token), d
         npc_contexts = []
         for npc_name in interested_npcs[:2]:  # Limit to 2 NPCs
             try:
-                npc_ctx = await graph_service.get_npc_context(npc_name)
+                npc_ctx = await container.graph_service.get_npc_context(npc_name)
                 npc_contexts.append(npc_ctx)
             except Exception:
                 pass
@@ -94,7 +95,7 @@ async def perceive_event(request: Request, auth: bool = Depends(verify_token), d
 async def list_npcs():
     """List all available NPCs (Public Safe Data)"""
     try:
-        npcs = await graph_service.get_all_npcs()
+        npcs = await container.graph_service.get_all_npcs()
         # Filter fields manually or let Pydantic do it
         return npcs
     except Exception as e:
@@ -106,7 +107,7 @@ async def list_npcs():
 async def get_user_history(user_id: str, limit: int = 10):
     """Get recent event history for a user from graph memory"""
     try:
-        events = await graph_service.get_user_history(user_id, limit)
+        events = await container.graph_service.get_user_history(user_id, limit)
         return {"user_id": user_id, "events": events}
     except Exception as e:
         logger.error(f"Failed to get user history: {e}")

@@ -18,6 +18,10 @@ class InventoryService:
         # rows are [(UserItem, Item), ...]
         return [(row[1], row[0].quantity) for row in rows]
 
+    async def get_user_inventory(self, session: AsyncSession, user_id: str) -> List[Tuple[Item, int]]:
+        """Alias for get_inventory to match Type Callers"""
+        return await self.get_inventory(session, user_id)
+
     async def add_item(self, session: AsyncSession, user_id: str, item_id: str, quantity: int = 1):
         """
         Adds an item to the user's inventory.
@@ -49,6 +53,27 @@ class InventoryService:
             await session.delete(slot)
 
         await session.commit()
+        return True
+
+    async def use_item(self, session: AsyncSession, user_id: str, item_id: str) -> bool:
+        """
+        Consumes a consumable item.
+        """
+        stmt = select(UserItem).where(UserItem.user_id == user_id, UserItem.item_id == item_id)
+        slot = (await session.execute(stmt)).scalars().first()
+
+        if not slot or slot.quantity < 1:
+            return False
+
+        # TODO: Apply Item Effect logic here (Strategy Pattern)
+        # For now, just decrement
+        return await self.remove_item(session, user_id, item_id, 1)
+
+    async def equip_item(self, session: AsyncSession, user_id: str, item_id: str) -> bool:
+        """
+        Equips an equipment item.
+        """
+        # Placeholder for equipment logic
         return True
 
     async def seed_default_items_if_needed(self, session: AsyncSession):

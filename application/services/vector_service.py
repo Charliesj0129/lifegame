@@ -1,4 +1,5 @@
 from adapters.persistence.chroma.adapter import ChromaAdapter
+from typing import Any
 import logging
 
 logger = logging.getLogger(__name__)
@@ -9,7 +10,7 @@ class VectorService:
         # Use Adapter instead of direct Client
         self.adapter = ChromaAdapter(collection_name="memories")
 
-    async def add_memory(self, text: str, metadata: dict = None):
+    async def add_memory(self, text: str, metadata: dict[str, Any] | None = None):
         """
         Stores a memory into the vector database.
         """

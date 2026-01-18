@@ -14,7 +14,7 @@ class HelpService:
         tips = []
 
         # 1. Critical State (Health)
-        if user.hp < 30:
+        if (user.hp or 0) < 30:
             tips.append(
                 {
                     "priority": 100,
@@ -40,7 +40,7 @@ class HelpService:
             )
 
         # 3. Quest Status
-        active_quests = await quest_service.get_daily_quests(session, user.id)
+        active_quests = await quest_service.get_daily_quests(session, str(user.id))
         pending_count = sum(1 for q in active_quests if q.status == QuestStatus.PENDING.value)
 
         if pending_count > 0:
@@ -100,7 +100,7 @@ class HelpService:
         # Sort by priority and pick top
         if tips:
             # Sort desc by priority
-            tips.sort(key=lambda x: x["priority"], reverse=True)
+            tips.sort(key=lambda x: int(x["priority"]), reverse=True)
             return tips[0]
         else:
             return random.choice(default_tips)

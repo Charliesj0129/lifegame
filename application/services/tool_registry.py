@@ -33,10 +33,10 @@ class ToolRegistry:
         if not items:
             return {"count": 0}, TextMessage(text="🎒 背包是空的。")
 
-        item_list = "\n".join([f"- {ui.item.name} x{ui.quantity}" for ui in items])
+        item_list = "\n".join([f"- {ui[0].name} x{ui[1]}" for ui in items])
         # In a real app, this would be a Flex Message Grid
         msg = TextMessage(text=f"🎒 背包清單\n{item_list}")
-        return {"count": len(items), "items": [i.item.name for i in items]}, msg
+        return {"count": len(items), "items": [i[0].name for i in items]}, msg
 
     @staticmethod
     async def get_quests(session, user_id: str):

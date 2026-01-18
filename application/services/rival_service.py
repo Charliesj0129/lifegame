@@ -65,7 +65,8 @@ class RivalService:
         narrative = f"⚠️ Viper 偵測到 {result.missed_days} 日離線。"
 
         # Apply Logic Result
-        rival.xp += result.rival_xp_gain
+        # Apply Logic Result
+        rival.xp = (rival.xp or 0) + result.rival_xp_gain
         if result.rival_level_up:
             # We assume rule handles "level up condition", but here we just have a bool.
             # We recreate the simple level calc or move level calc fully to rule.
@@ -73,7 +74,7 @@ class RivalService:
             # Let's trust rule's bool implication or recalculate state if rule is stateless.
             # RivalRules had "projected_level" internally but returned bool.
             # Let's recalculate level based on new XP as simpler implementation.
-            rival.level = 1 + (rival.xp // 1000)
+            rival.level = 1 + ((rival.xp or 0) // 1000)
             narrative += f"\n⚠️ **Viper 升級！**（Lv.{rival.level}）"
 
         if result.theft_xp > 0 or result.theft_gold > 0:
@@ -102,14 +103,14 @@ class RivalService:
 
     async def advance_daily_briefing(self, session: AsyncSession, user: User) -> Rival:
         """Daily briefing update for rival progression."""
-        rival = await self.get_or_create_rival(session, user.id, initial_level=user.level)
+        rival = await self.get_or_create_rival(session, user.id, initial_level=user.level or 1)
 
         # Viper Logic: Grows 20-50% of a level per day + some randomness
         growth = random.randint(30, 80)  # XP
-        rival.xp += growth
-        if rival.xp >= 500:
-            rival.level += 1
-            rival.xp -= 500
+        rival.xp = (rival.xp or 0) + growth
+        if (rival.xp or 0) >= 500:
+            rival.level = (rival.level or 1) + 1
+            rival.xp = (rival.xp or 0) - 500
 
         await session.commit()
         await session.refresh(rival)

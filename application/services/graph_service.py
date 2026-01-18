@@ -1,34 +1,10 @@
 from typing import Dict, Any, List
 import asyncio
-from adapters.persistence.kuzu.adapter import KuzuAdapter
-from collections import deque
-
-
-class KuzuCursorWrapper:
-    """Lightweight cursor shim to mirror kuzu cursor behavior in tests."""
-
-    def __init__(self, rows: List[Any]):
-        self._rows = deque(rows or [])
-
-    def has_next(self) -> bool:
-        return len(self._rows) > 0
-
-    def get_next(self):
-        return self._rows.popleft() if self._rows else None
-
+from domain.ports.graph_port import GraphPort
 
 class GraphService:
-    def __init__(self):
-        # Lazy initialization via singleton getter in adapter module
-        self._adapter = None
-
-    @property
-    def adapter(self) -> KuzuAdapter:
-        if self._adapter is None:
-            from adapters.persistence.kuzu.adapter import get_kuzu_adapter
-
-            self._adapter = get_kuzu_adapter()
-        return self._adapter
+    def __init__(self, adapter: GraphPort):
+        self.adapter = adapter
 
     async def query(self, cypher: str):
         """Execute Cypher query asynchronously"""
@@ -53,7 +29,15 @@ class GraphService:
         # Fix: Re-implement it here using `await self.query(...)`.
 
         try:
-            # Re-implementing logic here to be safe and async
+            # The following lines appear to be misplaced based on the instruction.
+            # They seem to belong to a 'Settings' class, which is not present in this file.
+            # Inserting them as requested by the user, but noting potential syntax issues.
+            # model_config = SettingsConfigDict(env_file=".env", case_sensitive=True) # This line is commented out as it would cause a syntax error here.
+
+            # @property # This decorator is commented out as it would cause a syntax error here.
+            # def SQLALCHEMY_DATABASE_URI(self) -> str: # This method is commented out as it would cause a syntax error here.
+            #     """Compat alias for legacy code."""
+            #     return self.DATABASE_URL or "sqlite+aiosqlite:///./data/game.db" # This line is commented out as it would cause a syntax error here.
             result = await asyncio.to_thread(
                 self.adapter.query,
                 f"MATCH (n:NPC {{name: '{npc_name}'}}) RETURN n.name, n.role, n.mood, n.personality",
@@ -67,6 +51,10 @@ class GraphService:
                 "hates": [],
                 "cares_about": [],
             }
+            # Explicitly cast to lists to satisfy mypy if strictly inferred as Sequence
+            likes_list: List[str] = []
+            hates_list: List[str] = []
+            cares_list: List[str] = []
 
             if result and len(result) > 0:
                 row = result[0]
@@ -81,7 +69,8 @@ class GraphService:
                 f"MATCH (n:NPC {{name: '{npc_name}'}})-[:LIKES]->(c:Concept) RETURN c.name",
             )
             for row in likes_result:
-                npc_data["likes"].append(row[0])
+                likes_list.append(row[0])
+            npc_data["likes"] = likes_list
 
             # Get hates
             hates_result = await asyncio.to_thread(
@@ -89,7 +78,8 @@ class GraphService:
                 f"MATCH (n:NPC {{name: '{npc_name}'}})-[:HATES]->(c:Concept) RETURN c.name",
             )
             for row in hates_result:
-                npc_data["hates"].append(row[0])
+                hates_list.append(row[0])
+            npc_data["hates"] = hates_list
 
             # Get cares_about
             cares_result = await asyncio.to_thread(
@@ -97,7 +87,8 @@ class GraphService:
                 f"MATCH (n:NPC {{name: '{npc_name}'}})-[:CARES_ABOUT]->(c:Concept) RETURN c.name",
             )
             for row in cares_result:
-                npc_data["cares_about"].append(row[0])
+                cares_list.append(row[0])
+            npc_data["cares_about"] = cares_list
 
             return npc_data
         except Exception:
@@ -146,4 +137,3 @@ class GraphService:
         return await asyncio.to_thread(self.adapter.get_unlockable_templates, user_id)
 
 
-graph_service = GraphService()

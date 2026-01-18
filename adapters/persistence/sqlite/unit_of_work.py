@@ -1,11 +1,12 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from domain.ports.unit_of_work import UnitOfWork
+from typing import Optional
 
 
 class SqlAlchemyUnitOfWork(UnitOfWork):
     def __init__(self, session_factory):
         self.session_factory = session_factory
-        self.session: AsyncSession = None
+        self.session: Optional[AsyncSession] = None
 
     async def __aenter__(self):
         self.session = self.session_factory()

@@ -1,7 +1,7 @@
 import pytest
 import shutil
 import os
-from application.services.graph_service import GraphService, KuzuCursorWrapper
+from application.services.graph_service import GraphService
 
 # Skip in CI/Mock environment
 if os.environ.get("TESTING") == "1":
@@ -54,15 +54,3 @@ def test_graph_service_wrapper(tmp_path):
     # But since we use tmp_path for adapter test, the global service uses default settings path.
     # We should probably skip verifying the global singleton against temp DB unless we patch settings.
     pass
-
-
-def test_cursor_wrapper():
-    data = [["A"], ["B"]]
-    cursor = KuzuCursorWrapper(data)
-
-    assert cursor.has_next()
-    assert cursor.get_next() == ["A"]
-    assert cursor.has_next()
-    assert cursor.get_next() == ["B"]
-    assert not cursor.has_next()
-    assert cursor.get_next() is None

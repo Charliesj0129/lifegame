@@ -18,7 +18,7 @@ from app.core.config import settings
 from app.core.database import AsyncSessionLocal
 from app.models.user import User
 from app.models.dda import PushProfile, DailyOutcome
-from application.services.quest_service import quest_service
+from application.services.quest_service import quest_service, QuestService
 from application.services.rival_service import rival_service
 from application.services.flex_renderer import flex_renderer
 from application.services.line_bot import get_messaging_api
@@ -216,9 +216,11 @@ class DDAScheduler:
             return
 
         if self._should_send(now_local, morning_time, profile.last_morning_date):
-            await quest_service.trigger_push_quests(session, user.id, time_block="Morning")
-            quests = await quest_service.get_daily_quests(session, user.id)
-            habits = await quest_service.get_daily_habits(session, user.id)
+            # Explicit cast for mypy if needed, or rely on import
+            qs: QuestService = quest_service
+            await qs.trigger_push_quests(session, user.id, time_block="Morning")  # type: ignore[attr-defined]
+            quests = await qs.get_daily_quests(session, user.id)
+            habits = await qs.get_daily_habits(session, user.id)
             dda_hint = await self._daily_hint(session, user.id)
             flex = flex_renderer.render_push_briefing("🌅 早安任務", quests, habits, dda_hint)
             flex.quick_reply = self._build_quick_reply()
@@ -245,9 +247,10 @@ class DDAScheduler:
             return
 
         if self._should_send(now_local, midday_time, profile.last_midday_date):
-            await quest_service.trigger_push_quests(session, user.id, time_block="Midday")
-            quests = await quest_service.get_daily_quests(session, user.id)
-            habits = await quest_service.get_daily_habits(session, user.id)
+            qs: QuestService = quest_service
+            await qs.trigger_push_quests(session, user.id, time_block="Midday")  # type: ignore[attr-defined]
+            quests = await qs.get_daily_quests(session, user.id)
+            habits = await qs.get_daily_habits(session, user.id)
             incomplete = [q for q in quests if q.status != "DONE"]
             reminder = None
             if incomplete:
@@ -284,7 +287,8 @@ class DDAScheduler:
         Manually trigger a push for testing purposes.
         """
         async with AsyncSessionLocal() as session:
-            await quest_service.trigger_push_quests(session, user_id, time_block)
+            qs: QuestService = quest_service
+            await qs.trigger_push_quests(session, user_id, time_block)  # type: ignore[attr-defined]
             logger.info(f"Manual push triggered for user {user_id}, block={time_block}")
 
     async def _daily_hint(self, session: AsyncSession, user_id: str) -> str | None:

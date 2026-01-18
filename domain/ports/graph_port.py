@@ -25,7 +25,7 @@ class GraphPort(ABC):
         rel_type: str,
         to_label: str,
         to_key: str,
-        properties: Dict[str, Any] = None,
+        properties: Optional[Dict[str, Any]] = None,
         from_key_field: str = "name",
         to_key_field: str = "name",
     ) -> bool:

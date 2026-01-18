@@ -60,6 +60,10 @@ class KuzuAdapter(GraphPort):
 
     def _initialize_schema_sync(self):
         """Idempotent schema initialization (Sync)"""
+        # Ensure conn is available (though this is called from init_sync where it is set)
+        if self.conn is None:
+             raise RuntimeError("Connection failed to initialize")
+             
         try:
             # 1. Self-Healing: Check for corruption
             try:
@@ -116,6 +120,7 @@ class KuzuAdapter(GraphPort):
 
     def _seed_initial_data_sync(self):
         """Seed NPCs and initial concepts (Sync)"""
+        assert self.conn is not None
         concepts = [
             ("Procrastination", "拖延任務和責任"),
             ("Discipline", "自律和堅持"),
@@ -175,6 +180,9 @@ class KuzuAdapter(GraphPort):
             # Just in case (though initialize should be called)
             logger.warning("Kuzu query called before initialization, triggering init...")
             self._init_sync()
+        
+        # Mypy assertion
+        assert self.conn is not None
 
         result = self.conn.execute(cypher)
         output = []
@@ -188,6 +196,7 @@ class KuzuAdapter(GraphPort):
 
     def _add_node_sync(self, label: str, properties: Dict[str, Any]) -> bool:
         self._ensure_initialized()
+        assert self.conn is not None
         try:
             key_field = "id" if "id" in properties else "name"
             key_val = properties.get(key_field)
@@ -211,6 +220,7 @@ class KuzuAdapter(GraphPort):
 
     def _record_user_event_sync(self, user_id: str, event_type: str, metadata: Dict[str, Any]) -> bool:
         self._ensure_initialized()
+        assert self.conn is not None
         try:
             event_id = str(uuid.uuid4())[:8]
             timestamp = int(datetime.now().timestamp())
@@ -234,6 +244,7 @@ class KuzuAdapter(GraphPort):
 
     def _get_user_history_sync(self, user_id: str, limit: int = 10) -> List[Dict[str, Any]]:
         self._ensure_initialized()
+        assert self.conn is not None
         try:
             result = self.conn.execute(
                 f"MATCH (e:Event)-[:TRIGGERED_BY]->(u:User {{id: '{user_id}'}}) "
@@ -258,6 +269,7 @@ class KuzuAdapter(GraphPort):
     def _add_quest_dependency_sync(self, child_quest_id: str, parent_quest_id: str) -> bool:
         # Simplified sync version of original logic
         self._ensure_initialized()
+        assert self.conn is not None
         try:
             self.conn.execute(f"MERGE (c:Quest {{id: '{child_quest_id}'}})")
             self.conn.execute(f"MERGE (p:Quest {{id: '{parent_quest_id}'}})")
@@ -279,6 +291,7 @@ class KuzuAdapter(GraphPort):
         # (Keeping original logic but ensuring it uses self.conn)
         # Simplified for brevity in this refactor, but essentially same as before
         self._ensure_initialized()
+        assert self.conn is not None
         try:
             # completed = self._completed.get(user_id, set())  # Note: cache might be stale in multi-process, but okay for MVP
 
@@ -334,6 +347,7 @@ class KuzuAdapter(GraphPort):
         to_key_field: str = "name",
     ) -> bool:
         self._ensure_initialized()
+        assert self.conn is not None
         try:
             props_str = ""
             if properties:
@@ -356,6 +370,8 @@ class KuzuAdapter(GraphPort):
         return await asyncio.to_thread(self._get_npc_context_sync, npc_name)
 
     def _get_npc_context_sync(self, npc_name: str) -> Dict[str, Any]:
+        self._ensure_initialized()
+        assert self.conn is not None
         try:
             result = self.conn.execute(
                 f"MATCH (n:NPC {{name: '{npc_name}'}}) RETURN n.name, n.role, n.mood, n.personality"

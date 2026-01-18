@@ -26,9 +26,9 @@ class CraftingService:
             missing = []
             for ing in r.ingredients:
                 user_qty = inventory.get(ing.item_id, 0)
-                if user_qty < ing.quantity_required:
+                if user_qty < (ing.quantity_required or 0):
                     can_craft = False
-                    missing.append(f"{ing.item.name} x{ing.quantity_required - user_qty}")
+                    missing.append(f"{ing.item.name} x{(ing.quantity_required or 0) - user_qty}")
 
             craftable_recipes.append({"recipe": r, "can_craft": can_craft, "missing": missing})
 
@@ -50,7 +50,8 @@ class CraftingService:
 
         for ing in recipe.ingredients:
             ui = user_items.get(ing.item_id)
-            if not ui or ui.quantity < ing.quantity_required:
+            # Check safely
+            if not ui or (ui.quantity or 0) < (ing.quantity_required or 0):
                 return {
                     "success": False,
                     "message": f"素材不足，無法合成 {recipe.name}。",
@@ -59,9 +60,10 @@ class CraftingService:
         # 3. Consume Ingredients (always consumed on attempt)
         for ing in recipe.ingredients:
             ui = user_items.get(ing.item_id)
-            ui.quantity -= ing.quantity_required
-            if ui.quantity == 0:
-                await session.delete(ui)
+            if ui: # Safety check for MyPy
+                ui.quantity = (ui.quantity or 0) - (ing.quantity_required or 0)
+                if ui.quantity <= 0:
+                    await session.delete(ui)
 
         success_rate = float(getattr(recipe, "success_rate", 1.0) or 1.0)
         is_success = random.random() <= success_rate
@@ -87,10 +89,11 @@ class CraftingService:
 
         # --- Graph Sync ---
         # --- Graph Sync ---
+        # --- Graph Sync ---
         try:
-            from application.services.graph_service import graph_service
+            from app.core.container import container
 
-            adapter = graph_service.adapter
+            adapter = container.graph_service.adapter
 
             if adapter:
                 # Ensure Item Node
@@ -104,7 +107,7 @@ class CraftingService:
                     user_id,
                     "CRAFTED",
                     "Item",
-                    recipe.result_item_id,
+                    str(recipe.result_item_id),
                     {"timestamp": datetime.datetime.now().isoformat()},
                     from_key_field="id",
                     to_key_field="id",

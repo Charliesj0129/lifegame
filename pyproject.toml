@@ -33,6 +33,9 @@ dev = [
     "pytest-cov>=6.2.0",
     "black>=25.1.0",
     "ruff>=0.14.10",
+    "mypy>=1.19.1",
+    "testcontainers[postgres]>=4.14.0",
+    "psycopg[binary]>=3.3.2",
 ]
 
 [tool.pytest.ini_options]
@@ -41,3 +44,11 @@ testpaths = ["tests"]
 [tool.ruff]
 line-length = 120
 ignore = ["E402", "F401", "E701", "F403"]
+
+[tool.mypy]
+files = "."
+ignore_missing_imports = true
+explicit_package_bases = true
+check_untyped_defs = true
+exclude = ["legacy", "tests"]
+plugins = ["sqlalchemy.ext.mypy.plugin", "pydantic.mypy"]

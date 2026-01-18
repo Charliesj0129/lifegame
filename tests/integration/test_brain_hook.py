@@ -2,7 +2,8 @@ import pytest
 import pytest_asyncio
 from unittest.mock import patch, AsyncMock
 from application.services.user_service import UserService
-from application.services.brain_service import AgentPlan, AgentStatUpdate, FlowState
+from application.services.brain_service import AgentPlan, AgentStatUpdate
+from application.services.brain.flow_controller import FlowState
 from app.models.user import User
 from app.models.base import Base
 from app.models.action_log import ActionLog

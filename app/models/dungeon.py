@@ -1,5 +1,5 @@
 from sqlalchemy import Column, String, Integer, DateTime, Boolean, ForeignKey
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, Mapped
 from sqlalchemy.sql import func, text
 from app.models.base import Base
 import enum
@@ -89,7 +89,7 @@ class Dungeon(Base):
     completed_at = Column(DateTime(timezone=True), nullable=True)
 
     # Relationships
-    stages = relationship("DungeonStage", backref="dungeon", order_by="DungeonStage.order")
+    stages: Mapped[list["DungeonStage"]] = relationship("DungeonStage", backref="dungeon", order_by="DungeonStage.order")
 
 
 class DungeonStage(Base):

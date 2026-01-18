@@ -1,476 +1,58 @@
 import logging
 import json
-import datetime
-from typing import Dict, Any, List, Optional
-from pydantic import BaseModel, Field
-from sqlalchemy import select
+from typing import Dict, Any, Optional, List
+from pydantic import BaseModel
 
-from application.services.ai_engine import ai_engine
-from application.services.context_service import context_service
-from application.services.brain.flow_controller import flow_controller, FlowState
+from application.services.brain.narrator_service import NarratorService, AgentPlan, AgentStatUpdate
+from application.services.brain.executive_service import ExecutiveService, AgentSystemAction
+from application.services.brain.advisor_service import AdvisorService
 
 logger = logging.getLogger(__name__)
 
 
-class AgentStatUpdate(BaseModel):
-    stat_type: str = "VIT"  # STR, INT, VIT...
-    xp_amount: int = 10
-    hp_change: int = 0
-    gold_change: int = 0
-
-
-class AgentPlan(BaseModel):
-    narrative: str
-    stat_update: Optional[AgentStatUpdate] = None
-    tool_calls: List[Dict[str, Any]] = Field(default_factory=list)  # [{"tool": "name", "args": {}}]
-    flow_state: Dict[str, Any] = Field(default_factory=dict)  # Debug info about flow
-
-
-class AgentSystemAction(BaseModel):
-    action_type: str  # "DIFFICULTY_CHANGE", "PUSH_QUEST", "BRIDGE_GEN"
-    details: Dict[str, Any]
-    reason: str
-
-
 class BrainService:
     """
+    FACADE Service.
     The Executive Function of the Cyborg.
     Orchestrates Context -> Flow -> AI -> Plan.
+    Delegates to:
+    - NarratorService (Speech, Persona)
+    - ExecutiveService (Rules, Judgment)
+    - AdvisorService (Coaching, Reports)
     """
+    
+    def __init__(self):
+        self.narrator = NarratorService()
+        self.executive = ExecutiveService()
+        self.advisor = AdvisorService()
 
     async def think(self, context: str = None, prompt: str = None, **kwargs) -> str:
-        """
-        Simple think method for PerceptionService.
-        Returns raw LLM response as string.
-        """
-        if context is None:
-            context = ""
-        if prompt is None:
-            prompt = "Respond to the event."
-
-        system_prompt = f"""
-你是 LifeOS 的遊戲敘事者。根據以下情境產生 JSON 回應。
-
-情境:
-{context}
-
-回應格式 (JSON):
-{{
-  "narrative": "簡短的遊戲敘事 (繁體中文)",
-  "actions": ["action1", "action2"]
-}}
-"""
-        try:
-            result = await ai_engine.generate_json(system_prompt, prompt)
-            return json.dumps(result, ensure_ascii=False)
-        except Exception as e:
-            logger.error(f"Brain think failed: {e}")
-            return json.dumps({"narrative": "系統思維中...", "actions": []}, ensure_ascii=False)
+        """Delegate to Narrator."""
+        return await self.narrator.think(context, prompt, **kwargs)
 
     async def think_with_session(self, session, user_id: str, user_text: str, pulsed_events: Dict = None) -> AgentPlan:
-        # 1. Context
-        memory = await context_service.get_working_memory(session, user_id)
-
-        user_state = memory.get("user_state", {})
-
-        # Inject Pulsed Events into memory/history context
-        if pulsed_events:
-            memory["pulsed_events"] = pulsed_events
-
-        churn_risk = user_state.get("churn_risk", "LOW")
-
-        # F9: Enrich context with Graph history (recent AI actions)
-        try:
-            from adapters.persistence.kuzu.adapter import get_kuzu_adapter
-
-            kuzu = get_kuzu_adapter()
-            graph_history = await kuzu.get_user_history(user_id, limit=5)
-            # Format for prompt injection
-            recent_actions = []
-            for event in graph_history:
-                if event.get("event_type") == "AI_TOOL_CALL":
-                    meta = event.get("metadata", {})
-                    recent_actions.append(f"[TOOL] {meta.get('tool')}: {meta.get('title', 'N/A')}")
-            if recent_actions:
-                memory["recent_ai_actions"] = recent_actions
-        except Exception as e:
-            logger.warning(f"Graph context enrichment failed: {e}")
-
-        # 2. Flow Physics (The "Thermostat")
-        # Fetch real tier from user state or default to C
-        current_tier = user_state.get("current_tier", "C")
-
-        # TODO: Parse recent_performance from short_term_history or add to ContextService
-        recent_performance = []
-
-        flow_target: FlowState = flow_controller.calculate_next_state(
-            current_tier, recent_performance, churn_risk=churn_risk
-        )
-
-        # 3. System Prompt Engineering (The "Addiction Script")
-        intent_hint = self._classify_intent(user_text)
-        system_prompt = self._construct_system_prompt(memory, flow_target, intent_hint=intent_hint)
-
-        raw_plan = {}
-
-        try:
-            # 4. AI Generation
-            raw_plan = await ai_engine.generate_json(system_prompt, f"User Input: {user_text}")
-
-            # Fix #8: Debug logging for raw AI response
-            logger.info(f"AI Raw Response: {json.dumps(raw_plan, ensure_ascii=False)[:500]}")
-            if raw_plan.get("tool_calls"):
-                logger.info(f"AI Tool Calls Detected: {raw_plan['tool_calls']}")
-
-            # 5. Hydrate & Validate
-            if "stat_update" not in raw_plan:
-                raw_plan["stat_update"] = None
-
-            plan = AgentPlan(**raw_plan)
-
-            # Phase 6: Post-process AI narrative
-            if plan.narrative:
-                # Strip [無操作] suffix
-                plan.narrative = plan.narrative.replace("[無操作]", "").replace("[ 無操作]", "").strip()
-                # Strip other noise patterns
-                plan.narrative = plan.narrative.replace("。。", "。").strip()
-                # Truncate if too long (max 60 chars for concise UX)
-                if len(plan.narrative) > 80:
-                    plan.narrative = plan.narrative[:77] + "..."
-                # Fallback if empty after cleanup
-                if not plan.narrative:
-                    plan.narrative = "🤔 有什麼需要幫忙的嗎？"
-
-            plan.flow_state = {
-                "tier": flow_target.difficulty_tier,
-                "tone": flow_target.narrative_tone,
-                "loot_mult": flow_target.loot_multiplier,
-            }
-            return plan
-
-        except Exception as e:
-            logger.error(f"Brain Parsing Failed: {e}. Raw: {raw_plan}")
-            return AgentPlan(
-                narrative="Cipher Interference... re-calibrating protocols. (System Fallback)",
-                stat_update=AgentStatUpdate(xp_amount=5),
-                flow_state={"error": str(e)},
-            )
-
-    def _classify_intent(self, text: str) -> str:
-        """
-        Simple heuristic to guide the LLM.
-        """
-        text = text.lower()
-
-        # Goal Creation Keywords
-        if any(w in text for w in ["想要", "我要", "想成為", "想學", "目標", "new goal", "i want"]):
-            return "CREATE_GOAL"
-
-        # Challenge/Quest Keywords
-        if any(w in text for w in ["挑戰", "試試", "開始", "start", "challenge"]):
-            return "START_CHALLENGE"
-
-        # Chit-Chat (Basic)
-        if any(w in text for w in ["你好", "嗨", "hello", "hi", "早安", "晚安"]):
-            return "GREETING"
-
-        return "UNKNOWN"
-
-    def _construct_system_prompt(self, memory: Dict, flow: FlowState, intent_hint: str = "UNKNOWN") -> str:
-        # Construct Alert String
-        alerts = ""
-        pulsed = memory.get("pulsed_events", {})
-        if pulsed.get("drain_amount", 0) > 0:
-            alerts += f"\n⚠️ [SYSTEM ALERT] User was offline. HP Drained: {pulsed['drain_amount']}. Vitality Low."
-        if pulsed.get("viper_taunt"):
-            alerts += f"\n💀 [VIPER ALERT] Rival Taunt: '{pulsed['viper_taunt']}'."
-
-        # Intent Guidance
-        intent_instruction = ""
-        if intent_hint == "CREATE_GOAL":
-            intent_instruction = "\n👉 SYSTEM HINT: User likely wants to set a GOAL. USE `create_goal` tool."
-        elif intent_hint == "START_CHALLENGE":
-            intent_instruction = "\n👉 SYSTEM HINT: User wants to start a challenge. USE `start_challenge` tool."
-
-        identity_ctx = memory.get("identity_context", {}) or {}
-        identity_title = identity_ctx.get("title", "The Socratic Architect")
-        identity_values = ", ".join(identity_ctx.get("core_values", [])) or "Growth, Autonomy"
-        identity_tags = ", ".join(identity_ctx.get("identity_tags", [])) or "Seeker, Architect"
-
-        long_term_context = memory.get("long_term_context", [])
-        try:
-            long_term_json = json.dumps(long_term_context, ensure_ascii=False)
-        except TypeError:
-            long_term_json = json.dumps([str(long_term_context)], ensure_ascii=False)
-
-        return f"""
-Role: Grounded Performance Coach (LifeOS AI).
-Language: Traditional Chinese (繁體中文).
-Core Directive: ACT. Do not just speak.
-Use 'tool_calls' to modify Game State.
-
-# Context
-User Level: {memory["user_state"].get("level")}
-Time: {memory["time_context"]}
-Churn Risk: {memory["user_state"].get("churn_risk")}
-
-# Recent History
-{memory["short_term_history"]}
-
-# Graph Memory (Deep Context)
-{long_term_json}
-
-# Recent AI Actions
-{chr(10).join(memory.get("recent_ai_actions", ["No recent AI actions"]))}
-
-# Identity Context
-Identity: {identity_title}
-Core Values: {identity_values}
-Identity Tags: {identity_tags}
-
-# Operational Directive
-Difficulty: {flow.difficulty_tier} | Tone: {flow.narrative_tone.upper()} | Loot: {flow.loot_multiplier}x
-
-# ALERTS
-{alerts}
-
-# SYSTEM GUIDANCE
-Detected Intent: {intent_hint} {intent_instruction}
-
-# STRICT OUTPUT RULES
-1. **EMOJI FIRST**: Start with ONE emoji.
-2. **SHORT**: Narrative < 60 chars.
-3. **TOOL USE**: If intent is CREATE_GOAL or START_CHALLENGE, you MUST use the tool.
-4. **NO FLUFF**: Don't say "你想先做什麼", "一步一步".
-5. **DEFAULT**: If unsure, assume the user is reporting progress or asking for guidance.
-
-# TOOL SCHEMAS
-1. `create_goal`: args: {{ "title": "str", "category": "health|career|learning", "deadline": "YYYY-MM-DD" }}
-2. `start_challenge`: args: {{ "title": "str", "difficulty": "E|D|C", "type": "MAIN|SIDE" }}
-
-# OUTPUT SCHEMA (JSON)
-{{
-  "narrative": "Emoji + Short response",
-  "stat_update": {{ "stat_type": "VIT", "xp_amount": 10, "hp_change": 0, "gold_change": 0 }},
-  "tool_calls": []
-}}
-"""
+        """Delegate to Narrator (Main Thought Loop)."""
+        return await self.narrator.think_with_session(session, user_id, user_text, pulsed_events)
 
     async def execute_system_judgment(self, session, user_id: str) -> Optional[AgentSystemAction]:
-        """
-        The Autonomous Executive Loop.
-        Analyzes performance metrics and decides on system-level interventions.
-        Does NOT generate text. It generates RULES.
-        """
-        from application.services.quest_service import quest_service
-        from app.models.quest import Quest, QuestStatus, Goal, GoalStatus
-
-        # 1. Gather Metrics (Last 3 Days)
-        # Using a simple heuristic for now: Active Quests Age
-        # In future, use CompletionRateService
-        stmt = select(Quest).where(Quest.user_id == user_id, Quest.status == QuestStatus.ACTIVE.value)
-        active_quests = (await session.execute(stmt)).scalars().all()
-
-        fail_streak = 0
-        oldest_active = 0
-        now = datetime.datetime.now()
-
-        # Check staleness
-        for q in active_quests:
-            if q.created_at:
-                # Handle naive vs aware datetime
-                created = q.created_at
-                if created.tzinfo:
-                    created = created.replace(tzinfo=None)
-                age = (now - created).days
-                if age > 2:
-                    fail_streak += 1
-                oldest_active = max(oldest_active, age)
-
-        # 2. Judge (The Algorithm)
-        if fail_streak >= 2:
-            # POLICY: OVERWHELM DETECTED
-            logger.info(f"Executive Judgment: User {user_id} is overwhelmed. Downgrading difficulty.")
-            count = await quest_service.bulk_adjust_difficulty(session, user_id, target_tier="E")
-            return AgentSystemAction(
-                action_type="DIFFICULTY_CHANGE",
-                details={"tier": "E", "count": count},
-                reason="Overwhelm Detected (Stale Quests)",
-            )
-
-        # 3. Momentum Check (Last Active)
-        if not active_quests:
-            pass
-
-        # 4. Goal Stagnation Check (The Bridge)
-        # Find Active Goals where no Quest was created in > 7 days
-        stmt = select(Goal).where(Goal.user_id == user_id, Goal.status == GoalStatus.ACTIVE.value)
-        active_goals = (await session.execute(stmt)).scalars().all()
-
-        for goal in active_goals:
-            # Check most recent quest
-            q_stmt = select(Quest).where(Quest.goal_id == goal.id).order_by(Quest.created_at.desc()).limit(1)
-            last_quest = (await session.execute(q_stmt)).scalars().first()
-
-            days_since = 999
-            if last_quest and last_quest.created_at:
-                created = last_quest.created_at
-                if created.tzinfo:
-                    created = created.replace(tzinfo=None)
-                days_since = (now - created).days
-            elif goal.created_at:
-                created = goal.created_at
-                if created.tzinfo:
-                    created = created.replace(tzinfo=None)
-                days_since = (now - created).days
-
-            if days_since > 30:
-                # POLICY: CHECKMATE PROTOCOL (Forced Accountability)
-                logger.warning(
-                    f"Executive Judgment: Goal {goal.title} ignored for {days_since}d. TRIGGERING CHECKMATE."
-                )
-                # Force Boss Fight logic could go here, or just a very severe Bridge Quest
-                # Simple version: Priority S bridge quest
-                return AgentSystemAction(
-                    action_type="PUSH_QUEST",
-                    details={"title": f"BOSS: Reclaim {goal.title}", "diff": "S", "type": "REDEMPTION"},
-                    reason=f"CHECKMATE (Goal ignored {days_since} days)",
-                )
-
-            if days_since > 7:
-                # POLICY: STAGNATION DETECTED
-                logger.info(f"Executive Judgment: Goal {goal.title} is stagnant ({days_since}d). Building Bridge.")
-                bridge_quest = await quest_service.create_bridge_quest(session, user_id, goal.id)
-                if bridge_quest:
-                    return AgentSystemAction(
-                        action_type="BRIDGE_GEN",
-                        details={"quest_title": bridge_quest.title, "goal": goal.title},
-                        reason=f"Goal Stagnation ({days_since} days)",
-                    )
-
-        # 5. Reality Sync (Stub)
-        # Check external calendar load
-        external_load = await self._get_external_load(user_id)
-        if external_load > 0.8:  # > 80% busy
-            logger.info("Executive Judgment: External High Load detected. Adjusting difficulty.")
-            count = await quest_service.bulk_adjust_difficulty(session, user_id, target_tier="E")
-            return AgentSystemAction(
-                action_type="DIFFICULTY_CHANGE",
-                details={"tier": "E", "source": "CALENDAR_SYNC"},
-                reason="High External Load",
-            )
-
-        return None
-
-    async def _get_external_load(self, user_id: str) -> float:
-        """Stub for Google/Outlook Calendar integration."""
-        return 0.0
-
-    async def generate_weekly_report(self, session, user_id: str) -> dict:
-        """
-        F5: Generates a weekly performance review.
-        Returns: {"grade": "S-F", "summary": str, "xp_total": int, "suggestions": list}
-        """
-        from application.services.quest_service import quest_service
-
-        # Fetch week's completed quests
-        quests = await quest_service.get_completed_quests_this_week(session, user_id)
-        xp_total = sum(q.xp_reward or 0 for q in quests)
-        quest_count = len(quests)
-
-        # Grade calculation
-        if quest_count >= 21:
-            grade = "S"
-        elif quest_count >= 14:
-            grade = "A"
-        elif quest_count >= 10:
-            grade = "B"
-        elif quest_count >= 7:
-            grade = "C"
-        elif quest_count >= 3:
-            grade = "D"
-        else:
-            grade = "F"
-
-        # AI summary
-        try:
-            result = await ai_engine.generate_json(
-                "Generate a brief weekly review in Traditional Chinese. Output JSON: {'summary': 'str', 'suggestions': ['str']}",
-                f"User completed {quest_count} quests for {xp_total} XP. Grade: {grade}.",
-            )
-            summary = result.get("summary", f"本週完成 {quest_count} 任務。")
-            suggestions = result.get("suggestions", [])
-        except Exception as e:
-            logger.warning(f"Weekly report AI failed: {e}")
-            summary = f"本週完成 {quest_count} 任務，獲得 {xp_total} XP。"
-            suggestions = []
-
-        return {"grade": grade, "summary": summary, "xp_total": xp_total, "suggestions": suggestions}
+        """Delegate to Executive."""
+        return await self.executive.execute_system_judgment(session, user_id)
 
     async def judge_reroll_request(self, session, user_id: str, reason: str) -> dict:
-        """
-        F6: AI judges if a quest reroll request is valid.
-        Returns: {"approved": bool, "verdict": str}
-        """
-        try:
-            result = await ai_engine.generate_json(
-                """You are a strict task arbiter. User wants to skip/reroll a quest.
-Judge if the excuse is VALID (legitimate) or INVALID (lazy).
-Output JSON: {"approved": true/false, "verdict": "Brief explanation in Traditional Chinese"}
-Examples of VALID: "I have an urgent work meeting", "Medical emergency"
-Examples of INVALID: "I don't feel like it", "Too tired", "Lazy"
-""",
-                f"User's excuse: {reason}",
-            )
-            return {"approved": result.get("approved", False), "verdict": result.get("verdict", "系統無法判斷。")}
-        except Exception as e:
-            logger.error(f"Reroll judgment failed: {e}")
-            return {"approved": False, "verdict": "系統錯誤，默認拒絕。"}
+        """Delegate to Executive."""
+        return await self.executive.judge_reroll_request(session, user_id, reason)
 
     async def initiate_tribunal(self, session, user_id: str, charge: str, penalty_xp: int = 100) -> dict:
-        """
-        F8: Creates a penalty tribunal where user must plead.
-        Returns: {"session_id": str, "charge": str, "max_penalty": int}
-        """
-        import uuid
+        """Delegate to Executive."""
+        return await self.executive.initiate_tribunal(session, user_id, charge, penalty_xp)
 
-        session_id = str(uuid.uuid4())[:8]
-
-        # Store in session or cache for later postback resolution
-        # For now, return the setup data
-        return {
-            "session_id": session_id,
-            "charge": charge,
-            "max_penalty": penalty_xp,
-            "options": ["認罪 (Guilty)", "無罪抗辯 (Not Guilty)"],
-        }
+    async def generate_weekly_report(self, session, user_id: str) -> dict:
+        """Delegate to Advisor."""
+        return await self.advisor.generate_weekly_report(session, user_id)
 
     async def suggest_habit_stack(self, session, user_id: str) -> str:
-        """
-        F9: AI analyzes habit logs and suggests stacking optimizations.
-        Returns a suggestion string.
-        """
-        from application.services.quest_service import quest_service
-
-        # Fetch recent habit completions
-        habits = await quest_service.get_daily_habits(session, user_id)
-        habit_names = [h.habit_name or h.habit_tag for h in habits if h] if habits else []
-
-        if len(habit_names) < 2:
-            return "目前習慣數量不足，建議先建立至少兩個習慣。"
-
-        try:
-            result = await ai_engine.generate_json(
-                """You are a behavioral optimization coach.
-Analyze these habits and suggest a "habit stacking" strategy.
-Output JSON: {"suggestion": "A brief actionable suggestion in Traditional Chinese"}
-""",
-                f"User's habits: {', '.join(habit_names)}",
-            )
-            return result.get("suggestion", "建議將習慣串聯執行以提高成功率。")
-        except Exception as e:
-            logger.warning(f"Habit stack suggestion failed: {e}")
-            return "建議將成功率高的習慣放在前面，新習慣緊接其後。"
+        """Delegate to Advisor."""
+        return await self.advisor.suggest_habit_stack(session, user_id)
 
 
 brain_service = BrainService()

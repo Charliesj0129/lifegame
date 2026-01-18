@@ -4,18 +4,60 @@ from app.schemas.game_schemas import ProcessResult
 from app.models.user import User
 
 
-class FlexRenderer:
-    def render(self, result: ProcessResult) -> FlexMessage:
-        COLOR_BG = "#0B0F14"
-        COLOR_PANEL = "#111827"
-        COLOR_ACCENT = "#7DF9FF"
-        COLOR_TEXT = "#E6EDF3"
-        COLOR_MUTED = "#8B949E"
-        COLOR_LINE = "#243041"
-        COLOR_LOOT = "#F5C542"
-        COLOR_BADGE_TEXT = "#0B0F14"
+COLOR_BG = "#0B0F14"
+COLOR_PANEL = "#111827"
+COLOR_ACCENT = "#7DF9FF"
+COLOR_TEXT = "#E6EDF3"
+COLOR_MUTED = "#8B949E"
+COLOR_LINE = "#243041"
+COLOR_LOOT = "#F5C542"
+COLOR_BADGE_TEXT = "#0B0F14"
+COLOR_REWARD = "#FACC15"
 
-        difficulty = getattr(result, "difficulty_tier", None) or "E"
+
+class FlexRenderer:
+    def render_shop(self, items: list) -> FlexMessage:
+        """Renders the Shop Item list."""
+        bubble = {
+            "type": "bubble",
+            "header": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {"type": "text", "text": "🛒 黑市交易", "weight": "bold", "color": COLOR_ACCENT, "size": "xl"},
+                    {"type": "text", "text": "每日限量供應", "color": COLOR_MUTED, "size": "xs"}
+                ],
+                "backgroundColor": COLOR_BG
+            },
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": []
+            }
+        }
+        
+        for item in items:
+            row = {
+                "type": "box",
+                "layout": "horizontal",
+                "contents": [
+                    {"type": "text", "text": item.name, "color": COLOR_TEXT, "flex": 1, "weight": "bold"},
+                    {"type": "text", "text": f"{item.price} G", "color": COLOR_LOOT, "flex": 0, "size": "sm"},
+                    {
+                        "type": "button", 
+                        "style": "secondary", 
+                        "height": "sm", 
+                        "action": {"type": "postback", "label": "購買", "data": f"action=buy_item&item_id={item.id}"}
+                    }
+                ],
+                "margin": "md",
+                "alignItems": "center"
+            }
+            bubble["body"]["contents"].append(row)
+            
+        return FlexMessage(alt_text="商店清單", contents=FlexContainer.from_dict(bubble))
+
+    def render(self, result: ProcessResult) -> FlexMessage:
         tier_colors = {
             "S": "#FF3B6B",
             "A": "#FF6B6B",
@@ -25,6 +67,7 @@ class FlexRenderer:
             "E": "#20D6C7",
             "F": "#8B949E",
         }
+        difficulty = result.difficulty_tier or "E"
         diff_color = tier_colors.get(difficulty, COLOR_ACCENT)
 
         loot_chance_map = {
@@ -329,7 +372,7 @@ class FlexRenderer:
                                 "type": "text",
                                 "text": "📂 檔案解密成功",
                                 "weight": "bold",
-                                "color": "#7DF9FF",
+                                "color": COLOR_ACCENT,
                                 "size": "xs",
                             }
                         ],
@@ -344,13 +387,13 @@ class FlexRenderer:
                                 "text": shard.title,
                                 "weight": "bold",
                                 "size": "lg",
-                                "color": "#E6EDF3",
+                                "color": COLOR_TEXT,
                             },
                             {
                                 "type": "text",
                                 "text": f"系列：{shard.series}｜第 {shard.chapter} 章",
                                 "size": "xs",
-                                "color": "#8B949E",
+                                "color": COLOR_MUTED,
                                 "margin": "sm",
                             },
                             {"type": "separator", "margin": "md", "color": "#30363D"},
@@ -358,7 +401,7 @@ class FlexRenderer:
                                 "type": "text",
                                 "text": shard.body,
                                 "size": "sm",
-                                "color": "#E6EDF3",
+                                "color": COLOR_TEXT,
                                 "wrap": True,
                                 "margin": "md",
                                 "style": "italic",
@@ -371,14 +414,7 @@ class FlexRenderer:
         )
 
     def render_quest_list(self, quests: list, habits: list = None) -> FlexMessage:
-        COLOR_BG = "#0B0F14"
-        COLOR_PANEL = "#111827"
         COLOR_CARD = "#151C2B"
-        COLOR_ACCENT = "#00F5FF"
-        COLOR_TEXT = "#F8FAFC"
-        COLOR_MUTED = "#94A3B8"
-        COLOR_REWARD = "#FACC15"
-
         COLOR_TIER_MAP = {
             "S": "#FF3B6B",
             "A": "#FF5C8A",
@@ -574,7 +610,7 @@ class FlexRenderer:
                                     "text": f"難度 {q.difficulty_tier}",
                                     "size": "xxs",
                                     "weight": "bold",
-                                    "color": "#0B0F14",
+                                    "color": COLOR_BADGE_TEXT,
                                     "align": "center",
                                 }
                             ],
@@ -603,8 +639,8 @@ class FlexRenderer:
                         "text": f"驗證方式：{verification_hint}",
                         "size": "xxs",
                         "color": COLOR_MUTED,
-                        "margin": "xs",
                         "wrap": True,
+                        "margin": "xs",
                     }
                 )
 

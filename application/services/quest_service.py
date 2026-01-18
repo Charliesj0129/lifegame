@@ -238,9 +238,9 @@ class QuestService:
             # 5. Kuzu Graph Sync
             try:
                 # Use GraphService adapter property
-                from application.services.graph_service import graph_service
+                from app.core.container import container
 
-                adapter = graph_service.adapter
+                adapter = container.graph_service.adapter
 
                 # Create Goal Node
                 await adapter.add_node("Goal", {"id": goal.id, "title": goal.title, "status": "ACTIVE"})
@@ -297,8 +297,26 @@ class QuestService:
         except Exception as e:
             logger.error(f"Bridge Quest Gen Failed: {e}")
             return None
+            return None
 
-    async def trigger_push_quests(self, session: AsyncSession, user_id: str, time_block: str = "Morning"):
+    async def accept_all_pending(self, session: AsyncSession, user_id: str) -> int:
+        """
+        Accepts all PENDING quests for the user (sets to ACTIVE).
+        Returns number of accepted quests.
+        """
+        stmt = select(Quest).where(Quest.user_id == user_id, Quest.status == QuestStatus.PENDING.value)
+        result = await session.execute(stmt)
+        pending = result.scalars().all()
+
+        count = 0
+        for q in pending:
+            q.status = QuestStatus.ACTIVE.value
+            session.add(q)
+            count += 1
+
+        if count > 0:
+            await session.commit()
+        return count
         """
         DDA Push Logic: Triggers quest generation based on time of day.
         time_block: 'Morning' | 'Midday' | 'Night'
@@ -324,6 +342,7 @@ class QuestService:
             return []
 
         # Generate contextually
+        time_block = "Daily" # Default context if not provided in older call path
         return await self._generate_daily_batch(session, user_id, time_context=time_block)
 
     async def _generate_daily_batch(self, session: AsyncSession, user_id: str, time_context: str = "Daily"):
@@ -449,12 +468,12 @@ class QuestService:
         new_quests = []
 
         # --- Graph Quest Injection ---
-        from application.services.graph_service import graph_service
+        from app.core.container import container
 
         try:
             # Only inject if generating a full batch to avoid cluttering single refreshes
             if count >= 2:
-                unlockables = graph_service.get_unlockable_templates(user_id)
+                unlockables = container.graph_service.get_unlockable_templates(user_id)
                 if inspect.isawaitable(unlockables):
                     unlockables = await unlockables
                 if unlockables:
@@ -714,10 +733,10 @@ class QuestService:
                 # --- Graph Sync ---
                 if quest.meta and "graph_node_id" in quest.meta:
                     try:
-                        from application.services.graph_service import graph_service
+                        from app.core.container import container
 
                         graph_node_id = quest.meta["graph_node_id"]
-                        success = await graph_service.adapter.add_relationship(
+                        success = await container.graph_service.adapter.add_relationship(
                             "User",
                             user_id,
                             "COMPLETED",
@@ -766,6 +785,43 @@ class QuestService:
                     user.gold = (getattr(user, "gold", 0) or 0) + fallback_loot.gold
                 return {"quest": quest, "loot": fallback_loot}
         return None
+    async def get_completed_quests_this_week(self, session: AsyncSession, user_id: str) -> list[Quest]:
+        """
+        Returns completed quests for the current week (Mon-Sun).
+        """
+        today = datetime.date.today()
+        start_of_week = today - datetime.timedelta(days=today.weekday())
+        stmt = select(Quest).where(
+            Quest.user_id == user_id,
+            Quest.status == QuestStatus.DONE.value,
+            func.date(Quest.created_at) >= start_of_week,
+        )
+        result = await session.execute(stmt)
+        return result.scalars().all()
+
+    async def trigger_push_quests(self, session: AsyncSession, user_id: str, time_block: str = "Daily"):
+        """
+        DDA Push Logic: Triggers quest generation based on time of day.
+        time_block: 'Morning' | 'Midday' | 'Night'
+        """
+        # 1. Check if we already have quests generated for this block?
+        # Actually _generate_daily_batch logic creates a batch.
+        # If we want granular pushes, we should check if ACTIVE quests exist.
+        today = datetime.date.today()
+        stmt = select(Quest).where(
+            Quest.user_id == user_id,
+            Quest.status == QuestStatus.ACTIVE.value,
+            func.date(Quest.created_at) == today,
+        )
+        exec_res = await session.execute(stmt)
+        existing = exec_res.scalars().all()
+
+        # If user has > 2 active quests, don't push more (avoid flooding)
+        if len(existing) >= 3:
+            return existing
+
+        # Generate contextually
+        return await self._generate_daily_batch(session, user_id, time_context=time_block)
 
     async def reroll_quests(self, session: AsyncSession, user_id: str, cost: int = 100):
         """Archives current daily quests and generates new ones. Deducts gold."""

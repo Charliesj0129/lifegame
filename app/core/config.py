@@ -90,5 +90,10 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=True)
 
+    @property
+    def SQLALCHEMY_DATABASE_URI(self) -> str:
+        """Compat alias for legacy code."""
+        return self.DATABASE_URL or "sqlite+aiosqlite:///./data/game.db"
+
 
 settings = Settings()

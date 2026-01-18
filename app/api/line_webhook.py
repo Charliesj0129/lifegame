@@ -255,7 +255,7 @@ if webhook_handler:
             from adapters.perception.line_client import line_client
             from domain.models.game_result import GameResult
             from app.core.container import container
-            from application.services.quest_service import quest_service
+            from application.services.quest_service import quest_service, QuestService
             from application.services.shop_service import shop_service
             from application.services.inventory_service import inventory_service
             from application.services.flex_renderer import flex_renderer
@@ -264,7 +264,8 @@ if webhook_handler:
                 response_text = "已收到操作。"
 
                 if action == "reroll_quests":
-                    reroll_result = await quest_service.reroll_quests(session, user_id)
+                    qs: QuestService = quest_service
+                    reroll_result = await qs.reroll_quests(session, user_id)  # type: ignore[attr-defined]
                     if isinstance(reroll_result, tuple) and len(reroll_result) >= 2:
                         quests, viper_taunt = reroll_result[:2]
                     else:
@@ -294,7 +295,8 @@ if webhook_handler:
                         result = GameResult(text="⚠️ 缺少任務ID")
 
                 elif action == "accept_all_quests":
-                    await quest_service.accept_all_pending(session, user_id)
+                    qs = quest_service
+                    await qs.accept_all_pending(session, user_id)
                     result = GameResult(text="已接受所有任務！")
 
                 elif action == "craft":

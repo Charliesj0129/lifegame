@@ -1,5 +1,6 @@
 from application.services.ai_engine import ai_engine
 import logging
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +30,7 @@ class NPCService:
         },
     }
 
-    async def get_dialogue(self, npc_key: str, context: str, user_context: dict = None) -> str:
+    async def get_dialogue(self, npc_key: str, context: str, user_context: dict[str, Any] | None = None) -> str:
         """
         Generates dialogue for a specific NPC.
         """

@@ -13,6 +13,13 @@ class ShopService:
         result = await session.execute(stmt)
         return result.scalars().all()
 
+    async def generate_shop_items(self, session: AsyncSession, user_id: str, goal_tags: list[str] | None = None):
+        # 1. Fetch User and Item (With Locking)
+        # Use with_for_update() to prevent Double Spend race conditions
+        stmt = select(User).where(User.id == user_id).with_for_update()
+        result = await session.execute(stmt)
+        user = result.scalars().first()
+
     async def buy_item(self, session: AsyncSession, user_id: str, item_id: str):
         # 1. Fetch User and Item (With Locking)
         # Use with_for_update() to prevent Double Spend race conditions
@@ -124,7 +131,16 @@ class ShopService:
             session.add(item)
 
         await session.commit()
+        await session.commit()
         return selected[:slots]
+
+    async def get_daily_stock(self, session: AsyncSession, user_id: str) -> list[Item]:
+        """
+        Returns current stock. Actually just list_shop_items for now,
+        or we could check if daily generation is needed.
+        """
+        # For simplicity in MVP, we just list purchasable items as stock
+        return await self.list_shop_items(session)
 
 
 shop_service = ShopService()

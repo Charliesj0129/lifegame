@@ -9,11 +9,15 @@ from sqlalchemy import (
     Float,
     Boolean,
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, Mapped
 from sqlalchemy.sql import func
 import uuid
 import enum
+from typing import TYPE_CHECKING
 from app.models.base import Base
+
+if TYPE_CHECKING:
+    from app.models.user import User
 
 
 class ItemRarity(str, enum.Enum):
@@ -58,8 +62,8 @@ class UserItem(Base):
     acquired_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
-    user = relationship("User", backref="inventory")
-    item = relationship("Item")
+    user: Mapped["User"] = relationship("User", backref="inventory")
+    item: Mapped["Item"] = relationship("Item")
 
 
 class UserBuff(Base):
@@ -75,7 +79,9 @@ class UserBuff(Base):
     expires_at = Column(DateTime(timezone=True))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    user = relationship("User", backref="buffs")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user: Mapped["User"] = relationship("User", backref="buffs")
 
 
 class Recipe(Base):
@@ -88,8 +94,9 @@ class Recipe(Base):
     success_rate = Column(Float, default=1.0)
 
     # Relationships
-    result_item = relationship("Item")
-    ingredients = relationship("RecipeIngredient", backref="recipe")
+    # Relationships
+    result_item: Mapped["Item"] = relationship("Item")
+    ingredients: Mapped[list["RecipeIngredient"]] = relationship("RecipeIngredient", backref="recipe")
 
 
 class RecipeIngredient(Base):
@@ -100,7 +107,7 @@ class RecipeIngredient(Base):
     item_id = Column(String, ForeignKey("items.id"))
     quantity_required = Column(Integer, default=1)
 
-    item = relationship("Item")
+    item: Mapped["Item"] = relationship("Item")
 
 
 class BossStatus(str, enum.Enum):
@@ -125,4 +132,5 @@ class Boss(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
-    user = relationship("User", backref="bosses")
+    # Relationships
+    user: Mapped["User"] = relationship("User", backref="bosses")

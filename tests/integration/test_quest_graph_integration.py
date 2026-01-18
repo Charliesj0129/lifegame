@@ -6,7 +6,8 @@ from sqlalchemy import select
 from app.models.quest import Quest, QuestStatus
 from application.services.quest_service import quest_service
 from adapters.persistence.kuzu.adapter import KuzuAdapter
-from application.services.graph_service import graph_service
+from app.core.container import container
+# from application.services.graph_service import graph_service
 
 # Separate Test DB for integration
 TEST_GRAPH_DB = "./test_kuzu_integration_db"
@@ -48,8 +49,8 @@ async def test_quest_graph_cycle(db_session, test_graph_adapter):
     user_id = "test_user_int"
 
     # --- 1. Setup Graph ---
-    # Inject adapter into singleton
-    graph_service._adapter = test_graph_adapter
+    # Inject adapter into singleton via Container
+    container.graph_service.adapter = test_graph_adapter
 
     # Create User in Graph
     test_graph_adapter.add_node("User", {"id": user_id, "name": user_id})

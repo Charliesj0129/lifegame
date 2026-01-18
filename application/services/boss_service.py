@@ -64,9 +64,9 @@ class BossService:
 
             # --- Graph Sync ---
             try:
-                from application.services.graph_service import graph_service
+                from app.core.container import container
 
-                adapter = graph_service.adapter
+                adapter = container.graph_service.adapter
 
                 if adapter:
                     # Ensure Boss Node

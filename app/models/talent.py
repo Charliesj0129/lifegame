@@ -1,9 +1,13 @@
 from sqlalchemy import Column, String, Integer, Text, Boolean, ForeignKey, JSON
 import sqlalchemy
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, Mapped
 from sqlalchemy.sql import text
 from app.models.base import Base
 import enum
+from typing import List, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.models.user import User
 
 
 class ClassType(str, enum.Enum):
@@ -129,7 +133,7 @@ class TalentTree(Base):
     cost = Column(Integer, default=1)
 
     # Relationships
-    children = relationship("TalentTree", backref=sqlalchemy.orm.backref("parent", remote_side=[id]))
+    children: Mapped[List["TalentTree"]] = relationship("TalentTree", backref=sqlalchemy.orm.backref("parent", remote_side=[id]))
 
 
 class UserTalent(Base):
@@ -142,5 +146,6 @@ class UserTalent(Base):
     is_active = Column(Boolean, server_default=text("TRUE"))
 
     # Relationships
-    user = relationship("User", backref="talents")
-    talent = relationship("TalentTree")
+    # Relationships
+    user: Mapped["User"] = relationship("User", backref="talents")
+    talent: Mapped["TalentTree"] = relationship("TalentTree")

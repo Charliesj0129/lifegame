@@ -44,6 +44,10 @@ class LoreService:
 
         return None
 
+    async def unlock_next_chapter(self, session: AsyncSession, user_id: str, user_level: int) -> LoreEntry | None:
+        """Alias for check_lore_unlock"""
+        return await self.check_lore_unlock(session, user_id, user_level)
+
     async def _generate_chapter(self, session: AsyncSession, user_id: str, chapter: int) -> LoreEntry:
         """Generates chapter content via AI."""
         # Check if already exists (global lore? or per user? LoreEntry model seems generic)
