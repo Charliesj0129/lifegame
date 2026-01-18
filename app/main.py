@@ -399,7 +399,7 @@ async def handle_boss(session: AsyncSession, user_id: str, text: str) -> GameRes
     """Handler for '首領' command."""
     try:
         user = await container.user_service.get_or_create_user(session, user_id)
-        boss = await boss_service.get_active_boss(session, user_id)
+        boss = await boss_service.get_boss(session, user_id)
         flex = flex_renderer.render_boss_encounter(user, boss)
         status_text = f"👹 首領戰：{boss.name}" if boss else "👹 首領戰：無"
         return GameResult(text=status_text, intent="boss", metadata={"flex_message": flex})
