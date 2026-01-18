@@ -142,8 +142,7 @@ class GameLoop:
 
         except Exception as e:
             logger.error(f"GameLoop Error: {e}", exc_info=True)
-            error_hash = uuid.uuid4().hex[:8]
-            return GameResult(text=f"⚠️ 系統異常 ({error_hash})", metadata={"sender": persona_service.SYSTEM})
+            return GameResult(text=f"⚠️ 系統異常 (GameLoop): {str(e)}", metadata={"sender": persona_service.SYSTEM})
 
     def _normalize_result(self, result_obj: Any) -> GameResult:
         if isinstance(result_obj, GameResult):
