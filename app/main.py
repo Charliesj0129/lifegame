@@ -292,7 +292,7 @@ async def handle_status(session: AsyncSession, user_id: str, text: str) -> GameR
 
     except Exception as e:
         logger.error(f"Status handler CRITICAL failure: {e}", exc_info=True)
-        return GameResult(text="⚠️ 系統異常，無法載入狀態。", intent="status_critical_error")
+        return GameResult(text=f"⚠️ 系統異常 (Debug): {str(e)}", intent="status_critical_error")
 
 
 async def handle_quests(session: AsyncSession, user_id: str, text: str) -> GameResult:
