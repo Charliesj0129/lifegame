@@ -26,7 +26,7 @@ class ChromaAdapter(VectorPort):
         ids = [str(uuid.uuid4()) for _ in texts]
         # Cast metadatas to match Chroma expectations if needed or leave as is if MyPy is just being strict about Dict
         # Chroma expects Mapping[str, str | int | float | bool] roughly
-        self.collection.add(documents=texts, metadatas=metadatas, ids=ids) # type: ignore
+        self.collection.add(documents=texts, metadatas=metadatas, ids=ids)  # type: ignore
 
     async def similarity_search(self, query: str, k: int = 5) -> List[str]:
         results = self.collection.query(query_texts=[query], n_results=k)

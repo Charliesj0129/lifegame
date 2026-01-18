@@ -6,6 +6,12 @@ echo "    LIFEOS REGRESSION SUITE"
 echo "============================================"
 echo "Testing Environment: $TESTING_ENV"
 
+# 0. Linting & Formatting
+echo ">>> [0/4] Running Linting & Formatting Checks..."
+uv run ruff check .
+uv run ruff format . --check
+echo ">>> Linting & Formatting PASSED."
+
 # 1. Unit Tests
 echo ""
 echo ">>> [1/4] Running UNIT Tests..."

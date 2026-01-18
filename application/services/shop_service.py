@@ -18,7 +18,7 @@ class ShopService:
         # Use with_for_update() to prevent Double Spend race conditions
         stmt = select(User).where(User.id == user_id).with_for_update()
         result = await session.execute(stmt)
-        user = result.scalars().first()
+        _ = result.scalars().first()
 
     async def buy_item(self, session: AsyncSession, user_id: str, item_id: str):
         # 1. Fetch User and Item (With Locking)

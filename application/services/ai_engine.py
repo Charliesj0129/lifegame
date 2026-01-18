@@ -207,7 +207,7 @@ Output Schema:
                 response = await self.model.generate_content_async(full_prompt)
                 content = response.text
             else:
-                 content = "{}"
+                content = "{}"
 
         if start_time is not None:
             elapsed = (time.time() - start_time) * 1000
