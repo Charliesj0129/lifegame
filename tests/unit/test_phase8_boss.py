@@ -30,14 +30,14 @@ async def test_boss_flow(db_session):
     await db_session.commit()
 
     # 1. No Active Boss Initially
-    boss = await boss_service.get_active_boss(db_session, user_id)
+    boss = await boss_service.get_boss(db_session, user_id)
     assert boss is None
 
     # 2. Spawn Boss
     msg = await boss_service.spawn_boss(db_session, user_id)
     assert "首領現身" in msg
 
-    boss = await boss_service.get_active_boss(db_session, user_id)
+    boss = await boss_service.get_boss(db_session, user_id)
     assert boss is not None
     assert boss.status == BossStatus.ACTIVE
     assert boss.hp == 1000

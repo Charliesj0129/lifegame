@@ -25,7 +25,7 @@ class LoreService:
             session.add(progress)
             await session.commit()  # Ensure ID exists
 
-        next_chapter = progress.current_chapter + 1
+        next_chapter = (progress.current_chapter or 0) + 1
         required_level = self.LEVEL_THRESHOLDS.get(next_chapter)
 
         if not required_level:
@@ -48,7 +48,7 @@ class LoreService:
         """Alias for check_lore_unlock"""
         return await self.check_lore_unlock(session, user_id, user_level)
 
-    async def _generate_chapter(self, session: AsyncSession, user_id: str, chapter: int) -> LoreEntry:
+    async def _generate_chapter(self, session: AsyncSession, user_id: str, chapter: int) -> LoreEntry | None:
         """Generates chapter content via AI."""
         # Check if already exists (global lore? or per user? LoreEntry model seems generic)
         # Assuming Lore is unique per user for now (Personalized Story)

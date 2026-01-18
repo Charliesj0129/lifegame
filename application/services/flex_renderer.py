@@ -25,17 +25,13 @@ class FlexRenderer:
                 "layout": "vertical",
                 "contents": [
                     {"type": "text", "text": "🛒 黑市交易", "weight": "bold", "color": COLOR_ACCENT, "size": "xl"},
-                    {"type": "text", "text": "每日限量供應", "color": COLOR_MUTED, "size": "xs"}
+                    {"type": "text", "text": "每日限量供應", "color": COLOR_MUTED, "size": "xs"},
                 ],
-                "backgroundColor": COLOR_BG
+                "backgroundColor": COLOR_BG,
             },
-            "body": {
-                "type": "box",
-                "layout": "vertical",
-                "contents": []
-            }
+            "body": {"type": "box", "layout": "vertical", "contents": []},
         }
-        
+
         for item in items:
             row = {
                 "type": "box",
@@ -44,17 +40,17 @@ class FlexRenderer:
                     {"type": "text", "text": item.name, "color": COLOR_TEXT, "flex": 1, "weight": "bold"},
                     {"type": "text", "text": f"{item.price} G", "color": COLOR_LOOT, "flex": 0, "size": "sm"},
                     {
-                        "type": "button", 
-                        "style": "secondary", 
-                        "height": "sm", 
-                        "action": {"type": "postback", "label": "購買", "data": f"action=buy_item&item_id={item.id}"}
-                    }
+                        "type": "button",
+                        "style": "secondary",
+                        "height": "sm",
+                        "action": {"type": "postback", "label": "購買", "data": f"action=buy_item&item_id={item.id}"},
+                    },
                 ],
                 "margin": "md",
-                "alignItems": "center"
+                "alignItems": "center",
             }
             bubble["body"]["contents"].append(row)
-            
+
         return FlexMessage(alt_text="商店清單", contents=FlexContainer.from_dict(bubble))
 
     def render(self, result: ProcessResult) -> FlexMessage:

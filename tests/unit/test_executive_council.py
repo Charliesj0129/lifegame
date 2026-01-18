@@ -61,7 +61,9 @@ async def test_reality_sync_overload(mock_session):
 
     # Mock _get_external_load on ExecutiveService
     # We need to access the instance inside brain_service or patch the class method
-    with patch("application.services.brain.executive_service.ExecutiveService._get_external_load", new_callable=AsyncMock) as mock_load:
+    with patch(
+        "application.services.brain.executive_service.ExecutiveService._get_external_load", new_callable=AsyncMock
+    ) as mock_load:
         mock_load.return_value = 0.9
 
         with patch(

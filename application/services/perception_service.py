@@ -23,14 +23,16 @@ class PerceptionService(PerceptionPort):
         self.brain = brain_service
         self.actions = action_service
 
-    async def analyze_visual_context(self, image_bytes: bytes, user_id: str, db_session: AsyncSession | None = None) -> Dict[str, Any]:
+    async def analyze_visual_context(
+        self, image_bytes: bytes, user_id: str, db_session: AsyncSession | None = None
+    ) -> Dict[str, Any]:
         """
         The Cortex Loop:
         1. Query Graph (Who cares?)
         2. Query Vector (Context/Memory)
         3. Brain Think (Narrative + Decision)
         """
-        pass # Placeholder for implementation
+        pass  # Placeholder for implementation
 
     async def process_event(self, event: GameEvent, db_session: AsyncSession = None) -> GameResult:
         """

@@ -2,6 +2,7 @@ from typing import Dict, Any, List
 import asyncio
 from domain.ports.graph_port import GraphPort
 
+
 class GraphService:
     def __init__(self, adapter: GraphPort):
         self.adapter = adapter
@@ -135,5 +136,3 @@ class GraphService:
 
     async def get_unlockable_templates(self, user_id: str) -> List[Dict[str, Any]]:
         return await asyncio.to_thread(self.adapter.get_unlockable_templates, user_id)
-
-

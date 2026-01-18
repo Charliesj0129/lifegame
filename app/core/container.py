@@ -23,7 +23,7 @@ class Container:
         if not self._brain_service:
             self._brain_service = BrainService()
         return self._brain_service
-    
+
     @property
     def graph_service(self) -> GraphService:
         if not self._graph_service:

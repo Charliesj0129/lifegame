@@ -62,8 +62,8 @@ class KuzuAdapter(GraphPort):
         """Idempotent schema initialization (Sync)"""
         # Ensure conn is available (though this is called from init_sync where it is set)
         if self.conn is None:
-             raise RuntimeError("Connection failed to initialize")
-             
+            raise RuntimeError("Connection failed to initialize")
+
         try:
             # 1. Self-Healing: Check for corruption
             try:
@@ -180,7 +180,7 @@ class KuzuAdapter(GraphPort):
             # Just in case (though initialize should be called)
             logger.warning("Kuzu query called before initialization, triggering init...")
             self._init_sync()
-        
+
         # Mypy assertion
         assert self.conn is not None
 

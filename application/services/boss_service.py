@@ -7,14 +7,14 @@ import random
 
 
 class BossService:
-    async def get_active_boss(self, session: AsyncSession, user_id: str) -> Boss:
+    async def get_boss(self, session: AsyncSession, user_id: str) -> Boss | None:
         stmt = select(Boss).where(Boss.user_id == user_id, Boss.status == BossStatus.ACTIVE)
         result = await session.execute(stmt)
         return result.scalars().first()
 
     async def spawn_boss(self, session: AsyncSession, user_id: str):
         # Check if already active
-        if await self.get_active_boss(session, user_id):
+        if await self.get_boss(session, user_id):
             return "首領已存在。"
 
         # Get Rival context for flavor
@@ -22,7 +22,7 @@ class BossService:
             rival = await rival_service.get_rival(session, user_id)
             if rival:
                 # Proactive Nuance: Generate Boss Name based on Rival
-                prompt = f"對手等級 {rival.level}。生成一個與拖延或惰性相關的 RPG 首領名稱。"
+                prompt = f"對手等級 {(rival.level or 1)}。生成一個與拖延或惰性相關的 RPG 首領名稱。"
                 json_resp = await ai_engine.generate_json("你是遊戲主宰。輸出 JSON: {'boss_name': 'str'}", prompt)
                 boss_name = json_resp.get("boss_name", "惰性之影")
             else:
@@ -43,7 +43,7 @@ class BossService:
         return f"⚠️ 首領現身：{boss_name}（1000 HP）"
 
     async def deal_damage(self, session: AsyncSession, user_id: str, damage: int):
-        boss = await self.get_active_boss(session, user_id)
+        boss = await self.get_boss(session, user_id)
         if not boss:
             return None
 

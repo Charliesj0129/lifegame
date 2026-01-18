@@ -68,29 +68,29 @@ class NarratorService:
         # Enrich context with Graph history
         try:
             from app.core.container import container
-            
+
             # Use container instead of direct import
             if container and container.graph_service:
-                 # Note: graph_service return dict objects for updates, but maybe objects for get_user_history?
-                 # application/services/graph_service.py: get_user_history returns List[Dict] usually.
-                 # Let's verify return type of get_user_history. 
-                 # It calls adapter.query -> returns rows -> adapter.get_user_history usually returns list of dicts.
-                 # We assume list of dicts.
-                 graph_history = await container.graph_service.get_user_history(user_id, limit=5)
-                 recent_actions = []
-                 for event in graph_history:
-                     if event.get("event_type") == "AI_TOOL_CALL":
-                         meta = event.get("metadata", {})
-                         recent_actions.append(f"[TOOL] {meta.get('tool')}: {meta.get('title', 'N/A')}")
-                 if recent_actions:
-                     memory["recent_ai_actions"] = recent_actions
+                # Note: graph_service return dict objects for updates, but maybe objects for get_user_history?
+                # application/services/graph_service.py: get_user_history returns List[Dict] usually.
+                # Let's verify return type of get_user_history.
+                # It calls adapter.query -> returns rows -> adapter.get_user_history usually returns list of dicts.
+                # We assume list of dicts.
+                graph_history = await container.graph_service.get_user_history(user_id, limit=5)
+                recent_actions = []
+                for event in graph_history:
+                    if event.get("event_type") == "AI_TOOL_CALL":
+                        meta = event.get("metadata", {})
+                        recent_actions.append(f"[TOOL] {meta.get('tool')}: {meta.get('title', 'N/A')}")
+                if recent_actions:
+                    memory["recent_ai_actions"] = recent_actions
         except Exception as e:
             logger.warning(f"Graph context enrichment failed: {e}")
 
         # 2. Flow Physics
         current_tier = user_state.get("current_tier", "C")
         recent_performance = []  # TODO: Implement performance fetching
-        
+
         flow_target: FlowState = flow_controller.calculate_next_state(
             current_tier, recent_performance, churn_risk=churn_risk
         )

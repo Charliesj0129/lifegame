@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api import deps
 from adapters.perception.ha_adapter import ha_adapter
 from app.core.container import container
+
 # from application.services.graph_service import graph_service
 from application.services.perception_service import perception_service
 from logging import getLogger

@@ -133,7 +133,9 @@ class TalentTree(Base):
     cost = Column(Integer, default=1)
 
     # Relationships
-    children: Mapped[List["TalentTree"]] = relationship("TalentTree", backref=sqlalchemy.orm.backref("parent", remote_side=[id]))
+    children: Mapped[List["TalentTree"]] = relationship(
+        "TalentTree", backref=sqlalchemy.orm.backref("parent", remote_side=[id])
+    )
 
 
 class UserTalent(Base):

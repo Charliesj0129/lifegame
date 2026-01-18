@@ -24,7 +24,9 @@ class ChromaAdapter(VectorPort):
             return
 
         ids = [str(uuid.uuid4()) for _ in texts]
-        self.collection.add(documents=texts, metadatas=metadatas, ids=ids)
+        # Cast metadatas to match Chroma expectations if needed or leave as is if MyPy is just being strict about Dict
+        # Chroma expects Mapping[str, str | int | float | bool] roughly
+        self.collection.add(documents=texts, metadatas=metadatas, ids=ids) # type: ignore
 
     async def similarity_search(self, query: str, k: int = 5) -> List[str]:
         results = self.collection.query(query_texts=[query], n_results=k)
@@ -33,8 +35,8 @@ class ChromaAdapter(VectorPort):
     async def search_with_scores(self, query: str, k: int = 5) -> List[Tuple[str, float]]:
         results = self.collection.query(query_texts=[query], n_results=k, include=["documents", "distances"])
 
-        docs = results["documents"][0]
-        distances = results["distances"][0]
+        docs = results["documents"][0] if results["documents"] else []
+        distances = results["distances"][0] if results["distances"] else []
 
         # Chroma returns distances (lower is better), but usually scores mean higher is better.
         # The interface doesn't strictly specify score metric, but usually consumers expect similarity.

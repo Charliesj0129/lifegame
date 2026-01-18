@@ -342,7 +342,7 @@ class QuestService:
             return []
 
         # Generate contextually
-        time_block = "Daily" # Default context if not provided in older call path
+        time_block = "Daily"  # Default context if not provided in older call path
         return await self._generate_daily_batch(session, user_id, time_context=time_block)
 
     async def _generate_daily_batch(self, session: AsyncSession, user_id: str, time_context: str = "Daily"):
@@ -785,6 +785,7 @@ class QuestService:
                     user.gold = (getattr(user, "gold", 0) or 0) + fallback_loot.gold
                 return {"quest": quest, "loot": fallback_loot}
         return None
+
     async def get_completed_quests_this_week(self, session: AsyncSession, user_id: str) -> list[Quest]:
         """
         Returns completed quests for the current week (Mon-Sun).

@@ -87,7 +87,7 @@ class DDAScheduler:
         """Fetch all users for push preference checks."""
         stmt = select(User)
         result = await session.execute(stmt)
-        return result.scalars().all()
+        return list(result.scalars().all())
 
     async def _push_tick(self):
         """
@@ -122,7 +122,7 @@ class DDAScheduler:
                 users = await self._get_all_users(session)
                 for user in users:
                     try:
-                        action = await brain_service.execute_system_judgment(session, user.id)
+                        action = await brain_service.execute_system_judgment(session, str(user.id))
                         if action:
                             logger.info(f"EXECUTIVE ACTION for {user.id}: {action.action_type} - {action.reason}")
                     except Exception as e:
@@ -217,11 +217,12 @@ class DDAScheduler:
 
         if self._should_send(now_local, morning_time, profile.last_morning_date):
             # Explicit cast for mypy if needed, or rely on import
-            qs: QuestService = quest_service
-            await qs.trigger_push_quests(session, user.id, time_block="Morning")  # type: ignore[attr-defined]
-            quests = await qs.get_daily_quests(session, user.id)
-            habits = await qs.get_daily_habits(session, user.id)
-            dda_hint = await self._daily_hint(session, user.id)
+            # qs: QuestService = quest_service
+            if user.id:
+                await quest_service.trigger_push_quests(session, str(user.id), time_block="Morning")
+                quests = await quest_service.get_daily_quests(session, str(user.id))
+                habits = await quest_service.get_daily_habits(session, str(user.id))
+                dda_hint = await self._daily_hint(session, str(user.id))
             flex = flex_renderer.render_push_briefing("🌅 早安任務", quests, habits, dda_hint)
             flex.quick_reply = self._build_quick_reply()
 
@@ -247,10 +248,10 @@ class DDAScheduler:
             return
 
         if self._should_send(now_local, midday_time, profile.last_midday_date):
-            qs: QuestService = quest_service
-            await qs.trigger_push_quests(session, user.id, time_block="Midday")  # type: ignore[attr-defined]
-            quests = await qs.get_daily_quests(session, user.id)
-            habits = await qs.get_daily_habits(session, user.id)
+            # qs: QuestService = quest_service
+            await quest_service.trigger_push_quests(session, str(user.id), time_block="Midday")
+            quests = await quest_service.get_daily_quests(session, str(user.id))
+            habits = await quest_service.get_daily_habits(session, str(user.id))
             incomplete = [q for q in quests if q.status != "DONE"]
             reminder = None
             if incomplete:

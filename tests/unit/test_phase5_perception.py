@@ -21,14 +21,14 @@ def mock_dependencies():
         mock_cursor.has_next.side_effect = [True, False]
         mock_cursor.get_next.return_value = ["Viper", "Mentor"]
         # query returns list now, not cursor wrapper?
-        # Check graph_service.query -> GraphPort.query. 
+        # Check graph_service.query -> GraphPort.query.
         # Refactored graph_service.query returns list via adapter.
         # But old test used cursor wrapper mock.
         # Let's mock query to return a list
         mock_graph_service.query.return_value = [["Viper", "Mentor"]]
-        
+
         mock_container.graph_service = mock_graph_service
-        
+
         # Mock Vector
         mock_vector.search_memories = AsyncMock(return_value=["Memory 1"])
 

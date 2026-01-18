@@ -9,6 +9,7 @@ os.environ["TESTING"] = "1"
 
 from app.main import app
 from app.core.container import container
+
 # from application.services.graph_service import graph_service
 from application.services.vector_service import vector_service
 

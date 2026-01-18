@@ -203,8 +203,11 @@ Output Schema:
 
         elif self.provider == "google":
             full_prompt = system_prompt + " " + user_prompt
-            response = await self.model.generate_content_async(full_prompt)
-            content = response.text
+            if self.model:
+                response = await self.model.generate_content_async(full_prompt)
+                content = response.text
+            else:
+                 content = "{}"
 
         if start_time is not None:
             elapsed = (time.time() - start_time) * 1000
@@ -298,8 +301,10 @@ Output Schema:
                 return completion.choices[0].message.content
             if self.provider == "google":
                 full_prompt = f"{prompt_system}\n\nUSER INPUT: {prompt_user}\n\nIMPORTANT: OUTPUT JSON ONLY."
-                response = await self.model.generate_content_async(full_prompt)
-                return response.text
+                if self.model:
+                    response = await self.model.generate_content_async(full_prompt)
+                    return response.text
+                return "{}"
             return ""
 
         if self.provider == "none":

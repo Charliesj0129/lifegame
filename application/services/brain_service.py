@@ -20,7 +20,7 @@ class BrainService:
     - ExecutiveService (Rules, Judgment)
     - AdvisorService (Coaching, Reports)
     """
-    
+
     def __init__(self):
         self.narrator = NarratorService()
         self.executive = ExecutiveService()

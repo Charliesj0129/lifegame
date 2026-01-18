@@ -89,7 +89,9 @@ class Dungeon(Base):
     completed_at = Column(DateTime(timezone=True), nullable=True)
 
     # Relationships
-    stages: Mapped[list["DungeonStage"]] = relationship("DungeonStage", backref="dungeon", order_by="DungeonStage.order")
+    stages: Mapped[list["DungeonStage"]] = relationship(
+        "DungeonStage", backref="dungeon", order_by="DungeonStage.order"
+    )
 
 
 class DungeonStage(Base):

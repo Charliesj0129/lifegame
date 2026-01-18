@@ -22,12 +22,13 @@ from app.core.config import settings
 from app.core.context import get_request_id, set_request_id
 from application.services.line_bot import get_messaging_api, get_line_handler
 import app.core.database
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/line", tags=["LINE Webhook"])
 logger = logging.getLogger("lifgame.line")
 
 
-async def process_webhook_background(body_str: str, signature: str, request_id: str = None):
+async def process_webhook_background(body_str: str, signature: str, request_id: str | None = None):
     """
     Background Task: Process webhook logic safely.
     Catches all errors to ensure 'Silent Failure' does not happen.
@@ -129,7 +130,7 @@ webhook_handler = get_line_handler()
 if webhook_handler:
 
     @webhook_handler.add(MessageEvent, message=TextMessageContent)
-    async def handle_text_message(event: MessageEvent):
+    async def handle_text_message(event: MessageEvent, session: AsyncSession | None = None):
         """Handle incoming text messages"""
         user_id = event.source.user_id
         user_text = event.message.text.strip()
@@ -342,9 +343,9 @@ if webhook_handler:
                     value_str = params.get("value")
                     # Parse value (simple bool/string)
                     final_val = value_str
-                    if value_str.lower() == "true":
+                    if value_str and value_str.lower() == "true":
                         final_val = True
-                    elif value_str.lower() == "false":
+                    elif value_str and value_str.lower() == "false":
                         final_val = False
 
                     if key:

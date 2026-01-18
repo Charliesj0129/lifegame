@@ -26,9 +26,9 @@ class CraftingService:
             missing = []
             for ing in r.ingredients:
                 user_qty = inventory.get(ing.item_id, 0)
-                if user_qty < (ing.quantity_required or 0):
+                if (user_qty or 0) < (ing.quantity_required or 0):
                     can_craft = False
-                    missing.append(f"{ing.item.name} x{(ing.quantity_required or 0) - user_qty}")
+                    missing.append(f"{ing.item.name} x{(ing.quantity_required or 0) - (user_qty or 0)}")
 
             craftable_recipes.append({"recipe": r, "can_craft": can_craft, "missing": missing})
 
@@ -60,7 +60,7 @@ class CraftingService:
         # 3. Consume Ingredients (always consumed on attempt)
         for ing in recipe.ingredients:
             ui = user_items.get(ing.item_id)
-            if ui: # Safety check for MyPy
+            if ui:  # Safety check for MyPy
                 ui.quantity = (ui.quantity or 0) - (ing.quantity_required or 0)
                 if ui.quantity <= 0:
                     await session.delete(ui)
@@ -75,7 +75,7 @@ class CraftingService:
         # 4. Add Result Item
         result_ui = user_items.get(recipe.result_item_id)
         if result_ui:
-            result_ui.quantity += recipe.result_quantity
+            result_ui.quantity = (result_ui.quantity or 0) + (recipe.result_quantity or 1)
         else:
             new_item = UserItem(
                 user_id=user_id,

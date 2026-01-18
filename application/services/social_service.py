@@ -45,7 +45,7 @@ class SocialService:
 
         return {"text": reply_text, "can_visualize": response_data.get("can_visualize", False)}
 
-    def _get_npc_profile(self, npc_id: str) -> Dict[str, str]:
+    def _get_npc_profile(self, npc_id: str) -> Dict[str, str] | None:
         # TODO: Fetch from Graph Node. For Phase 5 MVP, use hardcoded or simple query.
         profiles = {
             "viper": {
