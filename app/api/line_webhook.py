@@ -58,10 +58,10 @@ async def process_webhook_background(body_str: str, signature: str, request_id: 
             logger.error(f"Double Fault: Could not parse body for error reply: {parse_err}")
 
 
-async def _send_friendly_error_reply(reply_token: str, error_code: str = "UH_OH"):
+async def _send_friendly_error_reply(reply_token: str, error_code: str = "UH_OH", error_detail: str = ""):
     """
     Send a friendly 'System Hiccup' Flex Message to the user.
-    Includes the Request ID for debugging.
+    Includes the Request ID and optional error detail for debugging.
     """
     try:
         from adapters.perception.line_client import line_client
@@ -75,12 +75,12 @@ async def _send_friendly_error_reply(reply_token: str, error_code: str = "UH_OH"
         else:
             req_id = req_id[:8]
 
-        # Use Flex Renderer if available for a nice error card
-        # Or just a text message for now
-        msg_text = f"🔧 系統異常 (ID: {req_id})\n守護精靈正在搶修連線... 請稍後再試。"
+        # Include error detail if provided (for debugging)
+        if error_detail:
+            msg_text = f"⚠️ 系統異常 ({error_code}): {error_detail[:100]}"
+        else:
+            msg_text = f"🔧 系統異常 (ID: {req_id})\n守護精靈正在搶修連線... 請稍後再試。"
 
-        # TODO: Create render_error_card in flex_renderer
-        # For now, simple text is safer than risking render error
         result = GameResult(text=msg_text)
         await line_client.send_reply(reply_token, result)
     except Exception:
@@ -189,7 +189,7 @@ if webhook_handler:
 
         except Exception as e:
             logger.error(f"Message handling failed: {e}", exc_info=True)
-            await _send_friendly_error_reply(reply_token, "MSG_FAIL")
+            await _send_friendly_error_reply(reply_token, "MSG_FAIL", str(e))
 
     @webhook_handler.add(MessageEvent, message=ImageMessageContent)
     async def handle_image_message(event: MessageEvent):
