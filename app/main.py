@@ -274,25 +274,41 @@ async def handle_ai_analysis(session, user_id: str, text: str) -> GameResult:
 
 async def handle_status(session: AsyncSession, user_id: str, text: str) -> GameResult:
     """Handler for '狀態' command - returns user status Flex card."""
+    # Ultra-defensive: Multiple fallback levels
+    user = None
     try:
         user = await container.user_service.get_or_create_user(session, user_id)
+    except Exception as e:
+        logger.error(f"Status: Failed to get user: {e}", exc_info=True)
+        return GameResult(text=f"⚠️ 無法載入使用者資料: {str(e)[:50]}", intent="status_error")
 
+    # Fallback Level 1: Try to render full Flex card
+    try:
         lore_prog = []
         try:
             lore_prog = await lore_service.get_user_progress(session, user_id)
-        except Exception as e:
-            logger.error(f"Failed to fetch lore progress: {e}", exc_info=True)
+        except Exception:
+            pass  # Ignore lore errors, proceed with empty list
 
-        try:
-            flex = flex_renderer.render_status(user, lore_prog)
-            return GameResult(text="📊 玩家狀態", intent="status", metadata={"flex_message": flex})
-        except Exception as render_err:
-            logger.error(f"Render status failed: {render_err}", exc_info=True)
-            return GameResult(text="📊 玩家狀態 (渲染失敗)", intent="status_render_error")
+        flex = flex_renderer.render_status(user, lore_prog)
+        return GameResult(text="📊 玩家狀態", intent="status", metadata={"flex_message": flex})
+    except Exception as render_err:
+        logger.error(f"Render status failed: {render_err}", exc_info=True)
 
+    # Fallback Level 2: Plain text status
+    try:
+        name = getattr(user, "name", None) or "玩家"
+        level = getattr(user, "level", 1) or 1
+        hp = getattr(user, "hp", 100) or 100
+        max_hp = getattr(user, "max_hp", 100) or 100
+        gold = getattr(user, "gold", 0) or 0
+        job = getattr(user, "job_class", "冒險者") or "冒險者"
+
+        plain_text = f"📊 **玩家狀態**\n👤 {name} | Lv.{level} {job}\n❤️ HP: {hp}/{max_hp}\n💰 金幣: {gold}"
+        return GameResult(text=plain_text, intent="status_text_fallback")
     except Exception as e:
-        logger.error(f"Status handler CRITICAL failure: {e}", exc_info=True)
-        return GameResult(text=f"⚠️ 系統異常 (Debug): {str(e)}", intent="status_critical_error")
+        logger.error(f"Status text fallback failed: {e}", exc_info=True)
+        return GameResult(text=f"⚠️ 狀態載入失敗: {str(e)[:50]}", intent="status_critical_error")
 
 
 async def handle_quests(session: AsyncSession, user_id: str, text: str) -> GameResult:
