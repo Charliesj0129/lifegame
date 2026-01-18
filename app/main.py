@@ -431,6 +431,14 @@ dispatcher.register(lambda t: t.strip() in ["合成", "craft"], handle_craft)
 dispatcher.register(lambda t: t.strip() in ["首領", "boss"], handle_boss)
 dispatcher.register(lambda t: t.strip() in ["指令", "help", "說明", "commands"], handle_help)
 
+# Chinese Command Priority Routes (Fix: Must be registered BEFORE AI default)
+dispatcher.register(lambda t: t.strip() in ["狀態", "status"], handle_status)
+dispatcher.register(lambda t: t.strip() in ["任務", "quests"], handle_quests)
+dispatcher.register(lambda t: t.strip() in ["簽到", "checkin"], handle_checkin)
+dispatcher.register(lambda t: t.strip() in ["背包", "inventory"], handle_inventory)
+dispatcher.register(lambda t: t.strip() in ["商店", "shop"], handle_shop)
+dispatcher.register(lambda t: "新目標" in t.strip() or "我想設定" in t.strip(), handle_new_goal)
+
 # Legacy
 dispatcher.register(lambda t: t.lower().strip() == "attack", handle_attack)
 dispatcher.register(lambda t: t.lower().strip() == "defend", handle_defend)
