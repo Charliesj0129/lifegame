@@ -355,7 +355,7 @@ async def handle_checkin(session: AsyncSession, user_id: str, text: str) -> Game
         )
     except Exception as e:
         logger.error(f"Checkin failed: {e}", exc_info=True)
-        return GameResult(text="⚠️ 簽到失敗，請稍後再試。", intent="checkin_error")
+        return GameResult(text=f"⚠️ 簽到失敗 (Debug): {str(e)}", intent="checkin_error")
 
 
 async def handle_inventory(session: AsyncSession, user_id: str, text: str) -> GameResult:
@@ -368,7 +368,7 @@ async def handle_inventory(session: AsyncSession, user_id: str, text: str) -> Ga
         return GameResult(text=f"🎒 背包：{len(items)} 件物品", intent="inventory", metadata={"flex_message": flex})
     except Exception as e:
         logger.error(f"Inventory failed: {e}", exc_info=True)
-        return GameResult(text="⚠️ 背包載入失敗。", intent="inventory_error")
+        return GameResult(text=f"⚠️ 背包載入失敗: {str(e)}", intent="inventory_error")
 
 
 async def handle_shop(session: AsyncSession, user_id: str, text: str) -> GameResult:
@@ -382,7 +382,7 @@ async def handle_shop(session: AsyncSession, user_id: str, text: str) -> GameRes
             return GameResult(text="🏪 商店補貨中，請稍後再來！", intent="shop")
     except Exception as e:
         logger.error(f"Shop failed: {e}", exc_info=True)
-        return GameResult(text="⚠️ 商店載入失敗。", intent="shop_error")
+        return GameResult(text=f"⚠️ 商店載入失敗: {str(e)}", intent="shop_error")
 
 
 # 2. Register Strategies - Chinese Commands FIRST
