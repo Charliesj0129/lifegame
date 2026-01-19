@@ -28,9 +28,11 @@ class LineClient:
         # We rely on the global get_messaging_api for now to avoid refactoring config loading yet
         pass
 
-    async def send_reply(self, token: str, result: GameResult) -> bool:
+    async def send_reply(self, token: str, result: GameResult, user_id: str | None = None) -> bool:
         """
         Sends a GameResult as a LINE format reply.
+        If replying fails (e.g. invalid token), it does NOT fallback internally to reply again.
+        It raises exception so the caller can switch to Push.
         """
         try:
             api = get_messaging_api()
@@ -39,44 +41,41 @@ class LineClient:
                 return False
 
             messages = self._to_line_messages(result)
-
             await api.reply_message(ReplyMessageRequest(reply_token=token, messages=messages))
             return True
         except Exception as e:
-            logger.error(f"Failed to send LINE reply: {e}. Attempting Text Fallback.")
-            try:
-                # Fallback: Send only text if available
-                if result.text:
-                    from linebot.v3.messaging import TextMessage
-
-                    fallback_msg = [
-                        TextMessage(text=f"{result.text}\n\n(⚠️ Display Error: Rich content failed to load)")
-                    ]
-                    await api.reply_message(ReplyMessageRequest(reply_token=token, messages=fallback_msg))
-                    return True
-            except Exception as e2:
-                logger.error(f"Fallback reply also failed: {e2}")
-
-            # Re-raise original error if fallback fails so the global handler catches it (or swallow if fallback worked?)
-            # If fallback worked, we return True. If not, raise original.
+            logger.warning(f"Failed to send LINE reply: {e}. Caller should attempt Push.")
             raise e
 
     async def send_push(self, user_id: str, result: GameResult) -> bool:
         """
         Sends a GameResult as a LINE Push Message (Fallback).
+        Includes Safe Mode (Text Only) if Rich Push fails.
         """
+        api = get_messaging_api()
+        if not api:
+            return False
+
         try:
-            api = get_messaging_api()
-            if not api:
-                return False
-
+            # 1. Try Rich Push
             messages = self._to_line_messages(result)
-
             await api.push_message(PushMessageRequest(to=user_id, messages=messages))
             return True
         except Exception as e:
-            logger.error(f"Failed to send LINE push: {e}", exc_info=True)
-            return False
+            logger.error(f"Failed to send LINE push (Rich): {e}. Attempting Text Fallback.")
+            try:
+                # 2. Try Text Push (Safe Mode)
+                if result.text:
+                    from linebot.v3.messaging import TextMessage
+                    fallback_msg = [
+                        TextMessage(text=f"{result.text}\n\n(⚠️ Display Error: Rich content failed)")
+                    ]
+                    await api.push_message(PushMessageRequest(to=user_id, messages=fallback_msg))
+                    return True
+                return False
+            except Exception as e2:
+                logger.error(f"Text Fallback Push also failed: {e2}")
+                return False
 
     def _to_line_messages(self, result: GameResult) -> List[Any]:
         """
