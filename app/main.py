@@ -443,9 +443,52 @@ async def handle_help(session: AsyncSession, user_id: str, text: str) -> GameRes
     return GameResult(text=help_text, intent="help")
 
 
+async def handle_sys_info(session: AsyncSession, user_id: str, text: str) -> GameResult:
+    """Handler for '/sys' - System Diagnostics."""
+    try:
+        import os
+        import sqlalchemy
+        from sqlalchemy import text as sql_text
+
+        # 1. Version Info
+        version = settings.VERSION
+
+        # 2. DB Connection & Schema
+        db_status = "Unknown"
+        columns = []
+        try:
+            # Check Connection
+            await session.execute(sql_text("SELECT 1"))
+            db_status = "Connected"
+
+            # Inspect Schema (for users table)
+            # Safe way for AsyncSession? We can try raw SQL for sqlite/pg
+            # 'PRAGMA table_info(users)' for sqlite
+            # 'SELECT column_name FROM information_schema.columns WHERE table_name='users'' for pg
+
+            # Fallback simple try:
+            result = await session.execute(sql_text("SELECT * FROM users LIMIT 1"))
+            columns = list(result.keys())
+
+        except Exception as db_e:
+            db_status = f"Error: {str(db_e)}"
+
+        msg = (
+            f"🔧 **System Diagnostics**\n"
+            f"Version: {version}\n"
+            f"DB Status: {db_status}\n"
+            f"User Columns: {', '.join(columns) if columns else 'N/A'}\n"
+            f"Auto-Migrate: {settings.AUTO_MIGRATE}"
+        )
+        return GameResult(text=msg, intent="sys_info")
+    except Exception as e:
+        return GameResult(text=f"⚠️ Sys Info Failed: {e}", intent="sys_error")
+
+
 dispatcher.register(lambda t: t.strip() in ["合成", "craft"], handle_craft)
 dispatcher.register(lambda t: t.strip() in ["首領", "boss"], handle_boss)
 dispatcher.register(lambda t: t.strip() in ["指令", "help", "說明", "commands"], handle_help)
+dispatcher.register(lambda t: t.strip() in ["/sys", "/diag", "系統診斷"], handle_sys_info)
 
 # Chinese Command Priority Routes (Fix: Must be registered BEFORE AI default)
 dispatcher.register(lambda t: t.strip() in ["狀態", "status"], handle_status)

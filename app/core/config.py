@@ -75,7 +75,7 @@ class Settings(BaseSettings):
 
     # App Settings
     APP_BASE_URL: str = "https://app-lifgame-955ea735.azurewebsites.net"  # Default to Prod for now, override in .env
-    AUTO_MIGRATE: bool = False
+    AUTO_MIGRATE: bool = True  # ENABLED for Production Schema Updates
     ENABLE_LATENCY_LOGS: bool = Field(
         default=False,
         validation_alias=AliasChoices("ENABLE_LATENCY_LOGS", "LOG_LATENCY_ENABLED"),
