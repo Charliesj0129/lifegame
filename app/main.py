@@ -585,12 +585,23 @@ async def health_check():
         "status": "ok",
         "version": settings.VERSION,
         "database": "unknown",
+        "columns": [],
         "timestamp": os.getenv("WEBSITE_HOSTNAME", "local"),
     }
     try:
         async with AsyncSessionLocal() as session:
+            # Check Connection
             await session.execute(text("SELECT 1"))
-        health_status["database"] = "connected"
+            health_status["database"] = "connected"
+
+            # Check Schema
+            try:
+                result = await session.execute(text("SELECT * FROM users LIMIT 1"))
+                columns = list(result.keys())
+                health_status["columns"] = columns
+            except Exception:
+                health_status["columns"] = ["error_reading_cols"]
+
     except Exception as e:
         health_status["database"] = f"error: {str(e)}"
         health_status["status"] = "degraded"
