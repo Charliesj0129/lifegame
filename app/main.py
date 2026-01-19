@@ -345,8 +345,8 @@ async def handle_checkin(session: AsyncSession, user_id: str, text: str) -> Game
         user.xp = (user.xp or 0) + 5
         await session.commit()
 
-        # Record to Graph
-        await container.kuzu_adapter.record_user_event(user_id, "CHECKIN", {"gold": 10, "xp": 5})
+        # Record to Graph (Sync call)
+        container.kuzu_adapter.record_user_event(user_id, "CHECKIN", {"gold": 10, "xp": 5})
 
         return GameResult(
             text="✅ 簽到成功！+10 金幣 +5 經驗值",
@@ -374,7 +374,7 @@ async def handle_inventory(session: AsyncSession, user_id: str, text: str) -> Ga
 async def handle_shop(session: AsyncSession, user_id: str, text: str) -> GameResult:
     """Handler for '商店' command."""
     try:
-        items = await shop_service.get_daily_stock(session)
+        items = await shop_service.get_daily_stock(session, user_id)
         if items:
             flex = flex_renderer.render_shop(items)
             return GameResult(text="🏪 每日商店", intent="shop", metadata={"flex_message": flex})
