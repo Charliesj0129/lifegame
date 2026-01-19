@@ -89,6 +89,8 @@ async def test_accept_all_pending(db_session):
 
 @pytest.mark.asyncio
 async def test_trigger_push_quests_flooding_check(db_session):
+    # Ensure correct count settings for this test
+    quest_service.DAILY_QUEST_COUNT = 3
     user_id = "test_user_flood"
 
     today = datetime.datetime.now(datetime.timezone.utc)

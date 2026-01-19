@@ -56,6 +56,9 @@ async def test_real_ai_quest_flow(real_db_session):
     E2E Test: User Input -> AI Analysis -> DB Update.
     Requires OPENAI_API_KEY / OPENROUTER_API_KEY.
     """
+    if not os.environ.get("OPENROUTER_API_KEY") and not os.environ.get("OPENAI_API_KEY"):
+        pytest.skip("Skipping because OPENROUTER_API_KEY/OPENAI_API_KEY is missing")
+
     user_id = "test_user_real"
 
     # 1. User says something triggering Analysis

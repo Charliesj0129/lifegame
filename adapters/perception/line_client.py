@@ -67,9 +67,8 @@ class LineClient:
                 # 2. Try Text Push (Safe Mode)
                 if result.text:
                     from linebot.v3.messaging import TextMessage
-                    fallback_msg = [
-                        TextMessage(text=f"{result.text}\n\n(⚠️ Display Error: Rich content failed)")
-                    ]
+
+                    fallback_msg = [TextMessage(text=f"{result.text}\n\n(⚠️ Display Error: Rich content failed)")]
                     await api.push_message(PushMessageRequest(to=user_id, messages=fallback_msg))
                     return True
                 return False

@@ -128,7 +128,7 @@ async def test_quest_ui_render():
 async def test_reroll_logic(db_session):
     print("\n--- Testing Reroll ---")
     user_id = "U_REROLL"
-    db_session.add(User(id=user_id, name="Tester"))
+    db_session.add(User(id=user_id, name="Tester", gold=1000))
     await db_session.commit()
 
     # Existing quests
@@ -141,6 +141,7 @@ async def test_reroll_logic(db_session):
         status="ACTIVE",
         quest_type=QuestType.SIDE.value,
         scheduled_date=datetime.date.today(),
+        created_at=datetime.datetime.now(datetime.timezone.utc),
     )
     db_session.add(q1)
     await db_session.commit()
@@ -167,7 +168,13 @@ async def test_reroll_logic(db_session):
         mock_get_rival.return_value = MagicMock(level=1)
         mock_get_user.return_value = MagicMock(level=1)
 
-        new_quests, taunt = await quest_service.reroll_quests(db_session, user_id)
+        fixed_date = datetime.date(2025, 1, 1)
+        # Update q1 to match fixed date
+        q1.created_at = datetime.datetime(2025, 1, 1, 10, 0, 0, tzinfo=datetime.timezone.utc)
+        db_session.add(q1)
+        await db_session.commit()
+
+        new_quests, taunt = await quest_service.reroll_quests(db_session, user_id, target_date=fixed_date)
 
     # Should have deleted q1
     result = await db_session.get(Quest, "q1")

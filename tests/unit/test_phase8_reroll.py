@@ -31,20 +31,25 @@ async def test_reroll_flow(db_session):
     await db_session.commit()
 
     # 1. Create Initial Quests (Simulate daily batch)
+    original_count = quest_service.DAILY_QUEST_COUNT
     quest_service.DAILY_QUEST_COUNT = 1  # Simple test
-    quests = await quest_service.trigger_push_quests(db_session, user_id, "Morning")
-    assert len(quests) > 0
-    old_qid = quests[0].id
-
-    # 2. Reroll Success
-    new_quests, viper = await quest_service.reroll_quests(db_session, user_id, cost=100)
-    assert new_quests is not None
-    assert len(new_quests) > 0
-    assert new_quests[0].id != old_qid
-
-    # Verify Gold Deduction
-    await db_session.refresh(user)
-    assert user.gold == 100  # 200 - 100
+    try:
+        quests = await quest_service.trigger_push_quests(db_session, user_id, "Morning")
+        assert len(quests) > 0
+        old_qid = quests[0].id
+    
+        # 2. Reroll Success
+        new_quests, viper = await quest_service.reroll_quests(db_session, user_id, cost=100)
+        assert new_quests is not None
+        assert len(new_quests) > 0
+        assert new_quests[0].id != old_qid
+    
+        # Verify Gold Deduction
+        await db_session.refresh(user)
+        assert user.gold == 100  # 200 - 100
+    
+    finally:
+        quest_service.DAILY_QUEST_COUNT = original_count
 
     # 3. Reroll Fail (Insufficient Funds)
     # User has 100, reroll costs 100 -> OK.

@@ -73,14 +73,17 @@ class QuestService:
         Fetches active quests for today.
         If none exist, generates a fresh batch (Daily Reset).
         """
-        today = datetime.date.today()
+        today = datetime.datetime.now(datetime.timezone.utc).date()
 
         # 1. Fetch Existing Quests for Today (or Active ones)
         # We look for quests scheduled for today OR active pending ones?
         # For simplicity: "Daily Quests" are those created today date or scheduled for today.
+        today_start = datetime.datetime.combine(today, datetime.time.min).replace(tzinfo=datetime.timezone.utc)
+        today_end = datetime.datetime.combine(today, datetime.time.max).replace(tzinfo=datetime.timezone.utc)
+
         stmt = (
             select(Quest)
-            .where(Quest.user_id == user_id, func.date(Quest.created_at) == today)
+            .where(Quest.user_id == user_id, Quest.created_at >= today_start, Quest.created_at <= today_end)
             .order_by(Quest.created_at.asc())
         )
         result = await session.execute(stmt)
@@ -499,6 +502,7 @@ class QuestService:
                         quest_type=QuestType.MAIN.value,
                         status=QuestStatus.ACTIVE.value,
                         scheduled_date=datetime.date.today(),
+                        created_at=datetime.datetime.now(datetime.timezone.utc),
                         meta={"graph_node_id": template["id"]},
                     )
                     session.add(g_quest)
@@ -597,6 +601,7 @@ class QuestService:
                     quest_type=QuestType.SIDE.value,
                     status=QuestStatus.ACTIVE.value,
                     scheduled_date=datetime.date.today(),
+                    created_at=datetime.datetime.now(datetime.timezone.utc),
                 )
                 session.add(q)
                 new_quests.append(q)
@@ -824,7 +829,9 @@ class QuestService:
         # Generate contextually
         return await self._generate_daily_batch(session, user_id, time_context=time_block)
 
-    async def reroll_quests(self, session: AsyncSession, user_id: str, cost: int = 100):
+    async def reroll_quests(
+        self, session: AsyncSession, user_id: str, cost: int = 100, target_date: datetime.date | None = None
+    ):
         """Archives current daily quests and generates new ones. Deducts gold."""
         from app.core.container import container
 
@@ -849,12 +856,17 @@ class QuestService:
         # 2. Deduct Gold
         user.gold = gold_balance - cost
 
-        today = datetime.date.today()
+        today = target_date or datetime.datetime.now(datetime.timezone.utc).date()
 
         # Archive old ones
+        # Archive old ones
+        today_start = datetime.datetime.combine(today, datetime.time.min).replace(tzinfo=datetime.timezone.utc)
+        today_end = datetime.datetime.combine(today, datetime.time.max).replace(tzinfo=datetime.timezone.utc)
+
         stmt = select(Quest).where(
             Quest.user_id == user_id,
-            func.date(Quest.created_at) == today,
+            Quest.created_at >= today_start,
+            Quest.created_at <= today_end,
             Quest.status != QuestStatus.DONE.value,
         )
         result = await session.execute(stmt)
@@ -887,10 +899,11 @@ class QuestService:
         # Clear only today's non-completed quests for this user (preserve history)
         delete_stmt = delete(Quest).where(
             Quest.user_id == user_id,
-            func.date(Quest.created_at) == today,
+            Quest.created_at >= today_start,
+            Quest.created_at <= today_end,
             Quest.status != QuestStatus.DONE.value,
         )
-        delete_result = await session.execute(delete_stmt)
+        delete_result = await session.execute(delete_stmt, execution_options={"synchronize_session": False})
         if getattr(delete_result, "rowcount", 0) == 0:
             # Fallback for SQLite rowcount quirks: ensure removal via ORM path
             existing = (
@@ -898,7 +911,8 @@ class QuestService:
                     await session.execute(
                         select(Quest).where(
                             Quest.user_id == user_id,
-                            func.date(Quest.created_at) == today,
+                            Quest.created_at >= today_start,
+                            Quest.created_at <= today_end,
                             Quest.status != QuestStatus.DONE.value,
                         )
                     )
