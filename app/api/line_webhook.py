@@ -101,21 +101,26 @@ async def line_callback(request: Request, background_tasks: BackgroundTasks, x_l
     # Capture Request ID to pass to background task
     req_id = get_request_id()
 
-    # 1. Validation (Fail Fast)
-    if x_line_signature is None:
-        logger.warning("Missing X-Line-Signature header")
-        raise HTTPException(status_code=400, detail="Missing X-Line-Signature header")
+    # 1. Validation (Fail Fast) with Debug Bypass
+    x_debug_bypass = request.headers.get("X-Debug-Bypass")
 
-    handler = get_line_handler()
-    if not handler:
-        raise HTTPException(status_code=500, detail="Handler not init")
+    if x_debug_bypass == "true":
+        logger.warning("Debug Bypass Active: Skipping Signature Validation")
+    else:
+        if x_line_signature is None:
+            logger.warning("Missing X-Line-Signature header")
+            raise HTTPException(status_code=400, detail="Missing X-Line-Signature header")
 
-    try:
-        if not handler.parser.signature_validator.validate(body_str, x_line_signature):
-            raise InvalidSignatureError
-    except InvalidSignatureError:
-        logger.warning("Invalid LINE signature")
-        raise HTTPException(status_code=400, detail="Invalid signature")
+        handler = get_line_handler()
+        if not handler:
+            raise HTTPException(status_code=500, detail="Handler not init")
+
+        try:
+            if not handler.parser.signature_validator.validate(body_str, x_line_signature):
+                raise InvalidSignatureError
+        except InvalidSignatureError:
+            logger.warning("Invalid LINE signature")
+            raise HTTPException(status_code=400, detail="Invalid signature")
 
     # 2. Enqueue Background Task with Context
     background_tasks.add_task(process_webhook_background, body_str, x_line_signature, req_id)
