@@ -224,7 +224,7 @@ async def handle_ai_analysis(session, user_id: str, text: str) -> GameResult:
                 _goal, _ai_plan = await quest_service.create_new_goal(session, user_id, goal_text=title)
                 flex_msg = flex_renderer.render_goal_card(title=title, category=category)
                 tool_flex_messages.append(flex_msg)
-                await container.kuzu_adapter.record_user_event(
+                container.kuzu_adapter.record_user_event(
                     user_id, "AI_TOOL_CALL", {"tool": "create_goal", "title": title}
                 )
 
@@ -237,7 +237,7 @@ async def handle_ai_analysis(session, user_id: str, text: str) -> GameResult:
                 xp = getattr(quest, "xp_reward", 50)
                 flex_msg = flex_renderer.render_quest_brief(title=title, difficulty=difficulty, xp_reward=xp)
                 tool_flex_messages.append(flex_msg)
-                await container.kuzu_adapter.record_user_event(
+                container.kuzu_adapter.record_user_event(
                     user_id, "AI_TOOL_CALL", {"tool": "start_challenge", "title": title}
                 )
 
