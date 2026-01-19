@@ -485,10 +485,62 @@ async def handle_sys_info(session: AsyncSession, user_id: str, text: str) -> Gam
         return GameResult(text=f"⚠️ Sys Info Failed: {e}", intent="sys_error")
 
 
+async def handle_manual_migrate(session: AsyncSession, user_id: str, text: str) -> GameResult:
+    """Handler for '/migrate' - Manual Database Migration Trigger."""
+    try:
+        import io
+        import sys
+        from alembic import command
+        from alembic.config import Config
+        from pathlib import Path
+
+        # Capture Stdout/Stderr to return to user
+        capture = io.StringIO()
+        original_stdout = sys.stdout
+        original_stderr = sys.stderr
+        sys.stdout = capture
+        sys.stderr = capture
+
+        try:
+            # Setup Alembic Config (Same as run_migrations)
+            config_path = Path("alembic.ini").resolve()
+            if not config_path.exists():
+                # Try finding it relative to app root if CWD is wrong
+                config_path = Path(__file__).resolve().parents[2] / "alembic.ini"
+
+            cfg = Config(str(config_path))
+
+            # Need to ensure script_location is absolute if CWD is weird
+            # But let's rely on standard config first.
+            # Force output to stdout for capture
+            cfg.stdout = capture
+
+            command.upgrade(cfg, "head")
+
+            output = capture.getvalue()
+            status = "Migration Success"
+        except Exception as e:
+            output = capture.getvalue() + f"\nEXCEPTION: {e}"
+            status = "Migration Failed"
+        finally:
+            sys.stdout = original_stdout
+            sys.stderr = original_stderr
+
+        return GameResult(
+            text=f"🔧 **{status}**\n\nLogs:\n```\n{output[-1000:]}\n```",  # Last 1000 chars
+            intent="sys_migrate",
+        )
+
+    except Exception as ie:
+        return GameResult(text=f"⚠️ Migration Trigger Failed: {ie}", intent="sys_error")
+
+
 dispatcher.register(lambda t: t.strip() in ["合成", "craft"], handle_craft)
 dispatcher.register(lambda t: t.strip() in ["首領", "boss"], handle_boss)
 dispatcher.register(lambda t: t.strip() in ["指令", "help", "說明", "commands"], handle_help)
 dispatcher.register(lambda t: t.strip() in ["/sys", "/diag", "系統診斷"], handle_sys_info)
+dispatcher.register(lambda t: t.strip() in ["/migrate", "手動遷移"], handle_manual_migrate)
+
 
 # Chinese Command Priority Routes (Fix: Must be registered BEFORE AI default)
 dispatcher.register(lambda t: t.strip() in ["狀態", "status"], handle_status)
