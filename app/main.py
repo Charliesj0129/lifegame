@@ -194,7 +194,7 @@ async def handle_ai_analysis(session, user_id: str, text: str) -> GameResult:
         await session.commit()
 
     # Record Event to Graph (DI)
-    await container.kuzu_adapter.record_user_event(
+    container.kuzu_adapter.record_user_event(
         user_id,
         "ACTION",
         {
