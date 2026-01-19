@@ -610,6 +610,39 @@ async def health_check():
     return health_status
 
 
+# --- Debug: Remote Command Execution ---
+from pydantic import BaseModel
+
+
+class DebugCommand(BaseModel):
+    user_id: str
+    text: str
+
+
+@app.post("/debug/execute")
+async def debug_execute(cmd: DebugCommand):
+    """
+    Execute a game command directly, bypassing LINE signature verification.
+    FOR DEBUGGING PURPOSES ONLY.
+    """
+    try:
+        from domain.models.game_result import GameResult
+
+        async with AsyncSessionLocal() as session:
+            result = await game_loop.process_message(session, cmd.user_id, cmd.text)
+
+            # Serialize for JSON response
+            return {
+                "text": result.text,
+                "intent": result.intent,
+                "metadata": {k: str(v) for k, v in (result.metadata or {}).items()},
+                # Converting values to str to avoid JSON serialization issues with Flex objects
+            }
+    except Exception as e:
+        logger.error(f"Debug Execute Failed: {e}", exc_info=True)
+        return {"error": str(e), "type": type(e).__name__}
+
+
 if __name__ == "__main__":
     import uvicorn
 
