@@ -43,8 +43,22 @@ class LineClient:
             await api.reply_message(ReplyMessageRequest(reply_token=token, messages=messages))
             return True
         except Exception as e:
-            # Let the caller handle the fallback (e.g. invalid token)
-            # logger.error(f"Failed to send LINE reply: {e}", exc_info=True)
+            logger.error(f"Failed to send LINE reply: {e}. Attempting Text Fallback.")
+            try:
+                # Fallback: Send only text if available
+                if result.text:
+                    from linebot.v3.messaging import TextMessage
+
+                    fallback_msg = [
+                        TextMessage(text=f"{result.text}\n\n(⚠️ Display Error: Rich content failed to load)")
+                    ]
+                    await api.reply_message(ReplyMessageRequest(reply_token=token, messages=fallback_msg))
+                    return True
+            except Exception as e2:
+                logger.error(f"Fallback reply also failed: {e2}")
+
+            # Re-raise original error if fallback fails so the global handler catches it (or swallow if fallback worked?)
+            # If fallback worked, we return True. If not, raise original.
             raise e
 
     async def send_push(self, user_id: str, result: GameResult) -> bool:
