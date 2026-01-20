@@ -495,10 +495,10 @@ class QuestService:
         user_prompt = f"Context: {topic}. Generate tasks."
 
         try:
-            # Enforce 3s timeout for responsiveness
+            # Enforce 10s timeout for responsiveness
             ai_data = await asyncio.wait_for(
                 ai_engine.generate_json(system_prompt, user_prompt),
-                timeout=3.0,
+                timeout=10.0,
             )
 
             if isinstance(ai_data, dict) and ai_data.get("error"):

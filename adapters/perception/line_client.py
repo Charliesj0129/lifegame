@@ -41,10 +41,18 @@ class LineClient:
                 return False
 
             messages = self._to_line_messages(result)
+            # LOGGING: payload check
+            try:
+                msg_summary = [str(m) for m in messages]
+                logger.info(f"Sending Reply to {token[:10]}...: {len(messages)} msgs. Type: {msg_summary}")
+            except Exception:
+                pass
+
             await api.reply_message(ReplyMessageRequest(reply_token=token, messages=messages))
+            logger.info("Reply Sent Successfully.")
             return True
         except Exception as e:
-            logger.warning(f"Failed to send LINE reply: {e}. Caller should attempt Push.")
+            logger.error(f"Failed to send LINE reply: {e}", exc_info=True)
             raise e
 
     async def send_push(self, user_id: str, result: GameResult) -> bool:
