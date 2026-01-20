@@ -81,16 +81,39 @@ class ContextService:
             if not user:
                 return {}
 
-            # Simple Churn Heuristic: Inactive > 2 days
-            last_active = user.last_active_date or datetime.now(timezone.utc)
-            days_inactive = (datetime.now(timezone.utc) - last_active).days
-            churn_risk = "HIGH" if days_inactive > 2 else "LOW"
+            # Enhanced Churn Heuristic (EOMM Feature 5)
+            churn_risk = "LOW"
+            now = datetime.now(timezone.utc)
+            last_active = user.last_active_date or now
+            days_inactive = (now - last_active).days
+
+            if days_inactive > 3:
+                churn_risk = "HIGH"
+            else:
+                # Check recent failures
+                from app.models.quest import Quest, QuestStatus
+                stmt_q = (
+                    select(Quest)
+                    .where(
+                        Quest.user_id == user_id,
+                        Quest.status.in_([QuestStatus.COMPLETED.value, QuestStatus.FAILED.value])
+                    )
+                    .order_by(desc(Quest.updated_at))
+                    .limit(5)
+                )
+                q_res = await session.execute(stmt_q)
+                recent_quests = q_res.scalars().all()
+                if recent_quests and len(recent_quests) >= 5:
+                    failures = sum(1 for q in recent_quests if q.status == QuestStatus.FAILED.value)
+                    if failures >= 5:
+                        churn_risk = "HIGH"
 
             return {
                 "level": user.level,
                 "current_hp": user.hp,
                 "streak": user.streak_count or 0,
                 "churn_risk": churn_risk,
+                "current_tier": "C",  # Default, flow_controller calculates actual
             }
         except Exception as e:
             logger.error(f"Failed to fetch User State: {e}")

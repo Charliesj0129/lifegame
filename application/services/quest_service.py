@@ -530,7 +530,25 @@ class QuestService:
 
                 normalized.append({"title": title, "desc": desc, "diff": diff, "xp": xp})
 
-            quest_list = normalized[:count]
+            # === FEATURE 3: Fogg Model Filter ===
+            from application.services.brain.flow_controller import flow_controller
+            motivation = await self._calculate_motivation(session, user_id)
+            
+            fogg_filtered = []
+            for q in normalized:
+                friction = self._estimate_friction(q)
+                if flow_controller.evaluate_fogg_trigger(motivation, friction):
+                    fogg_filtered.append(q)
+                else:
+                    logger.info(f"Quest '{q['title']}' filtered by Fogg (M={motivation:.2f}, F={friction})")
+            
+            # If all filtered, try to salvage easiest
+            if not fogg_filtered and normalized:
+                 # Find min friction
+                 min_friction = min(self._estimate_friction(q) for q in normalized)
+                 fogg_filtered = [q for q in normalized if self._estimate_friction(q) <= min_friction + 0.1]
+            
+            quest_list = fogg_filtered[:count]
 
             fallback_templates = [
                 {
@@ -983,6 +1001,48 @@ class QuestService:
 
         habits = sorted(habits, key=habit_sort)
         return habits[:target]
+
+
+    async def _calculate_motivation(self, session: AsyncSession, user_id: str) -> float:
+        """Calculate user motivation score (0.0 - 1.0) based on context."""
+        from app.core.container import container
+        import datetime
+        
+        user_call = container.user_service.get_user(session, user_id)
+        if inspect.isawaitable(user_call):
+            user = await user_call
+        else:
+            user = user_call
+
+        if not user:
+            return 0.5
+            
+        base = 0.5
+        # Streak boost
+        streak = getattr(user, "streak_count", 0) or 0
+        streak_boost = min(0.2, streak * 0.02)
+        
+        # Time boost
+        hour = datetime.datetime.now().hour
+        time_boost = 0.2 if 8 <= hour <= 10 else (-0.2 if 22 <= hour or hour <= 6 else 0)
+        
+        # HP factor
+        hp = getattr(user, "hp", 100) or 100
+        max_hp = getattr(user, "max_hp", 100) or 100
+        hp_factor = (hp / max_hp) * 0.1
+        
+        return max(0.1, min(1.0, base + streak_boost + time_boost + hp_factor))
+
+    def _estimate_friction(self, quest_dict: dict) -> float:
+        """Estimate friction (0.0-1.0) based on difficulty."""
+        diff_map = {"E": 0.1, "D": 0.3, "C": 0.5, "B": 0.7, "A": 0.9, "S": 1.0}
+        diff = quest_dict.get("difficulty", "C")
+        if "difficulty_tier" in quest_dict: 
+            diff = quest_dict["difficulty_tier"]
+        elif "diff" in quest_dict:
+            diff = quest_dict["diff"]
+            
+        return diff_map.get(str(diff).upper(), 0.5)
 
 
 quest_service = QuestService()

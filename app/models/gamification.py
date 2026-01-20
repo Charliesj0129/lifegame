@@ -134,3 +134,15 @@ class Boss(Base):
     # Relationships
     # Relationships
     user: Mapped["User"] = relationship("User", backref="bosses")
+
+
+class UserPIDState(Base):
+    __tablename__ = "user_pid_states"
+
+    user_id = Column(String, ForeignKey("users.id"), primary_key=True)
+    integral = Column(Float, default=0.0)
+    last_error = Column(Float, default=0.0)
+    error_history = Column(JSON, default=list)
+    last_updated = Column(DateTime(timezone=True), server_default=func.now())
+
+    user: Mapped["User"] = relationship("User", backref="pid_state")

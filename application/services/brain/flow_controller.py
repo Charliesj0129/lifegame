@@ -37,6 +37,7 @@ class FlowController:
         churn_risk: str = "LOW",
         stress_score: float = 0.0,
         last_pity_at: Optional[float] = None,
+        pid_state: Optional[Any] = None,  # UserPIDState model
     ) -> FlowState:
         # 1. EOMM Safety Net (Immediate Override)
         if churn_risk == "HIGH":
@@ -66,18 +67,41 @@ class FlowController:
 
         current_win_rate = sum(recent_performance) / len(recent_performance)
 
-        # Error (Negative if we are failing too much, Positive if winning too much)
+        # PID Calculation
         error = current_win_rate - target_win_rate
+        
+        # Default state values
+        integral = 0.0
+        last_error = 0.0
+        
+        if pid_state:
+            integral = pid_state.integral or 0.0
+            last_error = pid_state.last_error or 0.0
+            
+        # Integral Term (Accumulated Error)
+        integral += error
+        # Anti-windup clamping
+        integral = max(-2.0, min(2.0, integral))
+        
+        # Derivative Term (Trend)
+        derivative = error - last_error
+        
+        # Update State
+        if pid_state:
+            pid_state.integral = integral
+            pid_state.last_error = error
+            # Note: Caller is responsible for committing changes to DB
+            
+        # PID Output
+        pid_output = (self.Kp * error) + (self.Ki * integral) + (self.Kd * derivative)
+        
+        logger.info(f"DDA PID: err={error:.2f}, int={integral:.2f}, der={derivative:.2f}, out={pid_output:.2f}")
 
-        # Simplistic PID (Integral/Derivative assumed local or short-term here for statelessness)
-        # For full PID we need history of errors. We'll approximate using just Proportional for now
-        # and a "Trend" Derivative if we had multiple windows.
-        # Let's use a simplified heuristic mapping Error -> Adjustment.
-
+        # Map PID output to tier adjustment
         adjustment = 0
-        if error < -0.3:  # Win rate < 0.4 (Failing) -> Reduce Diff
+        if pid_output < -0.3:  # Failing -> Reduce
             adjustment = -1
-        elif error > 0.2:  # Win rate > 0.9 (Boredom) -> Increase Diff
+        elif pid_output > 0.2:  # Bored -> Increase
             adjustment = 1
 
         # Apply Adjustment

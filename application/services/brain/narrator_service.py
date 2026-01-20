@@ -91,8 +91,24 @@ class NarratorService:
         current_tier = user_state.get("current_tier", "C")
         recent_performance = []  # TODO: Implement performance fetching
 
+        # Fetch PID State (Feature 2)
+        from sqlalchemy import select
+        from app.models.gamification import UserPIDState
+        
+        try:
+            stmt = select(UserPIDState).where(UserPIDState.user_id == user_id)
+            pid_res = await session.execute(stmt)
+            pid_state = pid_res.scalars().first()
+            
+            if not pid_state:
+                pid_state = UserPIDState(user_id=user_id)
+                session.add(pid_state)
+        except Exception as e:
+            logger.warning(f"Failed to fetch PID state: {e}")
+            pid_state = None
+
         flow_target: FlowState = flow_controller.calculate_next_state(
-            current_tier, recent_performance, churn_risk=churn_risk
+            current_tier, recent_performance, churn_risk=churn_risk, pid_state=pid_state
         )
 
         # 3. System Prompt
