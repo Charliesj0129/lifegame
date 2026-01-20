@@ -246,7 +246,7 @@ class QuestService:
                 adapter = container.graph_service.adapter
 
                 # Create Goal Node
-                await adapter.add_node("Goal", {"id": goal.id, "title": goal.title, "status": "ACTIVE"})
+                adapter.add_node("Goal", {"id": goal.id, "title": goal.title, "status": "ACTIVE"})
                 # Link User -> Goal
                 await adapter.add_relationship(
                     "User", user_id, "PURSUES", "Goal", goal.id, from_key_field="id", to_key_field="id"

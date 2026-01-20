@@ -221,7 +221,9 @@ async def handle_ai_analysis(session, user_id: str, text: str) -> GameResult:
             if tool_name == "create_goal":
                 title = args.get("title", "New Goal")
                 category = args.get("category", "general")
+                logger.info(f"Tool: create_goal - Start (title={title})")
                 _goal, _ai_plan = await quest_service.create_new_goal(session, user_id, goal_text=title)
+                logger.info("Tool: create_goal - Done")
                 flex_msg = flex_renderer.render_goal_card(title=title, category=category)
                 tool_flex_messages.append(flex_msg)
                 container.kuzu_adapter.record_user_event(
