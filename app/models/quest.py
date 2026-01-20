@@ -79,7 +79,7 @@ class Quest(Base):
 class Rival(Base):
     __tablename__ = "rivals"
 
-    id = Column(String, primary_key=True, default="VIPER")
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(
         String, ForeignKey("users.id"), nullable=False
     )  # Each user has their own instance of Viper? Or global? Assuming per user for now.

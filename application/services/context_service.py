@@ -31,8 +31,10 @@ class ContextService:
         short_term_logs = await self._get_recent_actions(session, user_id)
         short_term_str = "\n".join([f"- {log.action_text} ({log.timestamp})" for log in short_term_logs])
 
-        # 2. Long Term Context (Graph)
-        long_term_data = await self.kuzu.query_recent_context(user_id, limit=5)
+        # 2. Long Term Context (Graph) - kuzu methods are sync, wrap in to_thread
+        import asyncio
+
+        long_term_data = await asyncio.to_thread(self.kuzu.query_recent_context, user_id, 5)
 
         # 3. User State & Time
         user_state = await self._get_user_state(session, user_id)
