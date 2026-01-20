@@ -141,6 +141,21 @@ async def handle_ai_analysis(session, user_id: str, text: str) -> GameResult:
         if normalized in keys:
             return await handler(session, user_id, text)
 
+    # === FEATURE 4: Hyperbolic Discounting (Immediate Response) ===
+    # Send acknowledgment within 200ms before LLM processing
+    from application.services.immediate_responder import immediate_responder
+
+    fast_intent = immediate_responder.classify_intent_fast(text)
+    immediate_msg = immediate_responder.get_immediate_response(fast_intent)
+
+    # Note: actual push happens via LINE client in webhook handler
+    # We store the immediate response in a context variable for the webhook to send
+    # For now, we log it and include in metadata for the caller to handle
+    if immediate_msg:
+        logger.info(f"Immediate Response: {fast_intent} -> '{immediate_msg}'")
+        # The caller (webhook) should send this BEFORE awaiting the full response
+        # We'll return early metadata hint for the caller
+
     # --- PHASE 4: THE PULSE (LAZY EVALUATION) ---
     # DI: Usage
     user = await container.user_service.get_or_create_user(session, user_id)

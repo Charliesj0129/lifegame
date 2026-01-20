@@ -114,6 +114,19 @@ class NarratorService:
 
             plan = AgentPlan(**raw_plan)
 
+            # === FEATURE 1: Tool Forcing Layer ===
+            # If intent requires tool but AI didn't return one, force inject
+            if intent_hint == "CREATE_GOAL" and not plan.tool_calls:
+                goal_title = self._extract_goal_title(user_text)
+                plan.tool_calls = [{"tool": "create_goal", "args": {"title": goal_title, "category": "general"}}]
+                plan.narrative = f"🎯 目標設定中：{goal_title}"
+                logger.info(f"Tool Forcing: Injected create_goal for '{goal_title}'")
+            elif intent_hint == "START_CHALLENGE" and not plan.tool_calls:
+                challenge_title = self._extract_goal_title(user_text)
+                plan.tool_calls = [{"tool": "start_challenge", "args": {"title": challenge_title, "difficulty": "D"}}]
+                plan.narrative = f"⚔️ 挑戰確認：{challenge_title}"
+                logger.info(f"Tool Forcing: Injected start_challenge for '{challenge_title}'")
+
             # Post-process
             if plan.narrative:
                 plan.narrative = plan.narrative.replace("[無操作]", "").replace("[ 無操作]", "").strip()
@@ -147,6 +160,36 @@ class NarratorService:
         if any(w in text for w in ["你好", "嗨", "hello", "hi", "早安", "晚安"]):
             return "GREETING"
         return "UNKNOWN"
+
+    def _extract_goal_title(self, text: str) -> str:
+        """Extract goal title from user input by removing common prefixes."""
+        import re
+
+        # Remove common prefixes
+        prefixes = [
+            r"^我想要?",
+            r"^我要",
+            r"^想要?",
+            r"^想成為",
+            r"^想學[習會]?",
+            r"^目標是?",
+            r"^新目標[：:]",
+            r"^i want to",
+            r"^i want",
+            r"^開始",
+            r"^挑戰",
+            r"^試試",
+        ]
+        cleaned = text.strip()
+        for prefix in prefixes:
+            cleaned = re.sub(prefix, "", cleaned, flags=re.IGNORECASE).strip()
+        # Fallback if nothing left
+        if not cleaned:
+            cleaned = text.strip()
+        # Limit length
+        if len(cleaned) > 50:
+            cleaned = cleaned[:47] + "..."
+        return cleaned
 
     def _construct_system_prompt(self, memory: Dict, flow: FlowState, intent_hint: str = "UNKNOWN") -> str:
         alerts = ""
