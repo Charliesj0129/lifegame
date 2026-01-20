@@ -92,11 +92,12 @@ class ContextService:
             else:
                 # Check recent failures
                 from app.models.quest import Quest, QuestStatus
+
                 stmt_q = (
                     select(Quest)
                     .where(
                         Quest.user_id == user_id,
-                        Quest.status.in_([QuestStatus.COMPLETED.value, QuestStatus.FAILED.value])
+                        Quest.status.in_([QuestStatus.COMPLETED.value, QuestStatus.FAILED.value]),
                     )
                     .order_by(desc(Quest.updated_at))
                     .limit(5)

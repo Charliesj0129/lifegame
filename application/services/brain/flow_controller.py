@@ -69,32 +69,32 @@ class FlowController:
 
         # PID Calculation
         error = current_win_rate - target_win_rate
-        
+
         # Default state values
         integral = 0.0
         last_error = 0.0
-        
+
         if pid_state:
             integral = pid_state.integral or 0.0
             last_error = pid_state.last_error or 0.0
-            
+
         # Integral Term (Accumulated Error)
         integral += error
         # Anti-windup clamping
         integral = max(-2.0, min(2.0, integral))
-        
+
         # Derivative Term (Trend)
         derivative = error - last_error
-        
+
         # Update State
         if pid_state:
             pid_state.integral = integral
             pid_state.last_error = error
             # Note: Caller is responsible for committing changes to DB
-            
+
         # PID Output
         pid_output = (self.Kp * error) + (self.Ki * integral) + (self.Kd * derivative)
-        
+
         logger.info(f"DDA PID: err={error:.2f}, int={integral:.2f}, der={derivative:.2f}, out={pid_output:.2f}")
 
         # Map PID output to tier adjustment

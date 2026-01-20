@@ -94,12 +94,12 @@ class NarratorService:
         # Fetch PID State (Feature 2)
         from sqlalchemy import select
         from app.models.gamification import UserPIDState
-        
+
         try:
             stmt = select(UserPIDState).where(UserPIDState.user_id == user_id)
             pid_res = await session.execute(stmt)
             pid_state = pid_res.scalars().first()
-            
+
             if not pid_state:
                 pid_state = UserPIDState(user_id=user_id)
                 session.add(pid_state)
