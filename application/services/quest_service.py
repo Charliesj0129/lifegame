@@ -320,33 +320,6 @@ class QuestService:
         if count > 0:
             await session.commit()
         return count
-        """
-        DDA Push Logic: Triggers quest generation based on time of day.
-        time_block: 'Morning' | 'Midday' | 'Night'
-        """
-        # 1. Check if we already have quests generated for this block?
-        # Actually _generate_daily_batch logic creates a batch.
-        # If we want granular pushes, we should check if ACTIVE quests exist.
-        stmt = select(Quest).where(
-            Quest.user_id == user_id,
-            Quest.status == QuestStatus.ACTIVE.value,
-            func.date(Quest.created_at) == datetime.date.today(),
-        )
-        exec_res = session.execute(stmt)
-        if inspect.isawaitable(exec_res):
-            exec_res = await exec_res
-        scalars_obj = exec_res.scalars() if exec_res else []
-        if inspect.isawaitable(scalars_obj):
-            scalars_obj = await scalars_obj
-        existing = scalars_obj.all() if hasattr(scalars_obj, "all") else (scalars_obj or [])
-
-        # If user has > 2 active quests, don't push more (avoid flooding)
-        if len(existing) >= 3:
-            return []
-
-        # Generate contextually
-        time_block = "Daily"  # Default context if not provided in older call path
-        return await self._generate_daily_batch(session, user_id, time_context=time_block)
 
     async def _generate_daily_batch(self, session: AsyncSession, user_id: str, time_context: str = "Daily"):
         """Generates quests. Checks for BOSS MODE first."""
