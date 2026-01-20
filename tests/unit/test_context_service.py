@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from application.services.context_service import ContextService
 from app.models.action_log import ActionLog
 from app.models.user import User
+from app.models.quest import Quest
 from app.models.base import Base
 
 
@@ -41,9 +42,9 @@ async def test_context_aggregation(db_session):
     await db_session.commit()
 
     # Mock Kuzu Async Method
-    from unittest.mock import AsyncMock
+    from unittest.mock import MagicMock
 
-    svc.kuzu.query_recent_context = AsyncMock(return_value=[])
+    svc.kuzu.query_recent_context = MagicMock(return_value=[])
 
     # Execute
     context = await svc.get_working_memory(db_session, "test_u1")

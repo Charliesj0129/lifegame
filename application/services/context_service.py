@@ -97,9 +97,9 @@ class ContextService:
                     select(Quest)
                     .where(
                         Quest.user_id == user_id,
-                        Quest.status.in_([QuestStatus.COMPLETED.value, QuestStatus.FAILED.value]),
+                        Quest.status.in_([QuestStatus.DONE.value, QuestStatus.FAILED.value]),
                     )
-                    .order_by(desc(Quest.updated_at))
+                    .order_by(desc(Quest.created_at))
                     .limit(5)
                 )
                 q_res = await session.execute(stmt_q)
