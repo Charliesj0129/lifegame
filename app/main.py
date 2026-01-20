@@ -206,6 +206,9 @@ async def handle_ai_analysis(session, user_id: str, text: str) -> GameResult:
         if update_data.xp_amount > 0:
             user.xp = (user.xp or 0) + update_data.xp_amount
 
+    # Ensure side-effects (like PID state updates) are persisted even if no stat_changes
+    # 'session.dirty' contains objects modified in this session (e.g. UserPIDState)
+    if plan.stat_update or session.dirty or session.new:
         await session.commit()
 
     # Record Event to Graph (DI)
