@@ -102,6 +102,7 @@ class NarratorService:
 
             if not pid_state:
                 from sqlalchemy.exc import IntegrityError
+
                 try:
                     # Use nested transaction (savepoint) to handle race condition
                     async with session.begin_nested():
