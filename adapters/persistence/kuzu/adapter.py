@@ -323,8 +323,9 @@ class KuzuAdapter(GraphPort):
         from_key_field: str = "name",
         to_key_field: str = "name",
     ) -> bool:
-        # Kuzu connection is not thread-safe; run inline in the event loop thread
-        return self._add_relationship_sync(
+        # Kuzu connection is not thread-safe; offload to thread pool
+        return await asyncio.to_thread(
+            self._add_relationship_sync,
             from_label,
             from_key,
             rel_type,

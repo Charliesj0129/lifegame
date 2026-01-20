@@ -70,7 +70,7 @@ class BossService:
 
                 if adapter:
                     # Ensure Boss Node
-                    await adapter.add_node("Boss", {"id": str(boss.id), "name": boss.name, "level": str(boss.level)})
+                    adapter.add_node("Boss", {"id": str(boss.id), "name": boss.name, "level": str(boss.level)})
 
                     import datetime
 

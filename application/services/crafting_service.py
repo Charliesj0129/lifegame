@@ -97,7 +97,7 @@ class CraftingService:
 
             if adapter:
                 # Ensure Item Node
-                await adapter.add_node("Item", {"id": recipe.result_item_id, "name": recipe.name})
+                adapter.add_node("Item", {"id": recipe.result_item_id, "name": recipe.name})
 
                 # Link User -> Item (CRAFTED)
                 import datetime
