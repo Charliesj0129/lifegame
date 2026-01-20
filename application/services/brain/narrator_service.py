@@ -101,10 +101,20 @@ class NarratorService:
             pid_state = pid_res.scalars().first()
 
             if not pid_state:
-                pid_state = UserPIDState(user_id=user_id)
-                session.add(pid_state)
+                from sqlalchemy.exc import IntegrityError
+                try:
+                    # Use nested transaction (savepoint) to handle race condition
+                    async with session.begin_nested():
+                        pid_state = UserPIDState(user_id=user_id)
+                        session.add(pid_state)
+                        await session.flush()
+                except IntegrityError:
+                    # Race condition hit: someone else created it. Fetch again.
+                    logger.info(f"Race condition detected for PID state user {user_id[-6:]}, refetching.")
+                    pid_res = await session.execute(stmt)
+                    pid_state = pid_res.scalars().first()
         except Exception as e:
-            logger.warning(f"Failed to fetch PID state: {e}")
+            logger.warning(f"Failed to fetch/create PID state: {e}")
             pid_state = None
 
         flow_target: FlowState = flow_controller.calculate_next_state(
