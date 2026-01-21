@@ -6,15 +6,15 @@ import os
 import random
 import time
 import uuid
-from unittest.mock import MagicMock, AsyncMock, Mock
+from unittest.mock import AsyncMock, MagicMock, Mock
 
-from sqlalchemy import select, delete, text
+from sqlalchemy import delete, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import func
 
-from app.models.quest import Quest, Goal, GoalStatus, QuestStatus, QuestType
-from application.services.brain.flow_controller import flow_controller
+from app.models.quest import Goal, GoalStatus, Quest, QuestStatus, QuestType
 from application.services.ai_engine import ai_engine
+from application.services.brain.flow_controller import flow_controller
 
 logger = logging.getLogger(__name__)
 
@@ -82,12 +82,20 @@ class QuestService:
         # 1. Fetch Existing Quests for Today (or Active ones)
         # We look for quests scheduled for today OR active pending ones?
         # For simplicity: "Daily Quests" are those created today date or scheduled for today.
-        today_start = datetime.datetime.combine(today, datetime.time.min).replace(tzinfo=datetime.timezone.utc)
-        today_end = datetime.datetime.combine(today, datetime.time.max).replace(tzinfo=datetime.timezone.utc)
+        today_start = datetime.datetime.combine(today, datetime.time.min).replace(
+            tzinfo=datetime.timezone.utc
+        )
+        today_end = datetime.datetime.combine(today, datetime.time.max).replace(
+            tzinfo=datetime.timezone.utc
+        )
 
         stmt = (
             select(Quest)
-            .where(Quest.user_id == user_id, Quest.created_at >= today_start, Quest.created_at <= today_end)
+            .where(
+                Quest.user_id == user_id,
+                Quest.created_at >= today_start,
+                Quest.created_at <= today_end,
+            )
             .order_by(Quest.created_at.asc())
         )
         result = await session.execute(stmt)
@@ -99,7 +107,9 @@ class QuestService:
 
         return quests[: self.DAILY_QUEST_COUNT]
 
-    async def create_new_goal(self, session: AsyncSession, user_id: str, goal_text: str):
+    async def create_new_goal(
+        self, session: AsyncSession, user_id: str, goal_text: str
+    ):
         """
         Creates a new Goal and uses AI to break it down into Milestones (Main Quests).
         """
@@ -152,7 +162,9 @@ class QuestService:
                 title = (m.get("title") or "").strip()
                 desc = (m.get("desc") or "").strip()
                 diff = (m.get("difficulty") or m.get("diff") or "D").upper()
-                duration = m.get("duration_minutes") or m.get("duration") or m.get("minutes")
+                duration = (
+                    m.get("duration_minutes") or m.get("duration") or m.get("minutes")
+                )
                 done = m.get("definition_of_done") or m.get("done") or ""
 
                 if not title or not _contains_cjk(title):
@@ -250,10 +262,18 @@ class QuestService:
                 adapter = container.graph_service.adapter
 
                 # Create Goal Node
-                adapter.add_node("Goal", {"id": goal.id, "title": goal.title, "status": "ACTIVE"})
+                adapter.add_node(
+                    "Goal", {"id": goal.id, "title": goal.title, "status": "ACTIVE"}
+                )
                 # Link User -> Goal
                 await adapter.add_relationship(
-                    "User", user_id, "PURSUES", "Goal", goal.id, from_key_field="id", to_key_field="id"
+                    "User",
+                    user_id,
+                    "PURSUES",
+                    "Goal",
+                    goal.id,
+                    from_key_field="id",
+                    to_key_field="id",
                 )
 
                 logger.info(f"Synced Goal {goal.title} to Kuzu Graph.")
@@ -268,7 +288,9 @@ class QuestService:
             await session.commit()
             return goal, {}
 
-    async def create_bridge_quest(self, session: AsyncSession, user_id: str, goal_id: str):
+    async def create_bridge_quest(
+        self, session: AsyncSession, user_id: str, goal_id: str
+    ):
         """
         Executive Tool: Generates a single 'Bridge Quest' for a stagnant goal.
         """
@@ -284,7 +306,9 @@ class QuestService:
             "JSON: { 'title': '...', 'desc': '...', 'diff': 'E', 'xp': 10 }"
         )
         try:
-            ai_data = await ai_engine.generate_json(system_prompt, "Generate Bridge Task")
+            ai_data = await ai_engine.generate_json(
+                system_prompt, "Generate Bridge Task"
+            )
             t = ai_data if isinstance(ai_data, dict) else ai_data[0]
 
             q = Quest(
@@ -311,7 +335,9 @@ class QuestService:
         Accepts all PENDING quests for the user (sets to ACTIVE).
         Returns number of accepted quests.
         """
-        stmt = select(Quest).where(Quest.user_id == user_id, Quest.status == QuestStatus.PENDING.value)
+        stmt = select(Quest).where(
+            Quest.user_id == user_id, Quest.status == QuestStatus.PENDING.value
+        )
         result = await session.execute(stmt)
         pending = result.scalars().all()
 
@@ -325,10 +351,12 @@ class QuestService:
             await session.commit()
         return count
 
-    async def _generate_daily_batch(self, session: AsyncSession, user_id: str, time_context: str = "Daily"):
+    async def _generate_daily_batch(
+        self, session: AsyncSession, user_id: str, time_context: str = "Daily"
+    ):
         """Generates quests. Checks for BOSS MODE first."""
-        from application.services.rival_service import rival_service
         from app.core.container import container
+        from application.services.rival_service import rival_service
 
         # 0. Boss Mode Check (Only if Morning/Daily context)
         if time_context in ["Daily", "Morning"]:
@@ -345,7 +373,11 @@ class QuestService:
             hp_value = getattr(user, "hp", None)
             has_hp_value = isinstance(hp_value, (int, float))
 
-            if user and (is_hollowed or hp_status == "HOLLOWED" or (has_hp_value and hp_value <= 0)):
+            if user and (
+                is_hollowed
+                or hp_status == "HOLLOWED"
+                or (has_hp_value and hp_value <= 0)
+            ):
                 emergency = Quest(
                     user_id=user_id,
                     title="緊急修復任務",
@@ -362,7 +394,9 @@ class QuestService:
                 return [emergency]
 
             if user and rival and rival.level >= (user.level + 2):
-                logger.warning(f"BOSS MODE TRIGGERED for {user_id}. Rival Lv.{rival.level} vs User Lv.{user.level}")
+                logger.warning(
+                    f"BOSS MODE TRIGGERED for {user_id}. Rival Lv.{rival.level} vs User Lv.{user.level}"
+                )
 
                 system_prompt = (
                     "You are an enemy AI 'Viper'. The user is weak. "
@@ -373,12 +407,16 @@ class QuestService:
                 user_prompt = "Generate Boss Quest."
 
                 try:
-                    ai_data = await asyncio.wait_for(ai_engine.generate_json(system_prompt, user_prompt), timeout=4.0)
+                    ai_data = await asyncio.wait_for(
+                        ai_engine.generate_json(system_prompt, user_prompt), timeout=4.0
+                    )
                     t = ai_data if isinstance(ai_data, dict) else ai_data[0]
                     boss_quest = Quest(
                         user_id=user_id,
                         title=t.get("title", "Defeat Viper: System Purge"),
-                        description=t.get("desc", "Complete this to reboot your LifeOS."),
+                        description=t.get(
+                            "desc", "Complete this to reboot your LifeOS."
+                        ),
                         difficulty_tier=t.get("diff", "S"),
                         xp_reward=t.get("xp", 500),
                         quest_type=QuestType.MAIN.value,
@@ -407,11 +445,17 @@ class QuestService:
                     return [bq]
 
         # 1. Normal Flow - Active Goal & DDA
-        stmt = select(Goal).where(Goal.user_id == user_id, Goal.status == GoalStatus.ACTIVE.value)
+        stmt = select(Goal).where(
+            Goal.user_id == user_id, Goal.status == GoalStatus.ACTIVE.value
+        )
         result = await session.execute(stmt)
         active_goal = result.scalars().first()
 
-        topic = f"Current Objective: {active_goal.title}" if active_goal else "General Cyberpunk Self-Improvement"
+        topic = (
+            f"Current Objective: {active_goal.title}"
+            if active_goal
+            else "General Cyberpunk Self-Improvement"
+        )
 
         # DDA Check (Feature 3)
         from app.models.dda import DailyOutcome
@@ -427,7 +471,9 @@ class QuestService:
         dda_modifier = ""
         target_diff = "D"
         if dda_res and not dda_res.done:
-            dda_modifier = "User is struggling. Generate EASIER, shorter tasks. Focus on recovery."
+            dda_modifier = (
+                "User is struggling. Generate EASIER, shorter tasks. Focus on recovery."
+            )
             target_diff = "E"
             logger.info(f"DDA Triggered: Easy Mode for {user_id}")
 
@@ -437,11 +483,17 @@ class QuestService:
         is_lucky = False
         if force_serendipity:
             is_lucky = True
-        elif not disable_serendipity and os.environ.get("TESTING") != "1" and not os.environ.get("PYTEST_CURRENT_TEST"):
+        elif (
+            not disable_serendipity
+            and os.environ.get("TESTING") != "1"
+            and not os.environ.get("PYTEST_CURRENT_TEST")
+        ):
             is_lucky = random.random() < 0.2  # 20%
         serendipity_prompt = ""
         if is_lucky:
-            serendipity_prompt = "其中 1 個任務標記為「稀有」，標題加上「稀有」並提高 XP 至 50。"
+            serendipity_prompt = (
+                "其中 1 個任務標記為「稀有」，標題加上「稀有」並提高 XP 至 50。"
+            )
 
         # 2. Generate with AI & Graph
         count = self.DAILY_QUEST_COUNT if time_context in ["Daily", "Morning"] else 1
@@ -512,7 +564,9 @@ class QuestService:
                 # Fallback logic...
                 raise ValueError("AI Error")
 
-            quest_list = ai_data if isinstance(ai_data, list) else ai_data.get("quests", [])
+            quest_list = (
+                ai_data if isinstance(ai_data, list) else ai_data.get("quests", [])
+            )
             if isinstance(ai_data, dict) and not quest_list:
                 # Try to parse single object or flat dict
                 if "title" in ai_data:
@@ -535,11 +589,12 @@ class QuestService:
                 if desc and not _contains_cjk(desc):
                     desc = "完成一個短任務（10-20 分鐘）。"
 
-                normalized.append({"title": title, "desc": desc, "diff": diff, "xp": xp})
+                normalized.append(
+                    {"title": title, "desc": desc, "diff": diff, "xp": xp}
+                )
 
             # === FEATURE 3: Fogg Model Filter ===
             # from application.services.brain.flow_controller import flow_controller # Moved to top
-
 
             motivation = await self._calculate_motivation(session, user_id)
 
@@ -549,13 +604,19 @@ class QuestService:
                 if flow_controller.evaluate_fogg_trigger(motivation, friction):
                     fogg_filtered.append(q)
                 else:
-                    logger.info(f"Quest '{q['title']}' filtered by Fogg (M={motivation:.2f}, F={friction})")
+                    logger.info(
+                        f"Quest '{q['title']}' filtered by Fogg (M={motivation:.2f}, F={friction})"
+                    )
 
             # If all filtered, try to salvage easiest
             if not fogg_filtered and normalized:
                 # Find min friction
                 min_friction = min(self._estimate_friction(q) for q in normalized)
-                fogg_filtered = [q for q in normalized if self._estimate_friction(q) <= min_friction + 0.1]
+                fogg_filtered = [
+                    q
+                    for q in normalized
+                    if self._estimate_friction(q) <= min_friction + 0.1
+                ]
 
             quest_list = fogg_filtered[:count]
 
@@ -650,7 +711,9 @@ class QuestService:
         await session.commit()
         return new_quests
 
-    async def complete_quest(self, session: AsyncSession, user_id: str, quest_id: str) -> dict:
+    async def complete_quest(
+        self, session: AsyncSession, user_id: str, quest_id: str
+    ) -> dict:
         """
         Marks a quest as DONE and returns Reward Data (RPE integrated).
         Returns Dict with quest and reward details.
@@ -687,7 +750,9 @@ class QuestService:
             try:
                 from app.core.container import container
 
-                user = await self._maybe_await(container.user_service.get_user(session, user_id))
+                user = await self._maybe_await(
+                    container.user_service.get_user(session, user_id)
+                )
                 if user:
                     user.xp = (user.xp or 0) + loot.xp
                     user.gold = (user.gold or 0) + loot.gold
@@ -707,11 +772,13 @@ class QuestService:
                 quest.status = QuestStatus.DONE.value
 
                 # --- Loot & RPE Logic ---
-                from application.services.loot_service import loot_service
                 from app.core.container import container
+                from application.services.loot_service import loot_service
 
                 # Fetch User First to measure Churn Risk
-                user = await self._maybe_await(container.user_service.get_user(session, user_id))
+                user = await self._maybe_await(
+                    container.user_service.get_user(session, user_id)
+                )
 
                 # Calculate Churn Risk (Simple Heuristic for EOMM)
                 churn_risk = "LOW"
@@ -725,7 +792,9 @@ class QuestService:
                         churn_risk = "HIGH"
 
                 # Calculate Reward (Pass Churn Risk for Addiction Boost)
-                loot = loot_service.calculate_reward(quest.difficulty_tier, "C", churn_risk=churn_risk)
+                loot = loot_service.calculate_reward(
+                    quest.difficulty_tier, "C", churn_risk=churn_risk
+                )
 
                 # Apply XP & Gold to user
                 if user:
@@ -741,25 +810,31 @@ class QuestService:
                         from app.core.container import container
 
                         graph_node_id = quest.meta["graph_node_id"]
-                        success = await container.graph_service.adapter.add_relationship(
-                            "User",
-                            user_id,
-                            "COMPLETED",
-                            "Quest",
-                            graph_node_id,
-                            {"timestamp": datetime.datetime.now().isoformat()},
-                            from_key_field="id",
-                            to_key_field="id",
+                        success = (
+                            await container.graph_service.adapter.add_relationship(
+                                "User",
+                                user_id,
+                                "COMPLETED",
+                                "Quest",
+                                graph_node_id,
+                                {"timestamp": datetime.datetime.now().isoformat()},
+                                from_key_field="id",
+                                to_key_field="id",
+                            )
                         )
                         if success:
-                            logger.info(f"Synced Quest {quest.title} completion to Graph Node {graph_node_id}")
+                            logger.info(
+                                f"Synced Quest {quest.title} completion to Graph Node {graph_node_id}"
+                            )
                     except Exception as e:
                         logger.error(f"Graph Sync Failed: {e}")
 
                 # Passive Boss Damage
                 from application.services.boss_service import boss_service
 
-                await self._maybe_await(boss_service.deal_damage(session, user_id, 50))  # 50 dmg per quest
+                await self._maybe_await(
+                    boss_service.deal_damage(session, user_id, 50)
+                )  # 50 dmg per quest
 
                 # Hollowed recovery
                 if user and quest.quest_type == QuestType.REDEMPTION.value:
@@ -771,13 +846,21 @@ class QuestService:
                         if delta:
                             await self._maybe_await(
                                 hp_service.apply_hp_change(
-                                    session, user, delta, source="rescue_quest", trigger_rescue=False
+                                    session,
+                                    user,
+                                    delta,
+                                    source="rescue_quest",
+                                    trigger_rescue=False,
                                 )
                             )
                 elif user:
                     from application.services.hp_service import hp_service
 
-                    await self._maybe_await(hp_service.restore_by_difficulty(session, user, quest.difficulty_tier))
+                    await self._maybe_await(
+                        hp_service.restore_by_difficulty(
+                            session, user, quest.difficulty_tier
+                        )
+                    )
 
                 return {"quest": quest, "loot": loot}
             except TypeError:
@@ -791,7 +874,9 @@ class QuestService:
                 return {"quest": quest, "loot": fallback_loot}
         return None
 
-    async def get_completed_quests_this_week(self, session: AsyncSession, user_id: str) -> list[Quest]:
+    async def get_completed_quests_this_week(
+        self, session: AsyncSession, user_id: str
+    ) -> list[Quest]:
         """
         Returns completed quests for the current week (Mon-Sun).
         """
@@ -805,7 +890,9 @@ class QuestService:
         result = await session.execute(stmt)
         return result.scalars().all()
 
-    async def trigger_push_quests(self, session: AsyncSession, user_id: str, time_block: str = "Daily"):
+    async def trigger_push_quests(
+        self, session: AsyncSession, user_id: str, time_block: str = "Daily"
+    ):
         """
         DDA Push Logic: Triggers quest generation based on time of day.
         time_block: 'Morning' | 'Midday' | 'Night'
@@ -827,10 +914,16 @@ class QuestService:
             return existing
 
         # Generate contextually
-        return await self._generate_daily_batch(session, user_id, time_context=time_block)
+        return await self._generate_daily_batch(
+            session, user_id, time_context=time_block
+        )
 
     async def reroll_quests(
-        self, session: AsyncSession, user_id: str, cost: int = 100, target_date: datetime.date | None = None
+        self,
+        session: AsyncSession,
+        user_id: str,
+        cost: int = 100,
+        target_date: datetime.date | None = None,
     ):
         """Archives current daily quests and generates new ones. Deducts gold."""
         from app.core.container import container
@@ -841,7 +934,9 @@ class QuestService:
         # 1. Check Gold
         from app.models.user import User
 
-        user = await session.get(User, user_id) or await container.user_service.get_user(session, user_id)
+        user = await session.get(
+            User, user_id
+        ) or await container.user_service.get_user(session, user_id)
         gold_balance = 0
         if user is not None:
             try:
@@ -860,8 +955,12 @@ class QuestService:
 
         # Archive old ones
         # Archive old ones
-        today_start = datetime.datetime.combine(today, datetime.time.min).replace(tzinfo=datetime.timezone.utc)
-        today_end = datetime.datetime.combine(today, datetime.time.max).replace(tzinfo=datetime.timezone.utc)
+        today_start = datetime.datetime.combine(today, datetime.time.min).replace(
+            tzinfo=datetime.timezone.utc
+        )
+        today_end = datetime.datetime.combine(today, datetime.time.max).replace(
+            tzinfo=datetime.timezone.utc
+        )
 
         stmt = select(Quest).where(
             Quest.user_id == user_id,
@@ -894,7 +993,9 @@ class QuestService:
                 # Feature 4: Viper Taunt via NarrativeService
                 from application.services.narrative_service import narrative_service
 
-                viper_taunt = await narrative_service.get_viper_comment(session, user_id, context_data)
+                viper_taunt = await narrative_service.get_viper_comment(
+                    session, user_id, context_data
+                )
 
         # Clear only today's non-completed quests for this user (preserve history)
         delete_stmt = delete(Quest).where(
@@ -903,7 +1004,9 @@ class QuestService:
             Quest.created_at <= today_end,
             Quest.status != QuestStatus.DONE.value,
         )
-        delete_result = await session.execute(delete_stmt, execution_options={"synchronize_session": False})
+        delete_result = await session.execute(
+            delete_stmt, execution_options={"synchronize_session": False}
+        )
         if getattr(delete_result, "rowcount", 0) == 0:
             # Fallback for SQLite rowcount quirks: ensure removal via ORM path
             existing = (
@@ -929,7 +1032,9 @@ class QuestService:
         new_quests = await self._generate_daily_batch(session, user_id)
         return new_quests, viper_taunt
 
-    async def bulk_adjust_difficulty(self, session: AsyncSession, user_id: str, target_tier: str = "E"):
+    async def bulk_adjust_difficulty(
+        self, session: AsyncSession, user_id: str, target_tier: str = "E"
+    ):
         """
         Executive System Tool: Forcefully adjusts active Side Quests to a specific tier.
         Used for 'Emergency Downgrade' when user is overwhelmed.
@@ -965,10 +1070,16 @@ class QuestService:
         result = await session.execute(stmt)
         return result.scalars().all()
 
-    async def _seed_default_habits(self, session: AsyncSession, user_id: str, habits: list):
+    async def _seed_default_habits(
+        self, session: AsyncSession, user_id: str, habits: list
+    ):
         from app.models.dda import HabitState
 
-        existing = {(h.habit_tag or h.habit_name or "").strip() for h in habits if (h.habit_tag or h.habit_name)}
+        existing = {
+            (h.habit_tag or h.habit_name or "").strip()
+            for h in habits
+            if (h.habit_tag or h.habit_name)
+        }
 
         created = False
         for template in self.DEFAULT_DAILY_HABITS:
@@ -997,7 +1108,9 @@ class QuestService:
             await session.commit()
         return habits
 
-    async def get_daily_habits(self, session: AsyncSession, user_id: str, limit: int | None = None):
+    async def get_daily_habits(
+        self, session: AsyncSession, user_id: str, limit: int | None = None
+    ):
         habits = await self.get_active_habits(session, user_id)
         target = limit or self.DAILY_HABIT_COUNT
         if len(habits) < target:
@@ -1013,8 +1126,9 @@ class QuestService:
 
     async def _calculate_motivation(self, session: AsyncSession, user_id: str) -> float:
         """Calculate user motivation score (0.0 - 1.0) based on context."""
-        from app.core.container import container
         import datetime
+
+        from app.core.container import container
 
         user_call = container.user_service.get_user(session, user_id)
         if inspect.isawaitable(user_call):
@@ -1032,7 +1146,9 @@ class QuestService:
 
         # Time boost
         hour = datetime.datetime.now().hour
-        time_boost = 0.2 if 8 <= hour <= 10 else (-0.2 if 22 <= hour or hour <= 6 else 0)
+        time_boost = (
+            0.2 if 8 <= hour <= 10 else (-0.2 if 22 <= hour or hour <= 6 else 0)
+        )
 
         # HP factor
         hp = getattr(user, "hp", 100) or 100

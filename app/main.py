@@ -1,49 +1,49 @@
-from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request
-from app.core.config import settings
-from app.core.migrations import run_migrations
-from app.core.logging_middleware import LoggingMiddleware
-
 import asyncio
 import inspect
 import logging
 import os
 import time
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, Request
+
+from app.core.config import settings
 
 # Setup logging
 from app.core.logging_config import setup_logging
+from app.core.logging_middleware import LoggingMiddleware
+from app.core.migrations import run_migrations
 
 setup_logging()
 logger = logging.getLogger(__name__)
 
 # --- Core Imports (Explicit Dependencies) ---
-from sqlalchemy.ext.asyncio import AsyncSession
+# Line Bot
+from linebot.v3.messaging import MessageAction, QuickReply, QuickReplyItem
 from sqlalchemy import text
-from app.core.database import AsyncSessionLocal
-from app.core.dispatcher import dispatcher
-
-# Domain & Adapters
-# Domain & Adapters
-from domain.models.game_result import GameResult
-# from adapters.persistence.kuzu.adapter import get_kuzu_adapter # Use container
-
-# Services (Lifted from Lazy Imports)
-from application.services.game_loop import game_loop
+from sqlalchemy.ext.asyncio import AsyncSession
 
 # from application.services.brain_service import brain_service # Use container
 # from application.services.user_service import user_service # Use container
 from app.core.container import container
-from application.services.hp_service import hp_service
-from application.services.quest_service import quest_service
-from application.services.lore_service import lore_service
-from application.services.inventory_service import inventory_service
-from application.services.shop_service import shop_service
-from application.services.crafting_service import crafting_service
+from app.core.database import AsyncSessionLocal
+from app.core.dispatcher import dispatcher
 from application.services.boss_service import boss_service
+from application.services.crafting_service import crafting_service
 from application.services.flex_renderer import flex_renderer
 
-# Line Bot
-from linebot.v3.messaging import QuickReply, QuickReplyItem, MessageAction
+# from adapters.persistence.kuzu.adapter import get_kuzu_adapter # Use container
+# Services (Lifted from Lazy Imports)
+from application.services.game_loop import game_loop
+from application.services.hp_service import hp_service
+from application.services.inventory_service import inventory_service
+from application.services.lore_service import lore_service
+from application.services.quest_service import quest_service
+from application.services.shop_service import shop_service
+
+# Domain & Adapters
+# Domain & Adapters
+from domain.models.game_result import GameResult
 
 
 # --- Resilience: Global Exception Handler ---
@@ -105,6 +105,7 @@ app.add_middleware(LoggingMiddleware)
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     from fastapi.responses import JSONResponse
+
     from app.core.context import get_request_id
 
     req_id = get_request_id()
@@ -481,6 +482,7 @@ async def handle_sys_info(session: AsyncSession, user_id: str, text: str) -> Gam
     """Handler for '/sys' - System Diagnostics."""
     try:
         import os
+
         import sqlalchemy
         from sqlalchemy import text as sql_text
 
@@ -524,9 +526,10 @@ async def handle_manual_migrate(session: AsyncSession, user_id: str, text: str) 
     try:
         import io
         import sys
+        from pathlib import Path
+
         from alembic import command
         from alembic.config import Config
-        from pathlib import Path
 
         # Capture Stdout/Stderr to return to user
         capture = io.StringIO()
@@ -603,9 +606,7 @@ async def process_game_logic(user_id: str, text: str, session: AsyncSession = No
 
 
 # Include Router
-from app.api import line_webhook
-from app.api import nerves
-from app.api import chat
+from app.api import chat, line_webhook, nerves
 
 app.include_router(line_webhook.router, prefix="", tags=["line"])
 app.include_router(nerves.router, prefix="/api", tags=["nerves"])
