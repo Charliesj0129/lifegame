@@ -43,6 +43,8 @@ testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 120
+
+[tool.ruff.lint]
 ignore = ["E402", "F401", "E701", "F403"]
 
 [tool.mypy]

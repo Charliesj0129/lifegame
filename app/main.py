@@ -346,7 +346,7 @@ async def handle_quests(session: AsyncSession, user_id: str, text: str) -> GameR
     quests = await quest_service.get_daily_quests(session, user_id)
     t1 = time.perf_counter()
     logger.info(f"[Perf] get_daily_quests took {t1 - t0:.4f}s")
-    
+
     if quests:
         flex = flex_renderer.render_quest_list(quests)
         t2 = time.perf_counter()
