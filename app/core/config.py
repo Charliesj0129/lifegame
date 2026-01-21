@@ -62,6 +62,7 @@ class Settings(BaseSettings):
     # OpenRouter
     OPENROUTER_API_KEY: Optional[str] = None
     OPENROUTER_MODEL: str = "google/gemini-3-flash-preview"
+    AI_REQUEST_TIMEOUT_SECONDS: float = 10.0  # Increased for stability
 
     @field_validator("OPENROUTER_API_KEY")
     @classmethod
