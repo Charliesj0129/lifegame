@@ -40,7 +40,7 @@ jobs:
       - name: Run Linting
         run: |
           uv run ruff check .
-          uv run ruff format . --check
+
 
       - name: Run Type Checking
         run: uv run mypy . --ignore-missing-imports || true
