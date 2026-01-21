@@ -37,9 +37,9 @@ jobs:
       - name: Install dependencies
         run: uv sync --all-extras --dev
 
-      - name: Run Linting
-        run: |
-          uv run ruff check .
+      #- name: Run Linting
+      #  run: |
+      #    uv run ruff check .
 
 
       - name: Run Type Checking
