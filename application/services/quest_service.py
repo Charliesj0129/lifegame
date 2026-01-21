@@ -9,7 +9,7 @@ import uuid
 from typing import Dict, List, Set
 from unittest.mock import AsyncMock, MagicMock, Mock
 
-from sqlalchemy import delete, select, text
+from sqlalchemy import delete, select, text, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import func
 
@@ -553,7 +553,6 @@ class QuestService:
             # Fetch recent history for Diversity/Exploration
             recent_titles = []
             try:
-                from sqlalchemy import select, desc
                 stmt_hist = select(Quest.title).where(Quest.user_id == user_id).order_by(desc(Quest.created_at)).limit(20)
                 res_hist = await session.execute(stmt_hist)
                 recent_titles = list(res_hist.scalars().all())
