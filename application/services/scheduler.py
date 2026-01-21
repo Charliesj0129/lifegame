@@ -92,21 +92,36 @@ class DDAScheduler:
     async def _push_tick(self):
         """
         Single scheduler tick that checks per-user local time and sends pushes.
+        Uses batched execution to prevent head-of-line blocking.
         """
         if self._lock.locked():
             return
+
+        BATCH_SIZE = 10  # Process 10 users concurrently
+
         async with self._lock:
             async with AsyncSessionLocal() as session:
                 users = await self._get_all_users(session)
                 await self._maybe_refresh_shop(session, users)
-                for user in users:
-                    try:
+
+                # Split into chunks for basic rate limiting/batching
+                for i in range(0, len(users), BATCH_SIZE):
+                    chunk = users[i : i + BATCH_SIZE]
+                    tasks = []
+                    for user in chunk:
                         if not user.push_enabled:
-                            logger.info("Push skipped: user preference user=%s", user.id)
                             continue
-                        await self._process_user(session, user)
-                    except Exception as e:
-                        logger.error("Push tick failed for %s: %s", user.id, e)
+                        tasks.append(self._process_user_safe(session, user))
+
+                    if tasks:
+                        await asyncio.gather(*tasks)
+
+    async def _process_user_safe(self, session: AsyncSession, user: User):
+        """Wrapper to catch exceptions per user task."""
+        try:
+            await self._process_user(session, user)
+        except Exception as e:
+            logger.error("Push tick failed for %s: %s", user.id, e)
 
     async def _executive_tick(self):
         """
@@ -300,12 +315,7 @@ class DDAScheduler:
             DailyOutcome.date == yesterday,
         )
         result = await session.execute(stmt)
-        scalars = result.scalars()
-        if asyncio.iscoroutine(scalars):
-            scalars = await scalars
-        outcome = scalars.first()
-        if asyncio.iscoroutine(outcome):
-            outcome = await outcome
+        outcome = result.scalars().first()
         if outcome and not outcome.done:
             return "偵測到能量低落：今日任務已降階，先穩住連勝。"
         return None
