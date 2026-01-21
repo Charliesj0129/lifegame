@@ -1,19 +1,22 @@
 import logging
-from typing import Union, List, Optional, Any
+from typing import Any, List, Optional, Union
+
 from linebot.v3.messaging import (
-    MessagingApi,
-    ReplyMessageRequest,
-    PushMessageRequest,
-    TextMessage,
     ImageMessage,
+    MessagingApi,
+    PushMessageRequest,
     QuickReply,
     QuickReplyItem,
+    ReplyMessageRequest,
+    TextMessage,
+)
+from linebot.v3.messaging import (
     PostbackAction as LinePostbackAction,
 )
 from linebot.v3.webhooks import MessageEvent, TextMessageContent
 
-from domain.models.game_result import GameResult
 from application.services.line_bot import get_messaging_api  # Legacy helper for now
+from domain.models.game_result import GameResult
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +31,9 @@ class LineClient:
         # We rely on the global get_messaging_api for now to avoid refactoring config loading yet
         pass
 
-    async def send_reply(self, token: str, result: GameResult, user_id: str | None = None) -> bool:
+    async def send_reply(
+        self, token: str, result: GameResult, user_id: str | None = None
+    ) -> bool:
         """
         Sends a GameResult as a LINE format reply.
         If replying fails (e.g. invalid token), it does NOT fallback internally to reply again.
@@ -44,11 +49,15 @@ class LineClient:
             # LOGGING: payload check
             try:
                 msg_summary = [str(m) for m in messages]
-                logger.info(f"Sending Reply to {token[:10]}...: {len(messages)} msgs. Type: {msg_summary}")
+                logger.info(
+                    f"Sending Reply to {token[:10]}...: {len(messages)} msgs. Type: {msg_summary}"
+                )
             except Exception:
                 pass
 
-            await api.reply_message(ReplyMessageRequest(reply_token=token, messages=messages))
+            await api.reply_message(
+                ReplyMessageRequest(reply_token=token, messages=messages)
+            )
             logger.info("Reply Sent Successfully.")
             return True
         except Exception as e:
@@ -70,14 +79,22 @@ class LineClient:
             await api.push_message(PushMessageRequest(to=user_id, messages=messages))
             return True
         except Exception as e:
-            logger.error(f"Failed to send LINE push (Rich): {e}. Attempting Text Fallback.")
+            logger.error(
+                f"Failed to send LINE push (Rich): {e}. Attempting Text Fallback."
+            )
             try:
                 # 2. Try Text Push (Safe Mode)
                 if result.text:
                     from linebot.v3.messaging import TextMessage
 
-                    fallback_msg = [TextMessage(text=f"{result.text}\n\n(⚠️ Display Error: Rich content failed)")]
-                    await api.push_message(PushMessageRequest(to=user_id, messages=fallback_msg))
+                    fallback_msg = [
+                        TextMessage(
+                            text=f"{result.text}\n\n(⚠️ Display Error: Rich content failed)"
+                        )
+                    ]
+                    await api.push_message(
+                        PushMessageRequest(to=user_id, messages=fallback_msg)
+                    )
                     return True
                 return False
             except Exception as e2:
@@ -110,7 +127,10 @@ class LineClient:
                 messages.append(flex_msg)
 
         elif result.image_url:
-            msg = ImageMessage(original_content_url=result.image_url, preview_image_url=result.image_url)
+            msg = ImageMessage(
+                original_content_url=result.image_url,
+                preview_image_url=result.image_url,
+            )
             messages.append(msg)
 
         elif result.text and not meta.get("flex_message"):
