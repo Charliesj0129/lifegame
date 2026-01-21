@@ -9,8 +9,10 @@ import datetime
 import random
 import uuid
 from app.models.quest import Quest, Goal, GoalStatus, QuestStatus, QuestType
+from application.services.brain.flow_controller import flow_controller
 from application.services.ai_engine import ai_engine
 import logging
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -496,10 +498,13 @@ class QuestService:
 
         try:
             # Enforce 10s timeout for responsiveness
+            t0 = time.perf_counter()
             ai_data = await asyncio.wait_for(
                 ai_engine.generate_json(system_prompt, user_prompt),
                 timeout=10.0,
             )
+            t1 = time.perf_counter()
+            logger.info(f"[Perf] AI Quest Gen took {t1 - t0:.4f}s")
 
             if isinstance(ai_data, dict) and ai_data.get("error"):
                 # Fallback logic...
@@ -531,7 +536,8 @@ class QuestService:
                 normalized.append({"title": title, "desc": desc, "diff": diff, "xp": xp})
 
             # === FEATURE 3: Fogg Model Filter ===
-            from application.services.brain.flow_controller import flow_controller
+            # from application.services.brain.flow_controller import flow_controller # Moved to top
+
 
             motivation = await self._calculate_motivation(session, user_id)
 

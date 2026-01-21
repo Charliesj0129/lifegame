@@ -8,6 +8,7 @@ import asyncio
 import inspect
 import logging
 import os
+import time
 
 # Setup logging
 from app.core.logging_config import setup_logging
@@ -136,6 +137,7 @@ async def handle_ai_analysis(session, user_id: str, text: str) -> GameResult:
         ("背包", "inventory"): handle_inventory,
         ("商店", "shop"): handle_shop,
         ("新目標",): handle_new_goal,
+        ("ping", "test"): handle_ping,
     }
     for keys, handler in quick_routes.items():
         if normalized in keys:
@@ -331,11 +333,23 @@ async def handle_status(session: AsyncSession, user_id: str, text: str) -> GameR
         return GameResult(text=f"⚠️ 狀態載入失敗: {str(e)[:50]}", intent="status_critical_error")
 
 
+async def handle_ping(session: AsyncSession, user_id: str, text: str) -> GameResult:
+    """Simple Echo/Ping handler for connectivity test."""
+    return GameResult(text="🏓 Pong! 系統連線正常。", intent="ping")
+
+
 async def handle_quests(session: AsyncSession, user_id: str, text: str) -> GameResult:
     """Handler for '任務' command - returns quest list Flex card."""
+    t0 = time.perf_counter()
+    logger.info(f"[Perf] handle_quests started for {user_id}")
     quests = await quest_service.get_daily_quests(session, user_id)
+    t1 = time.perf_counter()
+    logger.info(f"[Perf] get_daily_quests took {t1 - t0:.4f}s")
+    
     if quests:
         flex = flex_renderer.render_quest_list(quests)
+        t2 = time.perf_counter()
+        logger.info(f"[Perf] flex_renderer took {t2 - t1:.4f}s")
         return GameResult(text="📋 今日任務", intent="quests", metadata={"flex_message": flex})
     else:
         return GameResult(text="📭 目前沒有任務。試試說「我想...」來設定新目標！", intent="quests")
