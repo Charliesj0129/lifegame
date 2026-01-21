@@ -1,6 +1,8 @@
-import pytest
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
 from application.services.brain_service import brain_service
 from application.services.context_service import context_service
 

@@ -1,8 +1,10 @@
+from typing import Any, Dict, Optional
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from typing import Optional, Dict, Any
 
 from application.services.social_service import social_service
+
 # We might need auth dependency later, but for now open or consistent with Line Webhook logic?
 # Actually, if this is called by frontend or Line Webhook, it's internal.
 # But if it's a REST API for a future frontend, it needs Auth.

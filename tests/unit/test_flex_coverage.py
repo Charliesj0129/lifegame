@@ -1,7 +1,8 @@
 import pytest
-from application.services.flex_renderer import FlexRenderer
-from app.models.user import User
+
 from app.models.quest import Quest, QuestStatus
+from app.models.user import User
+from application.services.flex_renderer import FlexRenderer
 
 
 @pytest.mark.asyncio

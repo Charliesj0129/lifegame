@@ -1,10 +1,12 @@
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
 import pytest_asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
+
 from app.models.base import Base
-from app.models.lore import LoreProgress, LoreEntry
+from app.models.lore import LoreEntry, LoreProgress
 from application.services.lore_service import lore_service
 
 

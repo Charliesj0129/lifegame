@@ -1,19 +1,21 @@
+import enum
+import uuid
+from typing import TYPE_CHECKING
+
 from sqlalchemy import (
+    JSON,
+    Boolean,
     Column,
-    String,
-    Integer,
     DateTime,
     Enum,
-    ForeignKey,
-    JSON,
     Float,
-    Boolean,
+    ForeignKey,
+    Integer,
+    String,
 )
-from sqlalchemy.orm import relationship, Mapped
+from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.sql import func
-import uuid
-import enum
-from typing import TYPE_CHECKING
+
 from app.models.base import Base
 
 if TYPE_CHECKING:

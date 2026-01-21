@@ -1,6 +1,8 @@
-import pytest
 import os
 import shutil
+
+import pytest
+
 from adapters.persistence.chroma.adapter import ChromaAdapter
 
 # Skip in CI/Mock environment

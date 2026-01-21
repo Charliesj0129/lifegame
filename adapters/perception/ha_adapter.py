@@ -1,7 +1,8 @@
 import logging
-from typing import Dict, Any, Optional, List
-from domain.events.game_event import GameEvent
+from typing import Any, Dict, List, Optional
+
 from app.core.config import settings
+from domain.events.game_event import GameEvent
 
 logger = logging.getLogger(__name__)
 

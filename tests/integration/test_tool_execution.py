@@ -1,6 +1,7 @@
-import pytest
 import sys
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 # --- MOCK KUZU BEFORE IMPORTS ---
 mock_kuzu_mod = MagicMock()

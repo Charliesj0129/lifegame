@@ -1,7 +1,8 @@
-from app.core.config import settings
+import asyncio
 import logging
 import re
-import asyncio
+
+from app.core.config import settings
 
 try:
     import google.generativeai as genai
@@ -346,21 +347,6 @@ Output Schema:
         return {"error": "JSON_PARSE_FAILED"}
 
     # ... generate_multimodal ... (was previously implemented as verify_multimodal logic check)
-    # Actually I see verify_multimodal in the original file at line 380
-    # I replaced up to before verify_multimodal, let's verify that I replaced correctly.
-    # The EndLine was 454 which includes verify_multimodal start?
-    # Original lines 380-454 is verify_multimodal.
-
-    # My replacement ends with generate_json, and then I need to confirm verify_multimodal is handled or if I cut it off.
-    # The previous file content shows verify_multimodal starting at 380.
-    # My replacement provides analyze_image (line 216) and generate_json (line 306).
-    # I should also replace verify_multimodal to use legacy SDK or better, use analyze_image / generate_json logic.
-
-    # Wait, the instruction was to replace Upto 454.
-    # I should include the rewritten verify_multimodal in my replacement content or if I omit it, I need to make sure I don't break the class.
-
-    # To be safe, I will include verify_multimodal in the replacement content using the LEGACY SDK logic.
-
     async def verify_multimodal(
         self,
         mode: str,

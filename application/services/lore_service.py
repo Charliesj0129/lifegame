@@ -1,8 +1,10 @@
+import logging
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+
 from app.models.lore import LoreEntry, LoreProgress
 from application.services.ai_engine import ai_engine
-import logging
 
 logger = logging.getLogger(__name__)
 

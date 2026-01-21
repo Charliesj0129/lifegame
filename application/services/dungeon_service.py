@@ -1,20 +1,21 @@
-import datetime
-import uuid
-import logging
 import asyncio
+import datetime
+import logging
+import uuid
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.dungeon import (
+    DUNGEON_TEMPLATES,
     Dungeon,
     DungeonStage,
     DungeonStatus,
     DungeonType,
-    DUNGEON_TEMPLATES,
 )
+from app.models.gamification import ItemRarity
 from app.models.user import User
 from application.services.loot_service import loot_service
-from app.models.gamification import ItemRarity
 
 logger = logging.getLogger(__name__)
 

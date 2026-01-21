@@ -1,11 +1,13 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from sqlalchemy.orm import selectinload
-from app.models.talent import TalentTree, UserTalent, ClassType, EffectType
-from app.models.user import User
-import uuid
 import logging
 import random
+import uuid
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from app.models.talent import ClassType, EffectType, TalentTree, UserTalent
+from app.models.user import User
 
 logger = logging.getLogger(__name__)
 

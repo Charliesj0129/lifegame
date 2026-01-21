@@ -1,14 +1,16 @@
+from unittest.mock import AsyncMock, patch
+
 import pytest
 import pytest_asyncio
-from unittest.mock import patch, AsyncMock
-from application.services.user_service import UserService
-from application.services.brain_service import AgentPlan, AgentStatUpdate
-from application.services.brain.flow_controller import FlowState
-from app.models.user import User
-from app.models.base import Base
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
 from app.models.action_log import ActionLog
+from app.models.base import Base
 from app.models.dda import HabitState
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+from app.models.user import User
+from application.services.brain.flow_controller import FlowState
+from application.services.brain_service import AgentPlan, AgentStatUpdate
+from application.services.user_service import UserService
 
 
 @pytest_asyncio.fixture

@@ -3,16 +3,17 @@
 Tests for Phase 8: Multi-Modal Verification (The Arbiter)
 """
 
+from unittest.mock import AsyncMock, patch
+
 import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
-from unittest.mock import AsyncMock, patch
 
 from app.models.base import Base
-from app.models.user import User
 from app.models.quest import Quest, QuestStatus
-from application.services.verification_service import verification_service, Verdict
+from app.models.user import User
+from application.services.verification_service import Verdict, verification_service
 
 
 @pytest_asyncio.fixture

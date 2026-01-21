@@ -1,6 +1,7 @@
-import pytest
 import sys
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 # --- MOCK DEPENDENCIES BEFORE IMPORTING APP ---
 # This prevents app.main -> ... -> KuzuAdapter from trying to open the locked DB
@@ -17,9 +18,9 @@ sys.modules["adapters.persistence.chroma.adapter"] = MagicMock()
 
 # ---------------------------------------------
 
+from app.core.container import container
 from app.main import process_game_logic
 from domain.models.game_result import GameResult
-from app.core.container import container
 
 
 @pytest.fixture(autouse=True)

@@ -1,10 +1,12 @@
 import asyncio
-import os
-import sys
-import subprocess
 import logging
-from sqlalchemy.ext.asyncio import create_async_engine
+import os
+import subprocess
+import sys
+
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import create_async_engine
+
 from app.core.config import settings
 
 # Setup logging
@@ -116,12 +118,13 @@ def check_env():
 
 # Ensure models are loaded for create_all
 from app.models.base import Base
+from app.models.dda import HabitState
+from app.models.gamification import Boss, Item, Recipe, UserItem
+from app.models.quest import Quest
 
 # Import all models to ensure they are registered with Base
 from app.models.user import User
-from app.models.gamification import Item, UserItem, Recipe, Boss
-from app.models.quest import Quest
-from app.models.dda import HabitState
+
 # Add other model imports as needed if they are in different modules not imported by above
 
 

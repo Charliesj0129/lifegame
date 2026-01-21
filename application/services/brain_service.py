@@ -1,11 +1,12 @@
-import logging
 import json
-from typing import Dict, Any, Optional, List
+import logging
+from typing import Any, Dict, List, Optional
+
 from pydantic import BaseModel
 
-from application.services.brain.narrator_service import NarratorService, AgentPlan, AgentStatUpdate
-from application.services.brain.executive_service import ExecutiveService, AgentSystemAction
 from application.services.brain.advisor_service import AdvisorService
+from application.services.brain.executive_service import AgentSystemAction, ExecutiveService
+from application.services.brain.narrator_service import AgentPlan, AgentStatUpdate, NarratorService
 
 logger = logging.getLogger(__name__)
 

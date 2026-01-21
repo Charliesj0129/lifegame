@@ -1,6 +1,7 @@
 import pytest
-from application.services.brain.narrator_service import NarratorService, AgentPlan
+
 from application.services.brain.flow_controller import FlowState
+from application.services.brain.narrator_service import AgentPlan, NarratorService
 
 
 @pytest.mark.unit

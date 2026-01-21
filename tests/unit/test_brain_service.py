@@ -1,6 +1,8 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock
-from application.services.brain_service import BrainService, AgentPlan
+
+import pytest
+
+from application.services.brain_service import AgentPlan, BrainService
 
 
 @pytest.fixture

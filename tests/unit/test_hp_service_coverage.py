@@ -1,10 +1,12 @@
-import pytest
-import pytest_asyncio
 import datetime
 from unittest.mock import AsyncMock, patch
+
+import pytest
+import pytest_asyncio
 from sqlalchemy.future import select
-from app.models.user import User
+
 from app.models.quest import Quest, QuestStatus
+from app.models.user import User
 from application.services.hp_service import hp_service
 
 

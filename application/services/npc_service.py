@@ -1,6 +1,7 @@
-from application.services.ai_engine import ai_engine
 import logging
 from typing import Any
+
+from application.services.ai_engine import ai_engine
 
 logger = logging.getLogger(__name__)
 

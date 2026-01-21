@@ -1,7 +1,9 @@
-from domain.ports.repository import Repository, T
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Any, List, Optional, Type
+
 from sqlalchemy import select
-from typing import Type, Optional, List, Any
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from domain.ports.repository import Repository, T
 
 
 class SqlAlchemyRepository(Repository[T]):

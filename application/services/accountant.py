@@ -1,6 +1,8 @@
-import yaml
-from pathlib import Path
 from math import floor
+from pathlib import Path
+
+import yaml
+
 from app.models.user import User
 
 # Load Rules

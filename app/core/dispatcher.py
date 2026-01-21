@@ -1,5 +1,6 @@
-from typing import Callable, Any, Awaitable
 import logging
+from typing import Any, Awaitable, Callable
+
 from linebot.v3.messaging import TextMessage
 
 logger = logging.getLogger(__name__)

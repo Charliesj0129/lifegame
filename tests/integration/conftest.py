@@ -1,10 +1,12 @@
+import asyncio
+import os
+
 import pytest
 import pytest_asyncio
-import os
-import asyncio
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from testcontainers.postgres import PostgresContainer
+
 from app.models.base import Base
 
 # We define this as a separate plugin or just import it in integration tests

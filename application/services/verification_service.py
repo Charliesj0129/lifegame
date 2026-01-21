@@ -1,14 +1,16 @@
 from __future__ import annotations
 
+import asyncio
 import enum
 import logging
-import asyncio
 from typing import Any, Iterable, TypedDict
-from sqlalchemy import select, func
-from application.services.ai_engine import ai_engine
-from app.models.quest import Quest, QuestStatus
-from application.services.quest_service import quest_service
+
+from sqlalchemy import func, select
+
 from app.core.container import container
+from app.models.quest import Quest, QuestStatus
+from application.services.ai_engine import ai_engine
+from application.services.quest_service import quest_service
 
 logger = logging.getLogger(__name__)
 
@@ -363,7 +365,7 @@ class VerificationService:
             )
 
     def _haversine(self, lat1, lng1, lat2, lng2) -> float:
-        from math import radians, sin, cos, sqrt, asin
+        from math import asin, cos, radians, sin, sqrt
 
         r = 6371000  # meters
         lat1, lng1, lat2, lng2 = map(radians, [lat1, lng1, lat2, lng2])

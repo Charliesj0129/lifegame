@@ -1,7 +1,9 @@
+import logging
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.models.gamification import Item, ItemRarity, ItemType
-import logging
 
 logger = logging.getLogger(__name__)
 

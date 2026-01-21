@@ -1,6 +1,7 @@
-from application.services.ai_engine import ai_engine
-from app.models.lore import LoreEntry
 import logging
+
+from app.models.lore import LoreEntry
+from application.services.ai_engine import ai_engine
 
 logger = logging.getLogger(__name__)
 

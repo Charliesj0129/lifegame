@@ -1,8 +1,9 @@
 import datetime
-from linebot.v3.messaging import FlexMessage, FlexContainer, TextMessage
-from app.schemas.game_schemas import ProcessResult
-from app.models.user import User
 
+from linebot.v3.messaging import FlexContainer, FlexMessage, TextMessage
+
+from app.models.user import User
+from app.schemas.game_schemas import ProcessResult
 
 COLOR_BG = "#0B0F14"
 COLOR_PANEL = "#111827"

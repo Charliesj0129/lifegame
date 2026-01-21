@@ -1,8 +1,10 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from sqlalchemy.orm import selectinload
-from app.models.gamification import UserItem, Recipe, RecipeIngredient
 import random
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from app.models.gamification import Recipe, RecipeIngredient, UserItem
 
 
 class CraftingService:

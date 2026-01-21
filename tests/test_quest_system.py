@@ -1,16 +1,18 @@
+import asyncio
+import datetime
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
 import pytest_asyncio
-import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
+
 from app.models.base import Base
-from app.models.quest import Quest, QuestStatus, Goal, GoalStatus, QuestType
+from app.models.quest import Goal, GoalStatus, Quest, QuestStatus, QuestType
 from app.models.user import User
-from application.services.quest_service import quest_service
-from application.services.flex_renderer import flex_renderer
 from application.services.ai_engine import ai_engine
-import datetime
+from application.services.flex_renderer import flex_renderer
+from application.services.quest_service import quest_service
 
 DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 

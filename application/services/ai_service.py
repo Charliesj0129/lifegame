@@ -1,14 +1,17 @@
-from application.services.ai_engine import ai_engine
-from application.services.tool_registry import tool_registry
-from app.core.container import container
-from application.services.rival_service import rival_service
-from linebot.v3.messaging import TextMessage
 import logging
+
+from linebot.v3.messaging import TextMessage
+
+from app.core.container import container
+from application.services.ai_engine import ai_engine
+from application.services.rival_service import rival_service
+from application.services.tool_registry import tool_registry
 
 logger = logging.getLogger(__name__)
 
+from sqlalchemy import desc, select
+
 from app.models.conversation_log import ConversationLog
-from sqlalchemy import select, desc
 
 
 class AIService:

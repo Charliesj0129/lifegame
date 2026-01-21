@@ -1,9 +1,10 @@
 import datetime
 import logging
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.dda import HabitState, DailyOutcome, CompletionLog
+from app.models.dda import CompletionLog, DailyOutcome, HabitState
 
 logger = logging.getLogger(__name__)
 

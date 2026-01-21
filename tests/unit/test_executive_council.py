@@ -1,8 +1,10 @@
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from application.services.brain_service import BrainService, AgentSystemAction
-from app.models.quest import Quest, QuestStatus, Goal, GoalStatus
 import datetime
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
+from app.models.quest import Goal, GoalStatus, Quest, QuestStatus
+from application.services.brain_service import AgentSystemAction, BrainService
 
 
 @pytest.fixture

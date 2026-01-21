@@ -1,8 +1,9 @@
-import requests
 import json
 import re
 import sys
 import time
+
+import requests
 
 BASE_URL = "https://app-lifgame-2026.azurewebsites.net"
 DEBUG_ENDPOINT = f"{BASE_URL}/debug/execute"

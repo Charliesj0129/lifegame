@@ -1,7 +1,7 @@
-from application.services.user_service import UserService
+from adapters.persistence.kuzu.adapter import get_kuzu_adapter
 from application.services.brain_service import BrainService
 from application.services.graph_service import GraphService
-from adapters.persistence.kuzu.adapter import get_kuzu_adapter
+from application.services.user_service import UserService
 
 
 class Container:

@@ -1,15 +1,16 @@
 import json
 import logging
-from typing import List, Dict, Any
+from typing import Any, Dict, List
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from domain.ports.perception_port import PerceptionPort
+from app.core.container import container
+from application.services.action_service import action_service
+from application.services.brain_service import brain_service
+from application.services.vector_service import vector_service
 from domain.events.game_event import GameEvent
 from domain.models.game_result import GameResult
-from app.core.container import container
-from application.services.vector_service import vector_service
-from application.services.brain_service import brain_service
-from application.services.action_service import action_service
+from domain.ports.perception_port import PerceptionPort
 
 logger = logging.getLogger(__name__)
 

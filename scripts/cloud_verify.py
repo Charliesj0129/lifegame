@@ -1,7 +1,8 @@
-import requests
 import json
 import sys
 from datetime import datetime
+
+import requests
 
 BASE_URL = "https://app-lifgame-2026.azurewebsites.net/debug/execute"
 USER_ID = "debug_user_verify_001"

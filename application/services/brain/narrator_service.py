@@ -1,10 +1,12 @@
-import logging
 import json
-from typing import Dict, Any, List, Optional
-from application.services.ai_engine import ai_engine
-from application.services.context_service import context_service
-from application.services.brain.flow_controller import flow_controller, FlowState
+import logging
+from typing import Any, Dict, List, Optional
+
 from pydantic import BaseModel, Field
+
+from application.services.ai_engine import ai_engine
+from application.services.brain.flow_controller import FlowState, flow_controller
+from application.services.context_service import context_service
 
 logger = logging.getLogger(__name__)
 
@@ -89,11 +91,30 @@ class NarratorService:
 
         # 2. Flow Physics
         current_tier = user_state.get("current_tier", "C")
-        recent_performance = []  # TODO: Implement performance fetching
+        # Fetch PID State (Feature 2) & Recent Performance
+        from sqlalchemy import desc, select
 
-        # Fetch PID State (Feature 2)
-        from sqlalchemy import select
         from app.models.gamification import UserPIDState
+        from app.models.quest import Quest, QuestStatus
+
+        # 2a. Fetch Recent Performance (Narrator Context)
+        recent_performance = []
+        try:
+            stmt_perf = (
+                select(Quest)
+                .where(Quest.user_id == user_id)
+                .where(Quest.status.in_([QuestStatus.DONE, QuestStatus.FAILED]))
+                .order_by(desc(Quest.updated_at))
+                .limit(10)
+            )
+            perf_res = await session.execute(stmt_perf)
+            for q in perf_res.scalars():
+                if q.status == QuestStatus.DONE:
+                    recent_performance.append(True)
+                elif q.status == QuestStatus.FAILED:
+                    recent_performance.append(False)
+        except Exception as e:
+            logger.warning(f"Failed to fetch recent performance: {e}")
 
         try:
             stmt = select(UserPIDState).where(UserPIDState.user_id == user_id)

@@ -2,9 +2,10 @@ import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
+
 from app.models.base import Base
-from app.models.user import User
 from app.models.gamification import Boss, BossStatus
+from app.models.user import User
 from application.services.boss_service import boss_service
 
 

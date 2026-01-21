@@ -1,6 +1,7 @@
-from adapters.persistence.chroma.adapter import ChromaAdapter
-from typing import Any
 import logging
+from typing import Any
+
+from adapters.persistence.chroma.adapter import ChromaAdapter
 
 logger = logging.getLogger(__name__)
 

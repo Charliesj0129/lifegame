@@ -1,6 +1,6 @@
 import asyncio
-import sys
 import os
+import sys
 
 # Ensure app is in path
 sys.path.append(os.getcwd())

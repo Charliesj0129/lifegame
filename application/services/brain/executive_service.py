@@ -1,9 +1,11 @@
-import logging
 import datetime
 import json
-from typing import Dict, Any, Optional
+import logging
+from typing import Any, Dict, Optional
+
 from pydantic import BaseModel
 from sqlalchemy import select
+
 from application.services.ai_engine import ai_engine
 
 logger = logging.getLogger(__name__)
@@ -25,8 +27,8 @@ class ExecutiveService:
         The Autonomous Executive Loop.
         Analyzes performance metrics and decides on system-level interventions.
         """
+        from app.models.quest import Goal, GoalStatus, Quest, QuestStatus
         from application.services.quest_service import quest_service
-        from app.models.quest import Quest, QuestStatus, Goal, GoalStatus
 
         # 1. Gather Metrics (Last 3 Days)
         stmt = select(Quest).where(Quest.user_id == user_id, Quest.status == QuestStatus.ACTIVE.value)

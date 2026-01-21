@@ -1,10 +1,12 @@
-from linebot.v3.messaging import AsyncMessagingApi, AsyncApiClient, Configuration
-from linebot.v3.webhook import WebhookHandler, WebhookParser
-from linebot.v3.exceptions import InvalidSignatureError
-from typing import Any
-from app.core.config import settings
-import logging
 import inspect
+import logging
+from typing import Any
+
+from linebot.v3.exceptions import InvalidSignatureError
+from linebot.v3.messaging import AsyncApiClient, AsyncMessagingApi, Configuration
+from linebot.v3.webhook import WebhookHandler, WebhookParser
+
+from app.core.config import settings
 
 
 class AsyncWebhookHandler(WebhookHandler):

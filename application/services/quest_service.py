@@ -6,15 +6,16 @@ import os
 import random
 import time
 import uuid
+from typing import Dict, List, Set
 from unittest.mock import AsyncMock, MagicMock, Mock
 
 from sqlalchemy import delete, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import func
 
+from app.core.config import settings
 from app.models.quest import Goal, GoalStatus, Quest, QuestStatus, QuestType
 from application.services.ai_engine import ai_engine
-from app.core.config import settings
 from application.services.brain.flow_controller import flow_controller
 
 logger = logging.getLogger(__name__)
@@ -548,6 +549,41 @@ class QuestService:
 
                 normalized.append({"title": title, "desc": desc, "diff": diff, "xp": xp})
 
+            # === FEATURE 4.5: Multi-Objective Ranking ===
+            # Fetch recent history for Diversity/Exploration
+            recent_titles = []
+            try:
+                from sqlalchemy import select, desc
+                stmt_hist = select(Quest.title).where(Quest.user_id == user_id).order_by(desc(Quest.created_at)).limit(20)
+                res_hist = await session.execute(stmt_hist)
+                recent_titles = list(res_hist.scalars().all())
+            except Exception as e:
+                logger.warning(f"Failed to fetch history for ranking: {e}")
+
+            # Pre-calculate history themes once (Algorithmic Optimization)
+            history_themes = set()
+            for title in recent_titles:
+                history_themes.update(self._extract_themes_from_text(title))
+
+            # Calculate Scores & Re-rank
+            scored_candidates = []
+            for q in normalized:
+                diversity = self._calculate_diversity_score(q, recent_titles)
+                exploration = self._calculate_exploration_score(q, history_themes)
+                total_score = 10.0 + diversity + exploration  # Base score 10
+                q["_score"] = total_score
+                q["_debug_score"] = f"D={diversity}, E={exploration}"
+                scored_candidates.append(q)
+            
+            # Sort descending by score
+            normalized = sorted(scored_candidates, key=lambda x: x["_score"], reverse=True)
+            
+            # Log top picks
+            if normalized:
+                top = normalized[0]
+                logger.info(f"Top Ranked Quest: {top['title']} (Score: {top['_score']}, {top['_debug_score']})")
+
+
             # === FEATURE 3: Fogg Model Filter ===
             # from application.services.brain.flow_controller import flow_controller # Moved to top
 
@@ -1028,6 +1064,64 @@ class QuestService:
 
         habits = sorted(habits, key=habit_sort)
         return habits[:target]
+
+    def _calculate_diversity_score(self, candidate: Dict, history: List[str]) -> float:
+        """
+        DPP (Determinantal Point Process) approximation.
+        Penalize candidates that are too similar to recent history.
+        """
+        score = 0.0
+        title = candidate.get("title", "")
+        desc = candidate.get("desc", "")
+        
+        # 1. Direct Duplicate (Strong Penalty)
+        if title in history:
+            return -100.0
+
+        # 2. Substring Similarity (Medium Penalty)
+        for h in history:
+            if h in title or title in h:
+                score -= 10.0
+                break # One hit is enough
+        
+        return score
+
+    def _extract_themes_from_text(self, text: str) -> Set[str]:
+        """Extract themes from text based on keywords."""
+        themes = {
+            "STR": ["健身", "運動", "跑步", "力量", "Workout", "Run"],
+            "INT": ["閱讀", "學習", "研究", "Coding", "Study"],
+            "VIT": ["冥想", "休息", "喝水", "睡覺", "Sleep", "Water"],
+            "SOC": ["聊天", "分享", "社群", "Social", "Community"]
+        }
+        found_themes = set()
+        text_lower = text.lower()
+        for theme, keywords in themes.items():
+            for kw in keywords:
+                if kw.lower() in text_lower:
+                    found_themes.add(theme)
+        return found_themes
+
+    def _calculate_exploration_score(self, candidate: Dict, history_themes: Set[str]) -> float:
+        """
+        Exploration Bonus.
+        Boost candidates that cover 'unexplored' themes based on simple keywords.
+        """
+        score = 0.0
+        
+        # Detect candidate theme
+        text = (candidate.get("title", "") + candidate.get("desc", "")).lower()
+        candidate_themes = self._extract_themes_from_text(text)
+        
+        # Calculate Boost
+        # If candidate has a theme NOT in history, huge boost
+        for t in candidate_themes:
+            if t not in history_themes:
+                score += 5.0  # Exploration Bonus
+            else:
+                score -= 1.0  # Diminishing returns (Exploitation penalty)
+
+        return score
 
     async def _calculate_motivation(self, session: AsyncSession, user_id: str) -> float:
         """Calculate user motivation score (0.0 - 1.0) based on context."""

@@ -1,5 +1,6 @@
-from typing import Dict, Any, List
 import asyncio
+from typing import Any, Dict, List
+
 from domain.ports.graph_port import GraphPort
 
 

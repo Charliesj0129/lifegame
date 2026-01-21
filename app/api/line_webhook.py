@@ -3,26 +3,27 @@ LINE Webhook Router - New Architecture
 Handles LINE events and routes them through GameLoop
 """
 
-from fastapi import APIRouter, Request, Header, HTTPException, BackgroundTasks
+import json
+import logging
+import uuid
+
+from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Request
 from linebot.v3.exceptions import InvalidSignatureError
 from linebot.v3.messaging import ShowLoadingAnimationRequest
 from linebot.v3.webhooks import (
-    MessageEvent,
-    PostbackEvent,
     FollowEvent,
-    TextMessageContent,
     ImageMessageContent,
     LocationMessageContent,
+    MessageEvent,
+    PostbackEvent,
+    TextMessageContent,
 )
-import logging
-import uuid
-import json
+from sqlalchemy.ext.asyncio import AsyncSession
 
+import app.core.database
 from app.core.config import settings
 from app.core.context import get_request_id, set_request_id
-from application.services.line_bot import get_messaging_api, get_line_handler
-import app.core.database
-from sqlalchemy.ext.asyncio import AsyncSession
+from application.services.line_bot import get_line_handler, get_messaging_api
 
 router = APIRouter(prefix="/line", tags=["LINE Webhook"])
 logger = logging.getLogger("lifgame.line")
@@ -65,8 +66,8 @@ async def _send_friendly_error_reply(reply_token: str, error_code: str = "UH_OH"
     """
     try:
         from adapters.perception.line_client import line_client
-        from domain.models.game_result import GameResult
         from application.services.flex_renderer import flex_renderer
+        from domain.models.game_result import GameResult
 
         req_id = get_request_id()
         # Fallback to UUID if n/a
@@ -153,10 +154,11 @@ if webhook_handler:
         # Check for Help/Manual (Legacy Intercept)
         if user_text.lower() in ["help", "manual", "menu", "幫助", "說明", "選單"]:
             try:
-                from application.services.help_service import help_service
-                from application.services.flex_renderer import flex_renderer
+                from linebot.v3.messaging import FlexMessage, ReplyMessageRequest
+
                 from app.core.container import container
-                from linebot.v3.messaging import ReplyMessageRequest, FlexMessage
+                from application.services.flex_renderer import flex_renderer
+                from application.services.help_service import help_service
 
                 async with app.core.database.AsyncSessionLocal() as session:
                     # Get user context
@@ -179,8 +181,8 @@ if webhook_handler:
 
         # Process through GameLoop
         try:
-            from application.services.game_loop import game_loop
             from adapters.perception.line_client import line_client
+            from application.services.game_loop import game_loop
             from domain.models.game_result import GameResult
 
             async with app.core.database.AsyncSessionLocal() as session:
@@ -203,8 +205,8 @@ if webhook_handler:
         reply_token = event.reply_token
 
         try:
-            from application.services.verification_service import verification_service
             from adapters.perception.line_client import line_client
+            from application.services.verification_service import verification_service
             from domain.models.game_result import GameResult
 
             # Get image content
@@ -259,12 +261,12 @@ if webhook_handler:
 
         try:
             from adapters.perception.line_client import line_client
-            from domain.models.game_result import GameResult
             from app.core.container import container
-            from application.services.quest_service import quest_service, QuestService
-            from application.services.shop_service import shop_service
-            from application.services.inventory_service import inventory_service
             from application.services.flex_renderer import flex_renderer
+            from application.services.inventory_service import inventory_service
+            from application.services.quest_service import QuestService, quest_service
+            from application.services.shop_service import shop_service
+            from domain.models.game_result import GameResult
 
             async with app.core.database.AsyncSessionLocal() as session:
                 response_text = "已收到操作。"
@@ -401,9 +403,9 @@ if webhook_handler:
         reply_token = event.reply_token
 
         try:
-            from application.services.rich_menu_service import rich_menu_service
-            from app.core.container import container
             from adapters.perception.line_client import line_client
+            from app.core.container import container
+            from application.services.rich_menu_service import rich_menu_service
             from domain.models.game_result import GameResult
 
             async with app.core.database.AsyncSessionLocal() as session:

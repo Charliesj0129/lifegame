@@ -1,7 +1,8 @@
 import os
 import sys
-import pytest
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 # Mocking Strategy:
 # If TESTING=1, we FORCE mocks for heavy external dependencies to ensure unit tests are isolated and fast.
@@ -84,17 +85,18 @@ try:
 except ImportError:
     pytest_asyncio = None
 
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
+
+from app.models.action_log import ActionLog
 from app.models.base import Base
+from app.models.conversation_log import ConversationLog
+from app.models.dda import DailyOutcome
+from app.models.gamification import Item, UserItem
+from app.models.quest import Goal, Quest, Rival
 
 # Import all models to ensure metadata is populated
 from app.models.user import User
-from app.models.quest import Quest, Goal, Rival
-from app.models.dda import DailyOutcome
-from app.models.gamification import Item, UserItem
-from app.models.action_log import ActionLog
-from app.models.conversation_log import ConversationLog
 
 DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 

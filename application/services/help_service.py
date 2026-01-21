@@ -1,8 +1,10 @@
+import random
+
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.quest import QuestStatus
 from app.models.user import User
 from application.services.quest_service import quest_service
-from app.models.quest import QuestStatus
-import random
 
 
 class HelpService:

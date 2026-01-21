@@ -1,9 +1,11 @@
-from typing import List, Dict, Any, Tuple
+import uuid
+from typing import Any, Dict, List, Tuple
+
 import chromadb
 from chromadb.config import Settings
 from chromadb.utils import embedding_functions
+
 from domain.ports.vector_port import VectorPort
-import uuid
 
 
 class ChromaAdapter(VectorPort):

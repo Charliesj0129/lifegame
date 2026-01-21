@@ -39,3 +39,4 @@ test_kuzu_debug_dir/
 test_e2e.db
 *.sqlite3
 /tmp/test_kuzu_db
+*.prof

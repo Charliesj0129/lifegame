@@ -1,12 +1,14 @@
+from datetime import datetime
+
 import pytest
 import pytest_asyncio
-from datetime import datetime
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
-from application.services.context_service import ContextService
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
 from app.models.action_log import ActionLog
-from app.models.user import User
-from app.models.quest import Quest
 from app.models.base import Base
+from app.models.quest import Quest
+from app.models.user import User
+from application.services.context_service import ContextService
 
 
 # Use in-memory DB for test

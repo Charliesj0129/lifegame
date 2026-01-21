@@ -1,10 +1,12 @@
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
 import pytest_asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
-from domain.events.game_event import GameEvent
-from application.services.perception_service import PerceptionService
-from app.schemas.webhook import HAEventPayload
+
 from adapters.perception.ha_adapter import HomeAssistantAdapter
+from app.schemas.webhook import HAEventPayload
+from application.services.perception_service import PerceptionService
+from domain.events.game_event import GameEvent
 
 
 @pytest.fixture

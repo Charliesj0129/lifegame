@@ -1,11 +1,12 @@
 import datetime
 import enum
 import logging
+
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.user import User
 from app.models.quest import Quest, QuestStatus
+from app.models.user import User
 
 logger = logging.getLogger(__name__)
 

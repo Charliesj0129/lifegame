@@ -1,7 +1,7 @@
-import pytest
 import os
 from unittest.mock import MagicMock
 
+import pytest
 
 # Skip entire module in CI/Mock environment
 if os.environ.get("TESTING") == "1":

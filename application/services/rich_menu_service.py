@@ -1,18 +1,20 @@
 import json
 import logging
 from pathlib import Path
+
 from linebot.v3.messaging import (
-    Configuration,
     ApiClient,
+    Configuration,
+    MessageAction,
     MessagingApi,
     MessagingApiBlob,
-    RichMenuRequest,
+    PostbackAction,
     RichMenuArea,
     RichMenuBounds,
+    RichMenuRequest,
     RichMenuSize,
-    PostbackAction,
-    MessageAction,
 )
+
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)

@@ -1,6 +1,6 @@
 from dataclasses import dataclass
-from typing import Optional, Tuple
 from datetime import date, timedelta
+from typing import Optional, Tuple
 
 
 @dataclass

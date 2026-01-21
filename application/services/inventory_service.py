@@ -1,9 +1,11 @@
+import uuid
 from typing import List, Tuple
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.models.gamification import Item, UserItem, ItemRarity, ItemType
+
+from app.models.gamification import Item, ItemRarity, ItemType, UserItem
 from app.models.user import User
-import uuid
 
 
 class InventoryService:

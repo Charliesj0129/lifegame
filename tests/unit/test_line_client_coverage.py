@@ -1,8 +1,10 @@
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
-from domain.models.game_result import GameResult
-from adapters.perception.line_client import LineClient
 from linebot.v3.messaging import TextMessage
+
+from adapters.perception.line_client import LineClient
+from domain.models.game_result import GameResult
 
 
 @pytest.fixture

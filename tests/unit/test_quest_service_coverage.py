@@ -1,8 +1,10 @@
-import pytest
-import pytest_asyncio
 import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+import pytest_asyncio
 from sqlalchemy import select
+
 from app.models.quest import Quest, QuestStatus, QuestType
 from app.models.user import User
 from application.services.quest_service import quest_service

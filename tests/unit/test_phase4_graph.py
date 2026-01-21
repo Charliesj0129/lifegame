@@ -1,6 +1,8 @@
-import pytest
-import shutil
 import os
+import shutil
+
+import pytest
+
 from application.services.graph_service import GraphService
 
 # Skip in CI/Mock environment

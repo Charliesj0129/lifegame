@@ -1,16 +1,18 @@
+import enum
+import uuid
+
 from sqlalchemy import (
-    Column,
-    String,
-    Boolean,
-    Integer,
     JSON,
-    ForeignKey,
+    Boolean,
+    Column,
     Date,
     DateTime,
+    ForeignKey,
+    Integer,
+    String,
 )
 from sqlalchemy.sql import func
-import uuid
-import enum
+
 from app.models.base import Base
 
 

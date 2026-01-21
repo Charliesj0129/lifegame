@@ -1,4 +1,5 @@
-from typing import Protocol, Any, Dict, Optional
+from typing import Any, Dict, Optional, Protocol
+
 from domain.models.game_result import GameResult
 
 

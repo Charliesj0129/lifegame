@@ -1,10 +1,12 @@
-from app.core.container import container
-from application.services.inventory_service import inventory_service
-from application.services.quest_service import quest_service
-from application.services.lore_service import lore_service
-from application.services.flex_renderer import flex_renderer
-from linebot.v3.messaging import TextMessage
 import logging
+
+from linebot.v3.messaging import TextMessage
+
+from app.core.container import container
+from application.services.flex_renderer import flex_renderer
+from application.services.inventory_service import inventory_service
+from application.services.lore_service import lore_service
+from application.services.quest_service import quest_service
 
 logger = logging.getLogger(__name__)
 
@@ -50,8 +52,8 @@ class ToolRegistry:
     async def use_item(session, user_id: str, item_name: str):
         """Uses an item by fuzzy name matching."""
         result_text = await inventory_service.use_item(session, user_id, item_name)
-        from application.services.flex_renderer import flex_renderer
         from app.models.lore import LoreEntry
+        from application.services.flex_renderer import flex_renderer
 
         if isinstance(result_text, LoreEntry):
             msg = flex_renderer.render_lore_shard(result_text)

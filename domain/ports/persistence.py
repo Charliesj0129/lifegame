@@ -1,4 +1,5 @@
-from typing import Protocol, Optional, Any
+from typing import Any, Optional, Protocol
+
 from domain.models.user import User
 
 # Since we haven't moved User model to domain fully yet (it's in app/models),

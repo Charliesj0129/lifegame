@@ -71,6 +71,30 @@ class ImmediateResponder:
         """Get the immediate response text for an intent."""
         return self.INTENT_RESPONSES.get(intent)
 
+    async def send_immediate(self, user_id: str, intent: str) -> bool:
+        """
+        Sends the immediate response via line_client.
+        Returns True if sent, False if no response mapped or failure.
+        """
+        msg_text = self.get_immediate_response(intent)
+        if not msg_text:
+            return False
+
+        try:
+            from adapters.perception.line_client import line_client
+            from domain.models.game_result import GameResult
+
+            # Construct Result
+            result = GameResult(text=msg_text)
+            
+            # Send Push (Await to ensure delivery, usually < 100ms)
+            logger.info(f"⚡ sending immediate feedback for {intent} to {user_id}")
+            success = await line_client.send_push(user_id, result)
+            return success
+        except Exception as e:
+            logger.error(f"Immediate send failed: {e}")
+            return False
+
     def should_send_immediate(self, intent: str) -> bool:
         """Check if this intent warrants an immediate response."""
         return self.INTENT_RESPONSES.get(intent) is not None

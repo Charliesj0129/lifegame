@@ -1,19 +1,22 @@
-from fastapi import APIRouter, HTTPException, Depends, Header, Request
-from typing import Dict, Any
+from logging import getLogger
+from typing import Any, Dict
+
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.api import deps
+
 from adapters.perception.ha_adapter import ha_adapter
+from app.api import deps
 from app.core.container import container
 
 # from application.services.graph_service import graph_service
 from application.services.perception_service import perception_service
-from logging import getLogger
 
 logger = getLogger(__name__)
 router = APIRouter()
 
 
 from typing import List
+
 from pydantic import BaseModel, Field
 
 

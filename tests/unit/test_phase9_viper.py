@@ -1,9 +1,11 @@
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
 import pytest_asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
 from sqlalchemy.ext.asyncio import AsyncSession
-from application.services.narrative_service import narrative_service
+
 from application.services.ai_engine import ai_engine
+from application.services.narrative_service import narrative_service
 
 
 # Mock User and Rival classes

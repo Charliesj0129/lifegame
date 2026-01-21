@@ -2,10 +2,11 @@ import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
+
 from app.models.base import Base
 from app.models.user import User
-from application.services.help_service import help_service
 from application.services.flex_renderer import flex_renderer
+from application.services.help_service import help_service
 
 
 # Setup in-memory DB for test

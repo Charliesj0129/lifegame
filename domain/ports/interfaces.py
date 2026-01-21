@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import Protocol, List, Any
+from typing import Any, List, Protocol
+
 from domain.events.game_event import GameEvent
 
 

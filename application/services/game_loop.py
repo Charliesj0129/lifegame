@@ -1,20 +1,20 @@
 import logging
 import uuid
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from domain.models.game_result import GameResult
 from app.core.container import container
-from application.services.persona_service import persona_service
-from application.services.audio_service import audio_service
-from application.services.rival_service import rival_service
-from application.services.hp_service import hp_service
 
 # Dispatcher is imported inside method to avoid circular imports during refactor?
 # Or just import it. app.core.dispatcher imports services, so check cycles.
 # Dispatcher -> Service -> Database. GameLoop -> Dispatcher. Should be fine.
 from app.core.dispatcher import dispatcher
+from application.services.audio_service import audio_service
+from application.services.hp_service import hp_service
+from application.services.persona_service import persona_service
+from application.services.rival_service import rival_service
+from domain.models.game_result import GameResult
 
 logger = logging.getLogger(__name__)
 
@@ -84,8 +84,8 @@ class GameLoop:
             if intent == "hollowed_rescue":
                 sender = persona_service.SYSTEM
             elif intent == "get_status":
-                from application.services.lore_service import lore_service
                 from application.services.flex_renderer import flex_renderer
+                from application.services.lore_service import lore_service
 
                 lore_prog = await lore_service.get_user_progress(session, user_id)
                 flex_msg = flex_renderer.render_status(user, lore_prog)
@@ -95,8 +95,8 @@ class GameLoop:
                 sender = persona_service.SYSTEM
 
             elif intent == "get_quests":
-                from application.services.quest_service import quest_service
                 from application.services.flex_renderer import flex_renderer
+                from application.services.quest_service import quest_service
 
                 quests = await quest_service.get_daily_quests(session, user_id)
                 habits = await quest_service.get_daily_habits(session, user_id)
@@ -160,7 +160,7 @@ class GameLoop:
             msg = result_obj
 
         # Convert Msg -> Text or Metadata
-        from linebot.v3.messaging import TextMessage, FlexMessage
+        from linebot.v3.messaging import FlexMessage, TextMessage
 
         text = ""
         flex = None

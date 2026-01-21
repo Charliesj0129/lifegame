@@ -1,4 +1,5 @@
-from linebot.v3.messaging import FlexMessage, FlexContainer
+from linebot.v3.messaging import FlexContainer, FlexMessage
+
 from app.models.user import User
 
 

@@ -1,4 +1,5 @@
 import asyncio
+
 from app.core.database import AsyncSessionLocal
 from app.models.gamification import Item, ItemRarity, ItemType, Recipe, RecipeIngredient
 

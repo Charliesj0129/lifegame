@@ -1,5 +1,6 @@
 import pytest
 from sqlalchemy import select, text
+
 from app.models.user import User
 
 

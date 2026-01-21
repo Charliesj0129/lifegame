@@ -1,8 +1,10 @@
+from unittest.mock import MagicMock
+
 import pytest
 import pytest_asyncio
-from unittest.mock import MagicMock
-from application.services.title_service import title_service
+
 from app.models.user import User
+from application.services.title_service import title_service
 
 
 @pytest.mark.asyncio

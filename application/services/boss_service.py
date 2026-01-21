@@ -1,9 +1,11 @@
-from sqlalchemy.ext.asyncio import AsyncSession
+import random
+
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.models.gamification import Boss, BossStatus
 from application.services.ai_service import ai_engine
 from application.services.rival_service import rival_service
-import random
 
 
 class BossService:

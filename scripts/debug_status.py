@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import sys
+
 from app.core.database import AsyncSessionLocal
 from app.main import handle_status
 from app.models.user import User

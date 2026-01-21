@@ -1,17 +1,19 @@
 import datetime
 import uuid
+
 from sqlalchemy import (
-    Column,
-    String,
-    Integer,
-    DateTime,
-    Boolean,
-    ForeignKey,
     JSON,
-    Float,
+    Boolean,
+    Column,
     Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
 )
 from sqlalchemy.sql import func, text
+
 from app.models.base import Base
 
 

@@ -1,5 +1,6 @@
 import sys
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
 
 # --- MOCK KUZU BEFORE IMPORTS ---
@@ -10,13 +11,11 @@ sys.modules["adapters.persistence.kuzu.adapter"] = mock_adapter_mod
 # --------------------------------
 
 import app.core.container as container_mod
-
+from app.models.quest import Quest, QuestStatus
 
 # --------------------------------
-
-from application.services.loot_service import loot_service, LootResult
+from application.services.loot_service import LootResult, loot_service
 from application.services.quest_service import quest_service
-from app.models.quest import Quest, QuestStatus
 
 
 @pytest.mark.asyncio

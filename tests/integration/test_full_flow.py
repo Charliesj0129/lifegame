@@ -1,14 +1,15 @@
-from fastapi.testclient import TestClient
-import pytest
-from unittest.mock import AsyncMock, patch
 import os
+from unittest.mock import AsyncMock, patch
+
+import pytest
+from fastapi.testclient import TestClient
 
 # FORCE SQLITE BEFORE IMPORTING APP
 os.environ["SQLALCHEMY_DATABASE_URI"] = "sqlite+aiosqlite:///./test_e2e.db"
 os.environ["TESTING"] = "1"
 
-from app.main import app
 from app.core.container import container
+from app.main import app
 
 # from application.services.graph_service import graph_service
 from application.services.vector_service import vector_service
@@ -23,8 +24,8 @@ def setup_databases(tmp_path_factory):
     chroma_path = test_root / "chroma"
     kuzu_path = test_root / "kuzu" / "graph.db"
 
-    from adapters.persistence.kuzu.adapter import KuzuAdapter
     from adapters.persistence.chroma.adapter import ChromaAdapter
+    from adapters.persistence.kuzu.adapter import KuzuAdapter
 
     # Monkeypatch global services with Test DBs - VIA CONTAINER
     # graph_service._adapter = KuzuAdapter(db_path=str(kuzu_path))
@@ -32,9 +33,10 @@ def setup_databases(tmp_path_factory):
     vector_service.adapter = ChromaAdapter(collection_name="test_e2e_memories", persist_path=str(chroma_path))
 
     # Initialize SQL DB Schema
+    import asyncio
+
     from app.core.database import engine
     from app.models.base import Base
-    import asyncio
 
     async def init_db():
         async with engine.begin() as conn:

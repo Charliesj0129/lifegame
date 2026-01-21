@@ -1,10 +1,12 @@
-import pytest
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
-from application.services.loot_service import LootService
-from application.services.user_service import UserService
+
+import pytest
+
 from app.models.gamification import ItemRarity
 from app.models.user import User
-from datetime import datetime, timedelta, timezone
+from application.services.loot_service import LootService
+from application.services.user_service import UserService
 
 
 @pytest.mark.asyncio

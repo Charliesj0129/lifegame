@@ -1,7 +1,8 @@
+import sys
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
 import pytest_asyncio
-import sys
-from unittest.mock import MagicMock, AsyncMock
 
 # --- MOCK KUZU BEFORE IMPORTS ---
 mock_kuzu_mod = MagicMock()
@@ -13,9 +14,10 @@ sys.modules["adapters.persistence.kuzu.adapter"] = mock_adapter_mod
 
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
+
+from app.core.container import container
 from app.models.base import Base
 from app.models.user import User
-from app.core.container import container
 from application.services.flex_renderer import flex_renderer
 
 

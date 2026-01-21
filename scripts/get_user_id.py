@@ -1,12 +1,13 @@
 import asyncio
-import sys
 import os
+import sys
 
 # Ensure app is in path
 sys.path.append(os.getcwd())
 
-from app.core.database import AsyncSessionLocal
 from sqlalchemy import text
+
+from app.core.database import AsyncSessionLocal
 
 
 async def main():

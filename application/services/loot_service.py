@@ -3,8 +3,8 @@ import random
 from dataclasses import dataclass, field
 from typing import List, Optional
 
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.expression import func
 
 # TODO: Move these models to application/domain later

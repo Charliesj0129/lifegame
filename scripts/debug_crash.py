@@ -1,8 +1,8 @@
-import sys
-import os
 import asyncio
 import logging
-from unittest.mock import MagicMock, AsyncMock
+import os
+import sys
+from unittest.mock import AsyncMock, MagicMock
 
 # Add project root to path
 sys.path.append(os.getcwd())
@@ -17,9 +17,9 @@ async def reproduce():
     # 1. Import real modules
     try:
         from app.core.container import container
-        from application.services.quest_service import quest_service
+        from app.models.quest import Goal, Quest
         from application.services.ai_engine import ai_engine
-        from app.models.quest import Quest, Goal
+        from application.services.quest_service import quest_service
     except ImportError as e:
         print(f"❌ ImportError: {e}")
         print("Ensure you are running with 'uv run python3 scripts/debug_crash.py'")

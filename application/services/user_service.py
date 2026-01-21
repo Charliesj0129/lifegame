@@ -1,13 +1,15 @@
+import logging
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from app.models.user import User
+
+from app.core.config import settings
 from app.models.action_log import ActionLog
+from app.models.user import User
 from application.services.accountant import accountant
 from application.services.ai_engine import ai_engine
-from application.services.loot_service import loot_service
 from application.services.inventory_service import inventory_service
-from app.core.config import settings
-import logging
+from application.services.loot_service import loot_service
 
 logger = logging.getLogger(__name__)
 
@@ -176,8 +178,9 @@ class UserService:
         session.add(log)
 
         # DDA: Habit Tracking (Point 2)
-        from app.models.dda import HabitState
         from sqlalchemy import select
+
+        from app.models.dda import HabitState
 
         # Fetch active habits
         stmt_habits = select(HabitState).where(HabitState.user_id == user.id)

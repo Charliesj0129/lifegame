@@ -1,10 +1,11 @@
 import pytest
 import pytest_asyncio
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy import select
+
 from app.models.base import Base
-from app.models.gamification import Item, UserItem, Recipe, RecipeIngredient
+from app.models.gamification import Item, Recipe, RecipeIngredient, UserItem
 from application.services.crafting_service import crafting_service
 from application.services.inventory_service import inventory_service
 

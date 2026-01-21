@@ -1,9 +1,10 @@
 import logging
 import time
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
+
 from adapters.persistence.kuzu.adapter import get_kuzu_adapter
-from application.services.ai_engine import ai_engine
 from app.core.database import AsyncSessionLocal
+from application.services.ai_engine import ai_engine
 
 logger = logging.getLogger(__name__)
 

@@ -1,6 +1,8 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-from domain.ports.unit_of_work import UnitOfWork
 from typing import Optional
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from domain.ports.unit_of_work import UnitOfWork
 
 
 class SqlAlchemyUnitOfWork(UnitOfWork):

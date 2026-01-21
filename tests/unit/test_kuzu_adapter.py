@@ -1,6 +1,7 @@
-import pytest
-import shutil
 import os
+import shutil
+
+import pytest
 
 # Skip in CI/Mock environment
 if os.environ.get("TESTING") == "1":
@@ -13,8 +14,8 @@ QUERY_PATH = "./test_kuzu_db"
 @pytest.fixture
 def adapter():
     # Setup
-    import os
     import importlib.util
+    import os
 
     adapter_path = os.path.join(os.getcwd(), "adapters/persistence/kuzu/adapter.py")
     spec = importlib.util.spec_from_file_location("adapters.persistence.kuzu.adapter", adapter_path)

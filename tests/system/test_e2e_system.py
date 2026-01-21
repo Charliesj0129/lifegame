@@ -1,10 +1,12 @@
-import pytest
 import json
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 from fastapi.testclient import TestClient
-from app.main import app
-from app.api.line_webhook import webhook_handler
 from sqlalchemy import select
+
+from app.api.line_webhook import webhook_handler
+from app.main import app
 from app.models.user import User
 
 # -----------------------------------------------------------------------------

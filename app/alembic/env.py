@@ -1,16 +1,17 @@
 import asyncio
 from logging.config import fileConfig
 
+from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-from alembic import context
 from app.core.config import settings
 from app.models.base import Base
 
 # Import models to ensure they are registered
 # Import models to ensure they are registered
 from app.models.user import User
+
 # from app.models import * # Avoid wildcard imports of app.models
 
 config = context.config

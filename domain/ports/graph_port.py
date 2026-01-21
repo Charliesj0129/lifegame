@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, List, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 
 class GraphPort(ABC):

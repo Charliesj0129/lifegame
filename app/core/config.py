@@ -1,6 +1,7 @@
-from pydantic import Field, AliasChoices, PostgresDsn, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Any, Dict, List, Optional, Union
+
+from pydantic import AliasChoices, Field, PostgresDsn, field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):

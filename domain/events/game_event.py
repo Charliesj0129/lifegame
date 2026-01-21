@@ -1,8 +1,9 @@
+import uuid
+from datetime import datetime
+from typing import Any, Dict, Optional
+
 from deepdiff import DeepHash
 from pydantic import BaseModel, Field
-from typing import Optional, Dict, Any
-from datetime import datetime
-import uuid
 
 
 class GameEvent(BaseModel):

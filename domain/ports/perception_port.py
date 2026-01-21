@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict
+
 from domain.events.game_event import GameEvent
 from domain.models.game_result import GameResult
 

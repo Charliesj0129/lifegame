@@ -1,6 +1,7 @@
 from datetime import date, timedelta
-from domain.rules.rival_rules import RivalRules
+
 from domain.rules.health_rules import HealthRules, HPStatus
+from domain.rules.rival_rules import RivalRules
 
 
 def test_rival_inactivity_penalty():

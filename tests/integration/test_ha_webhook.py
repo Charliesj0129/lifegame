@@ -1,7 +1,8 @@
 import pytest
 from fastapi.testclient import TestClient
-from app.main import app
+
 from app.core.config import settings
+from app.main import app
 
 client = TestClient(app)
 
@@ -22,7 +23,8 @@ async def test_ha_webhook_auth_failure():
 
 @pytest.mark.asyncio
 async def test_ha_webhook_success():
-    from unittest.mock import patch, MagicMock, AsyncMock
+    from unittest.mock import AsyncMock, MagicMock, patch
+
     from domain.models.game_result import GameResult
 
     # Mock PerceptionService

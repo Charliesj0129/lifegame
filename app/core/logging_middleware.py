@@ -1,9 +1,11 @@
+import logging
 import time
 import uuid
-import logging
 from typing import Callable
+
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
+
 from app.core.config import settings
 from app.core.context import set_request_id
 

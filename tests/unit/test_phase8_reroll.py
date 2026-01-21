@@ -1,11 +1,12 @@
 import pytest
 import pytest_asyncio
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy import select
+
 from app.models.base import Base
-from app.models.user import User
 from app.models.quest import Quest, QuestStatus
+from app.models.user import User
 from application.services.quest_service import quest_service
 
 

@@ -1,10 +1,12 @@
-import pytest
+import os
 import shutil
 import tempfile
-import os
+
+import pytest
 import pytest_asyncio
-from application.services.social_service import social_service
+
 from adapters.persistence.kuzu.adapter import get_kuzu_adapter
+from application.services.social_service import social_service
 
 
 # Reuse setup logic from test_integration_real_ai.py for isolation

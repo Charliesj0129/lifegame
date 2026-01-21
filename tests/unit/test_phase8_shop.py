@@ -1,14 +1,16 @@
+import uuid
+
 import pytest
 import pytest_asyncio
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy import select
+
 from app.models.base import Base
+from app.models.gamification import Item, ItemRarity, ItemType, UserItem
 from app.models.user import User
-from app.models.gamification import Item, UserItem, ItemRarity, ItemType
-from application.services.shop_service import shop_service
 from application.services.inventory_service import inventory_service
-import uuid
+from application.services.shop_service import shop_service
 
 
 # Setup in-memory DB for test

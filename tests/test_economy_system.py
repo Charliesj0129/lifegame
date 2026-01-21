@@ -1,11 +1,12 @@
 import pytest
 import pytest_asyncio
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker
+
 from app.models.base import Base
-from app.models.user import User
 from app.models.gamification import Item, UserItem
+from app.models.user import User
 from application.services.shop_service import shop_service
 
 DATABASE_URL = "sqlite+aiosqlite:///:memory:"

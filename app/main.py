@@ -156,8 +156,8 @@ async def handle_ai_analysis(session, user_id: str, text: str) -> GameResult:
     # For now, we log it and include in metadata for the caller to handle
     if immediate_msg:
         logger.info(f"Immediate Response: {fast_intent} -> '{immediate_msg}'")
-        # The caller (webhook) should send this BEFORE awaiting the full response
-        # We'll return early metadata hint for the caller
+        # Feature 4: Hyperbolic Discounting - Send Valid Feedback NOW
+        await immediate_responder.send_immediate(user_id, fast_intent)
 
     # --- PHASE 4: THE PULSE (LAZY EVALUATION) ---
     # DI: Usage

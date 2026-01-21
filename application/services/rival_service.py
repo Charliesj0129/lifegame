@@ -1,11 +1,13 @@
+import logging
+import random
+from datetime import datetime, timedelta, timezone
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from datetime import datetime, timedelta, timezone
-import random
-import logging
-from app.models.user import User
-from app.models.quest import Rival
+
 from app.models.gamification import UserBuff
+from app.models.quest import Rival
+from app.models.user import User
 from application.services.ai_engine import ai_engine
 
 logger = logging.getLogger(__name__)

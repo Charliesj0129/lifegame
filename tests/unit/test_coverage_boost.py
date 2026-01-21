@@ -1,9 +1,11 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from application.services.vector_service import VectorService
-from application.services.verification_service import VerificationService, Verdict, VerificationResponse
-from application.services.quest_service import QuestService
+
+import pytest
+
 from app.models.quest import Quest, QuestStatus
+from application.services.quest_service import QuestService
+from application.services.vector_service import VectorService
+from application.services.verification_service import Verdict, VerificationResponse, VerificationService
 
 # --- Vector Service Tests ---
 

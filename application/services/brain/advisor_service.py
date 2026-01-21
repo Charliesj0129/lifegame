@@ -1,4 +1,5 @@
 import logging
+
 from application.services.ai_engine import ai_engine
 
 logger = logging.getLogger(__name__)

@@ -1,10 +1,12 @@
-from sqlalchemy import Column, String, Integer, Text, Boolean, ForeignKey, JSON
-import sqlalchemy
-from sqlalchemy.orm import relationship, Mapped
-from sqlalchemy.sql import text
-from app.models.base import Base
 import enum
-from typing import List, TYPE_CHECKING
+from typing import TYPE_CHECKING, List
+
+import sqlalchemy
+from sqlalchemy import JSON, Boolean, Column, ForeignKey, Integer, String, Text
+from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy.sql import text
+
+from app.models.base import Base
 
 if TYPE_CHECKING:
     from app.models.user import User

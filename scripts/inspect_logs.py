@@ -1,6 +1,6 @@
-import zipfile
 import os
 import sys
+import zipfile
 
 
 def inspect_logs(zip_path):
