@@ -88,7 +88,24 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logging.error(f"KuzuDB Init Failed: {e}")
 
+    # Start DDA Scheduler (if enabled)
+    if settings.ENABLE_SCHEDULER:
+        try:
+            from application.services.scheduler import dda_scheduler
+            dda_scheduler.start()
+            logging.info("DDA Scheduler System: ONLINE")
+        except Exception as e:
+            logging.error(f"DDA Scheduler Start Failed: {e}")
+
     yield
+
+    # Shutdown Scheduler
+    if settings.ENABLE_SCHEDULER:
+        try:
+            from application.services.scheduler import dda_scheduler
+            dda_scheduler.shutdown()
+        except Exception:
+            pass
 
 
 app = FastAPI(
