@@ -170,9 +170,9 @@ class RichMenuService:
         # Define Menus to Create
         menus = {
             "MAIN": {
-                "name": "LIFGAME_MAIN_V2",
+                "name": "LIFGAME_MAIN_V3",
                 "areas": get_main_areas(),
-                "image": "assets/rich_menu.jpg",
+                "image": "assets/rich_menu_v3.jpg",
                 "chat_bar_text": "操作面板",
             }
         }

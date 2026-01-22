@@ -27,106 +27,150 @@ class FlexStatusRenderer:
         # xp_pct = int((xp / xp_next) * 100) if xp_next > 0 else 0 (Unused)
 
         hp_pct = int((current_hp / max_hp) * 100) if max_hp > 0 else 0
-        hp_color = "#32CD32"  # Lime Green
-        if hp_pct < 30:
-            hp_color = "#DC143C"  # Crimson
-        elif hp_pct < 60:
-            hp_color = "#FFA500"  # Orange
+        COLOR_BG = "#0B0F14"
+        COLOR_PANEL = "#161B22"
+        COLOR_ACCENT = "#7DF9FF"
+        COLOR_TEXT = "#E6EDF3"
+        COLOR_MUTED = "#8B949E"
+        COLOR_HP_GOOD = "#3FB950"
+        COLOR_HP_LOW = "#F85149"
 
-        # Construct JSON (Simplified for refactor - assuming original structure)
-        # We will use a simplified structure here to save space, assuming the
-        # original massive JSON is effectively "The Status Screen"
-
-        # NOTE: For this refactor, I am recreating the logic based on the visualized intent
-        # rather than copying 400 lines of JSON verbatim, as I cannot see it all.
-        # Ideally, we would copy the EXACT JSON.
-        # Let's assume a standard Status Card.
+        hp_color = COLOR_HP_GOOD if hp_pct > 30 else COLOR_HP_LOW
 
         bubble = {
             "type": "bubble",
-            "size": "giga",
+            "size": "mega",
             "header": {
                 "type": "box",
                 "layout": "vertical",
                 "contents": [
-                    {"type": "text", "text": "STATUS WINDOW", "weight": "bold", "color": "#1DB446", "size": "sm"},
-                    {"type": "text", "text": user_name, "weight": "bold", "size": "xxl", "margin": "md"},
+                    {
+                        "type": "text",
+                        "text": "STATUS WINDOW",
+                        "weight": "bold",
+                        "color": COLOR_ACCENT,
+                        "size": "xxs",
+                        "letterSpacing": "1px"
+                    },
+                    {
+                        "type": "text",
+                        "text": user_name,
+                        "weight": "bold",
+                        "size": "3xl",
+                        "color": COLOR_TEXT,
+                        "margin": "md"
+                    },
                     {
                         "type": "text",
                         "text": f"Lv.{user_level} {job_class}",
-                        "size": "xs",
-                        "color": "#aaaaaa",
-                    },
+                        "size": "sm",
+                        "color": COLOR_MUTED,
+                        "margin": "xs"
+                    }
                 ],
+                "backgroundColor": COLOR_BG,
+                "paddingAll": "lg"
             },
             "body": {
                 "type": "box",
                 "layout": "vertical",
                 "contents": [
-                    # HP Bar
+                    # Visual HP Bar with Label
                     {
                         "type": "box",
                         "layout": "vertical",
-                        "margin": "lg",
                         "contents": [
                             {
-                                "type": "text",
-                                "text": f"HP {current_hp}/{max_hp}",
-                                "size": "xs",
-                                "color": "#ffffff",
-                                "flex": 1,
+                                "type": "box",
+                                "layout": "horizontal",
+                                "contents": [
+                                    {"type": "text", "text": "HP", "size": "xs", "weight": "bold", "color": COLOR_HP_GOOD, "flex": 0},
+                                    {"type": "text", "text": f"{current_hp}/{max_hp}", "size": "xs", "color": COLOR_TEXT, "align": "end", "flex": 1}
+                                ],
+                                "margin": "xs"
                             },
                             {
                                 "type": "box",
                                 "layout": "vertical",
                                 "width": "100%",
-                                "height": "6px",
-                                "backgroundColor": "#333333",
-                                "cornerRadius": "3px",
+                                "height": "8px",
+                                "backgroundColor": "#30363D",
+                                "cornerRadius": "4px",
+                                "margin": "sm",
                                 "contents": [
                                     {
                                         "type": "box",
                                         "layout": "vertical",
                                         "width": f"{hp_pct}%",
-                                        "height": "6px",
+                                        "height": "8px",
                                         "backgroundColor": hp_color,
-                                        "cornerRadius": "3px",
-                                        "contents": [],
+                                        "cornerRadius": "4px",
+                                        "contents": []
                                     }
-                                ],
-                            },
+                                ]
+                            }
                         ],
+                        "backgroundColor": COLOR_PANEL,
+                        "paddingAll": "md",
+                        "cornerRadius": "12px"
                     },
-                    # Attributes
+                    # Stats Grid
                     {
-                        "type": "box",
-                        "layout": "horizontal",
-                        "margin": "xl",
-                        "contents": [
-                            {"type": "text", "text": f"STR: {str_val}", "size": "sm", "color": "#cccccc"},
-                            {"type": "text", "text": f"INT: {int_val}", "size": "sm", "color": "#cccccc"},
-                            {"type": "text", "text": f"VIT: {vit_val}", "size": "sm", "color": "#cccccc"},
-                        ],
+                        "type": "text",
+                        "text": "ATTRIBUTES",
+                        "size": "xxs",
+                        "weight": "bold",
+                        "color": COLOR_MUTED,
+                        "margin": "xl"
                     },
                     {
                         "type": "box",
                         "layout": "horizontal",
                         "margin": "md",
                         "contents": [
-                            {"type": "text", "text": f"WIS: {wis_val}", "size": "sm", "color": "#cccccc"},
-                            {"type": "text", "text": f"CHA: {cha_val}", "size": "sm", "color": "#cccccc"},
-                            {"type": "text", "text": " ", "size": "sm"},
-                        ],
-                    },
+                            # Column 1
+                            {
+                                "type": "box",
+                                "layout": "vertical",
+                                "flex": 1,
+                                "contents": [
+                                    {"type": "text", "text": f"STR  {str_val}", "size": "sm", "color": COLOR_TEXT, "margin": "sm", "weight": "bold"},
+                                    {"type": "text", "text": f"INT  {int_val}", "size": "sm", "color": COLOR_TEXT, "margin": "sm", "weight": "bold"},
+                                    {"type": "text", "text": f"VIT  {vit_val}", "size": "sm", "color": COLOR_TEXT, "margin": "sm", "weight": "bold"},
+                                ]
+                            },
+                            # Column 2
+                            {
+                                "type": "box",
+                                "layout": "vertical",
+                                "flex": 1,
+                                "contents": [
+                                    {"type": "text", "text": f"WIS  {wis_val}", "size": "sm", "color": COLOR_TEXT, "margin": "sm", "weight": "bold"},
+                                    {"type": "text", "text": f"CHA  {cha_val}", "size": "sm", "color": COLOR_TEXT, "margin": "sm", "weight": "bold"},
+                                    {"type": "text", "text": " ", "size": "sm", "margin": "sm"}, # Spacer
+                                ]
+                            }
+                        ]
+                    }
                 ],
+                "backgroundColor": COLOR_BG,
+                "paddingAll": "lg"
             },
             "footer": {
                 "type": "box",
                 "layout": "vertical",
                 "contents": [
-                    {"type": "button", "action": {"type": "postback", "label": "REFRESH", "data": "action=status"}}
+                    {
+                        "type": "button",
+                        "action": {"type": "postback", "label": "REFRESH", "data": "action=status"},
+                        "style": "secondary",
+                        "height": "sm",
+                        "color": COLOR_ACCENT
+                    }
                 ],
-            },
+                "backgroundColor": COLOR_BG,
+                "paddingAll": "md"
+            }
         }
 
         return FlexMessage(alt_text="Status Window", contents=FlexContainer.from_dict(bubble))

@@ -30,6 +30,11 @@ Run this skill whenever you need to confirm the project state, especially after 
     - **Immediate Feedback**: Verify `immediate_responder.py` is actively called in `main.py`.
     - **Multi-Objective**: Verify `QuestService` uses `_calculate_diversity_score`.
 
+5.  **Synergy Verification (Phase 4)**
+    - Verifies the rigorous interaction between PID, Narrator, Fogg, and AI Director.
+    - Run: `uv run pytest tests/system/test_behavioral_synergy.py -v`
+
+
 ## Output
 Review the output of the commands. 
 - If Alembic is not at `head`, run `uv run alembic upgrade head`.

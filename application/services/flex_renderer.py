@@ -771,7 +771,8 @@ class FlexRenderer:
                             "data": "action=reroll_quests",
                             "displayText": "重新生成任務 (消耗 100G)",
                         },
-                        "style": "secondary",
+                        "style": "primary",
+                        "color": "#F5C542",
                         "height": "sm",
                     }
                 ],
