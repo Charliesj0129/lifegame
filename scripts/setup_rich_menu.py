@@ -13,6 +13,12 @@ async def main():
     try:
         mappings = rich_menu_service.setup_menus()
         print(f">>> Rich Menus Created: {mappings}")
+
+        # Set Default to MAIN
+        if "MAIN" in mappings:
+            main_id = mappings["MAIN"]
+            rich_menu_service.api.set_default_rich_menu(main_id)
+            print(f">>> Set Default Menu to: {main_id}")
     except Exception as e:
         print(f"FAILED: {e}")
 
